@@ -3,11 +3,11 @@ import { NextResponse, type NextRequest } from 'next/server';
 import type { Database } from '@/types/supabase.types';
 
 /**
- * Updates the Supabase session for every incoming request via Next.js middleware.
+ * Updates the Supabase session for every incoming request via Next.js proxy.
  *
  * This function reads cookies from the request, creates a Supabase client,
  * and sets any updated cookies on the response. It must be called from
- * the root `middleware.ts` file.
+ * the root `proxy.ts` file.
  *
  * @param request - The incoming Next.js request object.
  * @returns A NextResponse with any updated session cookies.
