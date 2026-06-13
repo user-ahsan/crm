@@ -1,13 +1,7 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { SavedView, SavedViewFormData, ViewEntityType } from '@/types/saved-view.types';
-import type { DbSavedView } from '@/types/supabase.types';
+import type { DbSavedView, SavedViewUpdate } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
 
 function mapRow(row: DbSavedView): SavedView {
   return {
@@ -26,7 +20,7 @@ function mapRow(row: DbSavedView): SavedView {
 export const savedViewService = {
   async getViews(entityType: ViewEntityType): Promise<SavedView[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('saved_views')
         .select('*')
@@ -41,7 +35,7 @@ export const savedViewService = {
 
   async create(data: SavedViewFormData): Promise<SavedView> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbRow = {
         name: data.name,
         entity_type: data.entityType,
@@ -64,8 +58,8 @@ export const savedViewService = {
 
   async update(id: string, data: Partial<SavedViewFormData>): Promise<SavedView | undefined> {
     try {
-      const supabase = await getClient();
-      const dbData: Record<string, unknown> = {};
+      const supabase = await getSharedClient();
+      const dbData: Partial<SavedViewUpdate> = {};
       if (data.name !== undefined) dbData.name = data.name;
       if (data.filters !== undefined) dbData.filters = data.filters;
       if (data.sortBy !== undefined) dbData.sort_by = data.sortBy;
@@ -88,7 +82,7 @@ export const savedViewService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase.from('saved_views').delete().eq('id', id);
       if (error) throw new Error(error.message);
       return true;

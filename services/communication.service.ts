@@ -1,14 +1,8 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { Email, EmailFormData, CallLog, CallLogFormData, Note, NoteFormData } from '@/types/communication.types';
-import type { DbEmailHistory, DbCallLog, DbNote } from '@/types/supabase.types';
+import type { DbEmailHistory, DbCallLog, DbNote, EmailHistoryInsert, CallLogInsert, NoteInsert } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
 
 function mapRowToEmail(row: DbEmailHistory): Email {
   return {
@@ -26,8 +20,8 @@ function mapRowToEmail(row: DbEmailHistory): Email {
   };
 }
 
-function mapEmailToDb(data: EmailFormData & { fromAddress: string; direction: Email['direction']; status: Email['status'] }): Record<string, unknown> {
-  const db: Record<string, unknown> = {};
+function mapEmailToDb(data: EmailFormData & { fromAddress: string; direction: Email['direction']; status: Email['status'] }): Partial<EmailHistoryInsert> {
+  const db: Partial<EmailHistoryInsert> = {};
   db.from_address = data.fromAddress;
   db.to_address = data.toAddress;
   db.subject = data.subject;
@@ -58,8 +52,8 @@ function mapRowToCallLog(row: DbCallLog): CallLog {
   };
 }
 
-function mapFormToDb(data: CallLogFormData & { createdBy: string }): Record<string, unknown> {
-  const db: Record<string, unknown> = {
+function mapFormToDb(data: CallLogFormData & { createdBy: string }): Partial<CallLogInsert> {
+  const db: Partial<CallLogInsert> = {
     direction: data.direction,
     caller: data.caller,
     callee: data.callee,
@@ -86,8 +80,8 @@ function mapRowToNote(row: DbNote): Note {
   };
 }
 
-function mapNoteToDb(data: Partial<NoteFormData>): Record<string, unknown> {
-  const db: Record<string, unknown> = {};
+function mapNoteToDb(data: Partial<NoteFormData>): Partial<NoteInsert> {
+  const db: Partial<NoteInsert> = {};
   if (data.title !== undefined) db.title = data.title;
   if (data.body !== undefined) db.body = data.body;
   if (data.relatedToType !== undefined) db.related_to_type = data.relatedToType || null;
@@ -98,7 +92,7 @@ function mapNoteToDb(data: Partial<NoteFormData>): Record<string, unknown> {
 export const communicationService = {
   async getCallLogs(relatedToType?: string, relatedToId?: string): Promise<CallLog[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       let query = supabase
         .from('call_logs')
         .select('*')
@@ -118,7 +112,7 @@ export const communicationService = {
 
   async logCall(data: CallLogFormData): Promise<CallLog> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data: userData } = await supabase.auth.getUser();
       const createdBy = userData?.user?.id ?? 'system';
       const dbRow = {
@@ -140,7 +134,7 @@ export const communicationService = {
 
   async getNotes(relatedToType?: string, relatedToId?: string): Promise<Note[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       let query = supabase.from('notes').select('*').order('created_at', { ascending: false });
       if (relatedToType) query = query.eq('related_to_type', relatedToType);
       if (relatedToId) query = query.eq('related_to_id', relatedToId);
@@ -154,7 +148,7 @@ export const communicationService = {
 
   async getNote(id: string): Promise<Note | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('notes')
         .select('*')
@@ -172,7 +166,7 @@ export const communicationService = {
 
   async createNote(data: NoteFormData & { createdBy: string }): Promise<Note> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbRow = {
         ...mapNoteToDb(data),
         created_by: data.createdBy,
@@ -191,7 +185,7 @@ export const communicationService = {
 
   async updateNote(id: string, data: Partial<NoteFormData>): Promise<Note | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbData = { ...mapNoteToDb(data) };
       const { data: updated, error } = await supabase
         .from('notes')
@@ -211,7 +205,7 @@ export const communicationService = {
 
   async deleteNote(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase.from('notes').delete().eq('id', id);
       if (error) throw new Error(error.message);
       return true;
@@ -224,7 +218,7 @@ export const communicationService = {
 
   async getEmails(relatedToType?: string, relatedToId?: string): Promise<Email[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       let query = supabase.from('email_history').select('*');
       if (relatedToType) query = query.eq('related_to_type', relatedToType);
       if (relatedToId) query = query.eq('related_to_id', relatedToId);
@@ -238,7 +232,7 @@ export const communicationService = {
 
   async sendEmail(data: EmailFormData): Promise<Email> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbRow = {
         ...mapEmailToDb({ ...data, fromAddress: 'crm@example.com', direction: 'outbound', status: 'sent' }),
       };
@@ -266,7 +260,7 @@ export const communicationService = {
 
   async saveDraft(data: EmailFormData): Promise<Email> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbRow = {
         ...mapEmailToDb({ ...data, fromAddress: 'crm@example.com', direction: 'outbound', status: 'draft' }),
       };

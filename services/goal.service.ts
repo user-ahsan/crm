@@ -1,13 +1,7 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { Goal } from '@/types/goal.types';
 import type { DbGoal, GoalInsert, GoalUpdate } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
 
 function mapRow(row: DbGoal): Goal {
   return {
@@ -30,7 +24,7 @@ function mapRow(row: DbGoal): Goal {
 export const goalService = {
   async getAll(): Promise<Goal[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('goals')
         .select('*')
@@ -44,7 +38,7 @@ export const goalService = {
 
   async getById(id: string): Promise<Goal | null> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('goals')
         .select('*')
@@ -59,7 +53,7 @@ export const goalService = {
 
   async create(data: GoalInsert): Promise<Goal> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data: inserted, error } = await supabase
         .from('goals')
         .insert(data)
@@ -74,7 +68,7 @@ export const goalService = {
 
   async update(id: string, data: GoalUpdate): Promise<Goal> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data: updated, error } = await supabase
         .from('goals')
         .update(data)
@@ -90,7 +84,7 @@ export const goalService = {
 
   async delete(id: string): Promise<void> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase.from('goals').delete().eq('id', id);
       if (error) throw new Error(error.message);
     } catch (e) {
@@ -100,7 +94,7 @@ export const goalService = {
 
   async getByPeriod(period: string, startDate?: string, endDate?: string): Promise<Goal[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       let query = supabase.from('goals').select('*').eq('period', period);
       if (startDate) query = query.gte('start_date', startDate);
       if (endDate) query = query.lte('end_date', endDate);

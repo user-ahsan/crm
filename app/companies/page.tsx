@@ -26,6 +26,8 @@ import { useCsvExport } from '@/hooks/useCsvExport';
 import { useDebounce } from '@/hooks/useDebounce';
 import { companyService } from '@/services/company.service';
 import { tagService } from '@/services/tag.service';
+import { convertToCSV, downloadCSV } from '@/lib/csv-export';
+import { COMPANY_EXPORT_COLUMNS } from '@/lib/csv-export-definitions';
 import type { SavedView } from '@/types/saved-view.types';
 
 /* ── Inner component with useSearchParams (requires Suspense wrapper) ── */
@@ -146,24 +148,37 @@ function CompaniesPageContent() {
     // The hook's internal state is already updated
   }, []);
 
-  const handleBulkAction = useCallback(async (action: string, ids: string[], payload?: Record<string, string>) => {
+  // ── Bulk action handlers ──────────────────────────────────────────
+
+  const handleBulkDelete = useCallback(async (ids: string[]) => {
     for (const id of ids) {
-      switch (action) {
-        case 'add_tag':
-          if (payload?.tag) {
-            const existing = companies.find((c) => c.id === id);
-            if (existing && !existing.tags.includes(payload.tag)) {
-              await companyService.update(id, { tags: [...existing.tags, payload.tag] });
-            }
-          }
-          break;
-        case 'delete':
-          await companyService.delete(id);
-          break;
+      await companyService.delete(id);
+    }
+    refresh();
+  }, [refresh]);
+
+  const handleBulkTag = useCallback(async (ids: string[], tagNames: string[]) => {
+    for (const id of ids) {
+      const existing = companies.find((c) => c.id === id);
+      if (existing) {
+        const merged = [...new Set([...existing.tags, ...tagNames])];
+        await companyService.update(id, { tags: merged });
       }
     }
     refresh();
   }, [refresh, companies]);
+
+  const handleBulkExport = useCallback((ids: string[]) => {
+    const selected = filteredCompanies.filter((c) => ids.includes(c.id));
+    if (selected.length === 0) {
+      toast.error('No companies to export');
+      return;
+    }
+    const csv = convertToCSV(selected, COMPANY_EXPORT_COLUMNS);
+    const filename = `companies-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    downloadCSV(csv, filename);
+    toast.success(`Exported ${selected.length} compan${selected.length !== 1 ? 'ies' : 'y'}`);
+  }, [filteredCompanies]);
 
   // --- Loading State ---
   if (loading) {
@@ -262,9 +277,12 @@ function CompaniesPageContent() {
       {/* Bulk Action Bar */}
       {selectedCompanyIds.size > 0 && (
         <BulkActionBar
-          selectedIds={Array.from(selectedCompanyIds)}
+          selectedIds={selectedCompanyIds}
           entityType="company"
-          onAction={handleBulkAction}
+          onBulkDelete={handleBulkDelete}
+          onBulkTag={handleBulkTag}
+          onBulkExport={handleBulkExport}
+          tags={tags}
           onClear={() => setSelectedCompanyIds(new Set())}
         />
       )}

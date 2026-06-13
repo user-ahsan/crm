@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { IconPlus } from '@tabler/icons-react';
 import { toast } from 'sonner';
-import type { Lead, LeadStatus, LeadSource, LeadPriority } from '@/types/lead.types';
+import type { Lead, LeadFormData, LeadStatus, LeadSource, LeadPriority } from '@/types/lead.types';
 import { PageHeader } from '@/components/common/PageHeader';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -34,6 +34,8 @@ import { ViewsDropdown } from '@/components/common/ViewsDropdown';
 import { useCsvExport } from '@/hooks/useCsvExport';
 import { leadService } from '@/services/lead.service';
 import { tagService } from '@/services/tag.service';
+import { convertToCSV, downloadCSV } from '@/lib/csv-export';
+import { LEAD_EXPORT_COLUMNS } from '@/lib/csv-export-definitions';
 import type { SavedView } from '@/types/saved-view.types';
 
 const ALL_STATUS = '__all_statuses';
@@ -204,33 +206,51 @@ function LeadsPageContent() {
     // The hook's internal state is already updated by createLead/updateLead
   }, []);
 
-  const handleBulkAction = useCallback(async (action: string, ids: string[], payload?: Record<string, string>) => {
+  // ── Bulk action handlers ──────────────────────────────────────────
+
+  const handleBulkDelete = useCallback(async (ids: string[]) => {
     for (const id of ids) {
-      switch (action) {
-        case 'change_status':
-          if (payload?.status) await leadService.update(id, { status: payload.status as Lead['status'] });
-          break;
-        case 'change_priority':
-          if (payload?.priority) await leadService.update(id, { priority: payload.priority as Lead['priority'] });
-          break;
-        case 'assign_to':
-          if (payload?.assignedTo) await leadService.update(id, { assignedTo: payload.assignedTo });
-          break;
-        case 'add_tag':
-          if (payload?.tag) {
-            const existing = leads.find((l) => l.id === id);
-            if (existing && !existing.tags.includes(payload.tag)) {
-              await leadService.update(id, { tags: [...existing.tags, payload.tag] });
-            }
-          }
-          break;
-        case 'delete':
-          await leadService.delete(id);
-          break;
+      await leadService.delete(id);
+    }
+    refresh();
+  }, [refresh]);
+
+  const handleBulkUpdate = useCallback(async (ids: string[], data: Record<string, unknown>) => {
+    for (const id of ids) {
+      await leadService.update(id, data as Partial<LeadFormData>);
+    }
+    refresh();
+  }, [refresh]);
+
+  const handleBulkAssign = useCallback(async (ids: string[], userId: string) => {
+    for (const id of ids) {
+      await leadService.update(id, { assignedTo: userId });
+    }
+    refresh();
+  }, [refresh]);
+
+  const handleBulkTag = useCallback(async (ids: string[], tagNames: string[]) => {
+    for (const id of ids) {
+      const existing = leads.find((l) => l.id === id);
+      if (existing) {
+        const merged = [...new Set([...existing.tags, ...tagNames])];
+        await leadService.update(id, { tags: merged });
       }
     }
     refresh();
   }, [refresh, leads]);
+
+  const handleBulkExport = useCallback((ids: string[]) => {
+    const selected = filteredLeads.filter((l) => ids.includes(l.id));
+    if (selected.length === 0) {
+      toast.error('No leads to export');
+      return;
+    }
+    const csv = convertToCSV(selected, LEAD_EXPORT_COLUMNS);
+    const filename = `leads-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    downloadCSV(csv, filename);
+    toast.success(`Exported ${selected.length} lead${selected.length !== 1 ? 's' : ''}`);
+  }, [filteredLeads]);
 
   // --- Loading State ---
   if (loading) {
@@ -378,9 +398,14 @@ function LeadsPageContent() {
       {/* Bulk Action Bar */}
       {selectedLeadIds.size > 0 && (
         <BulkActionBar
-          selectedIds={Array.from(selectedLeadIds)}
+          selectedIds={selectedLeadIds}
           entityType="lead"
-          onAction={handleBulkAction}
+          onBulkDelete={handleBulkDelete}
+          onBulkUpdate={handleBulkUpdate}
+          onBulkAssign={handleBulkAssign}
+          onBulkTag={handleBulkTag}
+          onBulkExport={handleBulkExport}
+          tags={tags}
           onClear={() => setSelectedLeadIds(new Set())}
         />
       )}

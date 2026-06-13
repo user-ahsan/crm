@@ -26,22 +26,13 @@ export function useActivities() {
     let cancelled = false;
     const controller = new AbortController();
     (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await activityService.getAll();
-        if (!cancelled) setActivities(data);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load activities');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      await refresh();
     })();
     return () => {
       cancelled = true;
       controller.abort();
     };
-  }, []);
+  }, [refresh]);
 
   const getByEntity = useCallback(async (entityType: string, entityId: string) => {
     try {

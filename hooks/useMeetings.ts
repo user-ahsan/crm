@@ -25,28 +25,8 @@ export function useMeetings() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await meetingService.getAll();
-        if (!cancelled) {
-          setMeetings(data);
-          useEntityCache.getState().setMeetings(data);
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load meetings');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, []);
+    refresh();
+  }, [refresh]);
 
   const getByEntity = useCallback(async (entityType: string, entityId: string) => {
     try {

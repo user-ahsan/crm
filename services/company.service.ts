@@ -1,20 +1,14 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { Company, CompanyFormData } from '@/types/company.types';
-import type { DbCompany } from '@/types/supabase.types';
+import type { DbCompany, CompanyInsert } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
 
 interface DuplicateGroup {
-  company: Company;
+  item: Company;
   duplicates: Company[];
   score: number;
-}
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
 }
 
 function mapRowToCompany(row: DbCompany): Company {
@@ -34,8 +28,8 @@ function mapRowToCompany(row: DbCompany): Company {
   };
 }
 
-function mapCompanyToDb(company: Partial<CompanyFormData>): Record<string, unknown> {
-  const db: Record<string, unknown> = {};
+function mapCompanyToDb(company: Partial<CompanyFormData>): Partial<CompanyInsert> {
+  const db: Partial<CompanyInsert> = {};
   if (company.name !== undefined) db.name = company.name;
   if (company.industry !== undefined) db.industry = company.industry || null;
   if (company.size !== undefined) db.size = company.size || null;
@@ -49,7 +43,7 @@ function mapCompanyToDb(company: Partial<CompanyFormData>): Record<string, unkno
 export const companyService = {
   async getAll(page = 1, pageSize = 50): Promise<Company[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('companies')
         .select('*')
@@ -64,7 +58,7 @@ export const companyService = {
 
   async getById(id: string): Promise<Company | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('companies')
         .select('*')
@@ -82,7 +76,7 @@ export const companyService = {
 
   async search(query: string, page = 1, pageSize = 50): Promise<Company[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const s = query.toLowerCase();
       const { data, error } = await supabase
         .from('companies')
@@ -99,7 +93,7 @@ export const companyService = {
 
   async create(data: CompanyFormData): Promise<Company> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbRow = {
         ...mapCompanyToDb(data),
         contact_ids: [],
@@ -127,7 +121,7 @@ export const companyService = {
 
   async update(id: string, data: Partial<CompanyFormData>): Promise<Company | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbData = { ...mapCompanyToDb(data) };
       const { data: updated, error } = await supabase
         .from('companies')
@@ -150,7 +144,7 @@ export const companyService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       await supabase.from('tasks').delete().eq('related_to_id', id);
       await supabase.from('meetings').delete().eq('related_to_id', id);
       await supabase.from('activities').delete().eq('entity_id', id);
@@ -204,7 +198,7 @@ export const companyService = {
         }
 
         if (matches.length > 0) {
-          groups.push({ company: a, duplicates: matches, score: maxScore });
+          groups.push({ item: a, duplicates: matches, score: maxScore });
           for (const m of matches) visited.add(m.id);
           visited.add(a.id);
         }
@@ -218,7 +212,7 @@ export const companyService = {
 
   async merge(survivorId: string, mergeIds: string[]): Promise<Company> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
 
       await supabase.from('tasks').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'company');
       await supabase.from('meetings').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'company');

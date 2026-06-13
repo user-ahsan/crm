@@ -1,13 +1,7 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { EmailSequence, CampaignEmail, EmailSequenceFormData, CampaignEmailFormData, CampaignStatus } from '@/types/campaign.types';
-import type { DbEmailSequence, DbCampaignEmail } from '@/types/supabase.types';
+import type { DbEmailSequence, DbCampaignEmail, EmailSequenceInsert, EmailSequenceUpdate, CampaignEmailInsert } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
 
 function mapSequenceRow(row: DbEmailSequence): EmailSequence {
   return {
@@ -36,7 +30,7 @@ function mapEmailRow(row: DbCampaignEmail): CampaignEmail {
 export const campaignService = {
   async getSequences(): Promise<EmailSequence[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('email_sequences')
         .select('*')
@@ -50,7 +44,7 @@ export const campaignService = {
 
   async getSequence(id: string): Promise<EmailSequence | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('email_sequences')
         .select('*')
@@ -68,14 +62,14 @@ export const campaignService = {
 
   async createSequence(data: EmailSequenceFormData): Promise<EmailSequence> {
     try {
-      const supabase = await getClient();
-      const dbRow: Record<string, unknown> = {
+      const supabase = await getSharedClient();
+      const { data: session } = await supabase.auth.getSession();
+      const dbRow: Partial<EmailSequenceInsert> = {
         name: data.name,
         description: data.description ?? '',
         status: data.status ?? 'draft',
+        created_by: session?.session?.user?.id ?? 'unknown',
       };
-      const { data: session } = await supabase.auth.getSession();
-      dbRow.created_by = session?.session?.user?.id ?? 'unknown';
 
       const { data: inserted, error } = await supabase
         .from('email_sequences')
@@ -91,8 +85,8 @@ export const campaignService = {
 
   async updateSequence(id: string, data: Partial<EmailSequenceFormData>): Promise<EmailSequence | undefined> {
     try {
-      const supabase = await getClient();
-      const dbData: Record<string, unknown> = {};
+      const supabase = await getSharedClient();
+      const dbData: Partial<EmailSequenceUpdate> = {};
       if (data.name !== undefined) dbData.name = data.name;
       if (data.description !== undefined) dbData.description = data.description;
       if (data.status !== undefined) dbData.status = data.status;
@@ -115,7 +109,7 @@ export const campaignService = {
 
   async deleteSequence(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase.from('email_sequences').delete().eq('id', id);
       if (error) throw new Error(error.message);
       return true;
@@ -130,7 +124,7 @@ export const campaignService = {
 
   async getCampaignEmails(sequenceId: string): Promise<CampaignEmail[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('campaign_emails')
         .select('*')
@@ -145,8 +139,8 @@ export const campaignService = {
 
   async addCampaignEmail(data: CampaignEmailFormData): Promise<CampaignEmail> {
     try {
-      const supabase = await getClient();
-      const dbRow: Record<string, unknown> = {
+      const supabase = await getSharedClient();
+      const dbRow: Partial<CampaignEmailInsert> = {
         sequence_id: data.sequenceId,
         subject: data.subject,
         body: data.body ?? '',
@@ -167,8 +161,8 @@ export const campaignService = {
 
   async updateCampaignEmail(id: string, data: Partial<CampaignEmailFormData>): Promise<CampaignEmail | undefined> {
     try {
-      const supabase = await getClient();
-      const dbData: Record<string, unknown> = {};
+      const supabase = await getSharedClient();
+      const dbData: Partial<CampaignEmailInsert> = {};
       if (data.subject !== undefined) dbData.subject = data.subject;
       if (data.body !== undefined) dbData.body = data.body;
       if (data.delayDays !== undefined) dbData.delay_days = data.delayDays;
@@ -192,7 +186,7 @@ export const campaignService = {
 
   async deleteCampaignEmail(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase.from('campaign_emails').delete().eq('id', id);
       if (error) throw new Error(error.message);
       return true;

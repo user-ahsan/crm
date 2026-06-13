@@ -1,11 +1,7 @@
 import type { LeadFormData } from '@/types/lead.types';
+import type { ValidationResult } from '@/types/common.types';
 
 export const PHONE_REGEX = /^\+?[\d\s\-().]{7,20}$/;
-
-export interface ValidationResult {
-  isValid: boolean;
-  errors: Record<string, string>;
-}
 
 export function validateLeadForm(data: Partial<LeadFormData>): ValidationResult {
   const errors: Record<string, string> = {};

@@ -3,9 +3,6 @@
 import {
   createContext,
   useContext,
-  useState,
-  useCallback,
-  useEffect,
   useMemo,
   type ReactNode,
 } from 'react';
@@ -17,9 +14,8 @@ import type {
   PermissionEntity,
   PermissionScope,
 } from '@/types/team.types';
-import { teamService } from '@/services/team.service';
+import { useTeamData } from '@/hooks/useTeamData';
 import { hasPermission, canAccessRecord } from '@/modules/teams/teamPermissions';
-import { createClient } from '@/lib/supabase/client';
 
 /* ── Context Value Interface ────────────────────────────────── */
 
@@ -51,54 +47,14 @@ const TeamContext = createContext<TeamContextValue | undefined>(undefined);
 /* ── Provider ───────────────────────────────────────────────── */
 
 export function TeamProvider({ children }: { children: ReactNode }) {
-  const [team, setTeam] = useState<Team | null>(null);
-  const [members, setMembers] = useState<TeamMember[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-
-  /* ── Data Loader (waits for userId before resolving) ─────── */
-  const load = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      /* 1. Get the real user ID from Supabase Auth */
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      const uid = user?.id ?? null;
-      setUserId(uid);
-
-      /* 2. If we have no authenticated user, stop here */
-      if (!uid) {
-        setTeam(null);
-        setMembers([]);
-        return;
-      }
-
-      /* 3. Load team data */
-      const currentTeam = await teamService.getCurrentTeam();
-      setTeam(currentTeam);
-
-      if (currentTeam) {
-        const teamMembers = await teamService.getMembers(currentTeam.id);
-        setMembers(teamMembers);
-      } else {
-        setMembers([]);
-      }
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'An unexpected error occurred while loading team data';
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  /* Load on mount */
-  useEffect(() => {
-    load();
-  }, [load]);
+  const {
+    team,
+    members,
+    userId,
+    loading,
+    error,
+    refresh,
+  } = useTeamData();
 
   /* Derive current member from the real user's ID */
   const currentMember = userId ? members.find((m) => m.userId === userId) ?? null : null;
@@ -129,9 +85,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       ...permissionHelpers,
-      refresh: load,
+      refresh,
     }),
-    [team, members, currentMember, role, loading, error, permissionHelpers, load],
+    [team, members, currentMember, role, loading, error, permissionHelpers, refresh],
   );
 
   return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;

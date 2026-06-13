@@ -1,33 +1,12 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { Lead, LeadFormData, LeadFilters } from '@/types/lead.types';
-import type { DbLead, DbLeadScore } from '@/types/supabase.types';
+import type { DbLead, DbLeadScore, LeadInsert } from '@/types/supabase.types';
 import type { LeadScore } from '@/types/lead-scoring.types';
+import { findDuplicates, normalizePhone, fuzzyNameMatch } from '@/lib/utils';
+import type { DuplicateGroup } from '@/lib/utils';
 import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
-
-function normalizePhone(phone: string): string {
-  return phone.replace(/\D/g, '').slice(-10);
-}
-
-function fuzzyNameMatch(a: string, b: string): boolean {
-  const na = a.toLowerCase().trim();
-  const nb = b.toLowerCase().trim();
-  if (na.length < 3 || nb.length < 3) return na === nb;
-  return na.slice(0, 3) === nb.slice(0, 3) && na.slice(-3) === nb.slice(-3);
-}
-
-interface DuplicateGroup {
-  lead: Lead;
-  duplicates: Lead[];
-  score: number;
-}
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
 
 function mapScoreRow(row: DbLeadScore): LeadScore {
   return {
@@ -60,8 +39,8 @@ function mapRowToLead(row: DbLead): Lead {
   };
 }
 
-function mapLeadToDb(lead: Partial<LeadFormData>): Record<string, unknown> {
-  const db: Record<string, unknown> = {};
+function mapLeadToDb(lead: Partial<LeadFormData>): Partial<LeadInsert> {
+  const db: Partial<LeadInsert> = {};
   if (lead.fullName !== undefined) db.full_name = lead.fullName;
   if (lead.email !== undefined) db.email = lead.email || null;
   if (lead.phone !== undefined) db.phone = lead.phone || null;
@@ -81,7 +60,7 @@ function mapLeadToDb(lead: Partial<LeadFormData>): Record<string, unknown> {
 export const leadService = {
   async getAll(page = 1, pageSize = 50): Promise<Lead[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('leads')
         .select('*')
@@ -96,7 +75,7 @@ export const leadService = {
 
   async getById(id: string): Promise<Lead | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('leads')
         .select('*')
@@ -114,7 +93,7 @@ export const leadService = {
 
   async getFiltered(filters: LeadFilters, page = 1, pageSize = 50): Promise<Lead[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       let query = supabase.from('leads').select('*');
       if (filters.search) {
         const s = filters.search.toLowerCase();
@@ -137,16 +116,16 @@ export const leadService = {
 
   async create(data: LeadFormData): Promise<Lead> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       if (data.assignedTo) {
         const { data: user } = await supabase.from('profiles').select('id').eq('id', data.assignedTo).maybeSingle();
-        if (!user) console.warn(`[Lead] assignedTo user ${data.assignedTo} not found`);
+        if (!user) throw new Error(`Lead assignedTo user ${data.assignedTo} not found`);
       }
       if (data.companyName) {
         const { data: existing } = await supabase.from('companies').select('id').eq('name', data.companyName).maybeSingle();
         if (!existing) {
           const { data: newCompany } = await supabase.from('companies').insert({ name: data.companyName }).select().single();
-          if (newCompany) console.log(`[Lead] Auto-created company "${data.companyName}"`);
+          if (!newCompany) throw new Error(`Failed to auto-create company "${data.companyName}"`);
         }
       }
       const dbRow = {
@@ -179,10 +158,10 @@ export const leadService = {
 
   async update(id: string, data: Partial<LeadFormData>): Promise<Lead | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       if (data.assignedTo) {
         const { data: user } = await supabase.from('profiles').select('id').eq('id', data.assignedTo).maybeSingle();
-        if (!user) console.warn(`[Lead] assignedTo user ${data.assignedTo} not found`);
+        if (!user) throw new Error(`Lead assignedTo user ${data.assignedTo} not found`);
       }
       const dbData = { ...mapLeadToDb(data) };
       const { data: updated, error } = await supabase
@@ -211,7 +190,7 @@ export const leadService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       await supabase.from('tasks').delete().eq('related_to_id', id);
       await supabase.from('meetings').delete().eq('related_to_id', id);
       await supabase.from('activities').delete().eq('entity_id', id);
@@ -229,59 +208,24 @@ export const leadService = {
     return this.update(id, { status });
   },
 
-  async findDuplicates(): Promise<DuplicateGroup[]> {
+  /**
+   * Find duplicate leads using email, phone, name, and company matching.
+   * Uses shared utilities from @/lib/utils (normalizePhone, fuzzyNameMatch).
+   * @see contactService.findDuplicates — same pattern with different weights
+   */
+  async findDuplicates(): Promise<DuplicateGroup<Lead>[]> {
     try {
       const all = await this.getAll();
-      const groups: DuplicateGroup[] = [];
-      const visited = new Set<string>();
-
-      for (let i = 0; i < all.length; i++) {
-        if (visited.has(all[i].id)) continue;
-        const a = all[i];
-        const matches: Lead[] = [];
-        let maxScore = 0;
-
-        for (let j = i + 1; j < all.length; j++) {
-          const b = all[j];
-          if (visited.has(b.id)) continue;
-          let score = 0;
-          const reasons: string[] = [];
-
-          if (a.email && b.email && a.email.toLowerCase() === b.email.toLowerCase()) {
-            score += 40;
-            reasons.push('email');
-          }
-          if (a.phone && b.phone) {
-            const npA = normalizePhone(a.phone);
-            const npB = normalizePhone(b.phone);
-            if (npA === npB && npA.length >= 10) {
-              score += 35;
-              reasons.push('phone');
-            }
-          }
-          if (a.fullName && b.fullName && fuzzyNameMatch(a.fullName, b.fullName)) {
-            score += 15;
-            if (!reasons.includes('email') && !reasons.includes('phone')) reasons.push('name');
-          }
-          if (a.companyName && b.companyName && a.companyName.toLowerCase() === b.companyName.toLowerCase()) {
-            score += 10;
-            if (!reasons.includes('email') && !reasons.includes('phone')) reasons.push('company');
-          }
-
-          if (score >= 25) {
-            matches.push(b);
-            if (score > maxScore) maxScore = score;
-          }
-        }
-
-        if (matches.length > 0) {
-          groups.push({ lead: a, duplicates: matches, score: maxScore });
-          for (const m of matches) visited.add(m.id);
-          visited.add(a.id);
-        }
-      }
-
-      return groups.sort((a, b) => b.score - a.score);
+      return findDuplicates(
+        all,
+        [
+          { key: (l: Lead) => l.email ?? '', weight: 40, type: 'exact' as const },
+          { key: (l: Lead) => l.phone ?? '', weight: 35, type: 'normalized' as const },
+          { key: (l: Lead) => l.fullName ?? '', weight: 15, type: 'fuzzy' as const },
+          { key: (l: Lead) => l.companyName ?? '', weight: 10, type: 'exact' as const },
+        ],
+        25,
+      );
     } catch (e) {
       throw new Error(formatSupabaseError(e));
     }
@@ -289,7 +233,7 @@ export const leadService = {
 
   async mergeLeads(survivorId: string, mergeIds: string[]): Promise<Lead> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
 
       await supabase.from('tasks').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'lead');
       await supabase.from('meetings').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'lead');
@@ -326,7 +270,7 @@ export const leadService = {
 
   async getScore(leadId: string): Promise<LeadScore | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('lead_scores')
         .select('*')
@@ -342,7 +286,7 @@ export const leadService = {
   async updateScore(leadId: string): Promise<LeadScore> {
     const { score, factors } = await this.calculateScore(leadId);
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('lead_scores')
         .upsert({ lead_id: leadId, score, factors }, { onConflict: 'lead_id' })
@@ -355,21 +299,25 @@ export const leadService = {
     }
   },
 
-  async batchUpdateScores(): Promise<number> {
+  async batchUpdateScores(): Promise<{ updated: number; failed: number }> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data: leads } = await supabase.from('leads').select('id');
-      if (!leads) return 0;
+      if (!leads) return { updated: 0, failed: 0 };
       let updated = 0;
+      const failedIds: string[] = [];
       for (const lead of leads) {
         try {
           await this.updateScore(lead.id);
           updated++;
         } catch {
-          // skip failed
+          failedIds.push(lead.id);
         }
       }
-      return updated;
+      if (failedIds.length > 0) {
+        console.warn(`batchUpdateScores: ${failedIds.length} lead(s) failed (IDs: ${failedIds.join(', ')})`);
+      }
+      return { updated, failed: failedIds.length };
     } catch (e) {
       throw new Error(formatSupabaseError(e));
     }

@@ -29,19 +29,19 @@ import type { Company } from '@/types/company.types';
 type TabType = 'leads' | 'contacts' | 'companies';
 
 interface LeadGroup {
-  lead: Lead;
+  item: Lead;
   duplicates: Lead[];
   score: number;
 }
 
 interface ContactGroup {
-  contact: Contact;
+  item: Contact;
   duplicates: Contact[];
   score: number;
 }
 
 interface CompanyGroup {
-  company: Company;
+  item: Company;
   duplicates: Company[];
   score: number;
 }
@@ -101,7 +101,7 @@ export default function DataQualityPage() {
         setLeadGroups(result);
         const survivors: Record<string, string> = {};
         for (const g of result) {
-          survivors[g.lead.id] = g.lead.id;
+          survivors[g.item.id] = g.item.id;
         }
         setSurvivorIds(survivors);
       } else if (activeTab === 'contacts') {
@@ -109,7 +109,7 @@ export default function DataQualityPage() {
         setContactGroups(result);
         const survivors: Record<string, string> = {};
         for (const g of result) {
-          survivors[g.contact.id] = g.contact.id;
+          survivors[g.item.id] = g.item.id;
         }
         setSurvivorIds(survivors);
       } else {
@@ -117,7 +117,7 @@ export default function DataQualityPage() {
         setCompanyGroups(result);
         const survivors: Record<string, string> = {};
         for (const g of result) {
-          survivors[g.company.id] = g.company.id;
+          survivors[g.item.id] = g.item.id;
         }
         setSurvivorIds(survivors);
       }
@@ -132,10 +132,10 @@ export default function DataQualityPage() {
     setMerging(true);
     try {
       if (activeTab === 'leads') {
-        const group = leadGroups.find((g) => g.lead.id === groupId);
+        const group = leadGroups.find((g) => g.item.id === groupId);
         if (!group) return;
-        const survivorId = survivorIds[groupId] || group.lead.id;
-        const mergeIds = [group.lead, ...group.duplicates]
+        const survivorId = survivorIds[groupId] || group.item.id;
+        const mergeIds = [group.item, ...group.duplicates]
           .filter((e) => e.id !== survivorId)
           .map((e) => e.id);
         if (mergeIds.length === 0) {
@@ -143,13 +143,13 @@ export default function DataQualityPage() {
           return;
         }
         await leadService.mergeLeads(survivorId, mergeIds);
-        setLeadGroups((prev) => prev.filter((g) => g.lead.id !== groupId));
+        setLeadGroups((prev) => prev.filter((g) => g.item.id !== groupId));
         toast.success('Duplicates merged successfully');
       } else if (activeTab === 'contacts') {
-        const group = contactGroups.find((g) => g.contact.id === groupId);
+        const group = contactGroups.find((g) => g.item.id === groupId);
         if (!group) return;
-        const survivorId = survivorIds[groupId] || group.contact.id;
-        const mergeIds = [group.contact, ...group.duplicates]
+        const survivorId = survivorIds[groupId] || group.item.id;
+        const mergeIds = [group.item, ...group.duplicates]
           .filter((e) => e.id !== survivorId)
           .map((e) => e.id);
         if (mergeIds.length === 0) {
@@ -157,13 +157,13 @@ export default function DataQualityPage() {
           return;
         }
         await contactService.merge(survivorId, mergeIds);
-        setContactGroups((prev) => prev.filter((g) => g.contact.id !== groupId));
+        setContactGroups((prev) => prev.filter((g) => g.item.id !== groupId));
         toast.success('Duplicates merged successfully');
       } else {
-        const group = companyGroups.find((g) => g.company.id === groupId);
+        const group = companyGroups.find((g) => g.item.id === groupId);
         if (!group) return;
-        const survivorId = survivorIds[groupId] || group.company.id;
-        const mergeIds = [group.company, ...group.duplicates]
+        const survivorId = survivorIds[groupId] || group.item.id;
+        const mergeIds = [group.item, ...group.duplicates]
           .filter((e) => e.id !== survivorId)
           .map((e) => e.id);
         if (mergeIds.length === 0) {
@@ -171,7 +171,7 @@ export default function DataQualityPage() {
           return;
         }
         await companyService.merge(survivorId, mergeIds);
-        setCompanyGroups((prev) => prev.filter((g) => g.company.id !== groupId));
+        setCompanyGroups((prev) => prev.filter((g) => g.item.id !== groupId));
         toast.success('Duplicates merged successfully');
       }
     } catch {
@@ -188,9 +188,9 @@ export default function DataQualityPage() {
   const currentGroups = activeTab === 'leads' ? leadGroups : activeTab === 'contacts' ? contactGroups : companyGroups;
 
   const renderGroup = (group: LeadGroup | ContactGroup | CompanyGroup) => {
-    const groupId = 'lead' in group ? group.lead.id : 'contact' in group ? group.contact.id : group.company.id;
-    const primary = 'lead' in group ? group.lead : 'contact' in group ? group.contact : group.company;
-    const duplicates = 'lead' in group ? group.duplicates : 'contact' in group ? group.duplicates : (group as CompanyGroup).duplicates;
+    const groupId = group.item.id;
+    const primary = group.item;
+    const duplicates = group.duplicates;
     const allEntities = [primary, ...duplicates];
     const selectedSurvivorId = survivorIds[groupId] || primary.id;
 

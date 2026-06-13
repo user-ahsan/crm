@@ -73,7 +73,7 @@ export function AppShell({ children }: AppShellProps) {
         {/* ── Desktop Sidebar ─────────────────────────────── */}
         <aside
           className={cn(
-            'hidden h-full shrink-0 transition-all duration-200 md:block',
+            'hidden h-full shrink-0 transition-all duration-200 sm:block',
             desktopCollapsed ? 'w-16' : 'w-60',
           )}
         >

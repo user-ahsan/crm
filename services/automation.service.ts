@@ -1,13 +1,11 @@
-import { createClient } from '@/lib/supabase/client';
-import type { AutomationRule, AutomationRuleFormData, AutomationTriggerEvent } from '@/types/automation.types';
+import { getSharedClient } from '@/lib/supabase/client';
+import type { AutomationRule, AutomationRuleFormData, AutomationTriggerEvent, AutomationAction } from '@/types/automation.types';
 import type { DbAutomationRule, AutomationRuleInsert, AutomationRuleUpdate } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
+import { tagService } from './tag.service';
+import { communicationService } from './communication.service';
+import { activityService } from './activity.service';
+import { triggerWebhook } from './webhook.service';
 
 function mapRowToRule(row: DbAutomationRule): AutomationRule {
   return {
@@ -39,7 +37,7 @@ function mapFormToInsert(data: AutomationRuleFormData, userId: string): Automati
 export const automationService = {
   async getAll(page = 1, pageSize = 50): Promise<AutomationRule[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('automation_rules')
         .select('*')
@@ -54,7 +52,7 @@ export const automationService = {
 
   async getById(id: string): Promise<AutomationRule | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('automation_rules')
         .select('*')
@@ -72,7 +70,7 @@ export const automationService = {
 
   async create(data: AutomationRuleFormData, userId: string): Promise<AutomationRule> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbRow = mapFormToInsert(data, userId);
       const { data: inserted, error } = await supabase
         .from('automation_rules')
@@ -88,7 +86,7 @@ export const automationService = {
 
   async update(id: string, data: Partial<AutomationRuleFormData>): Promise<AutomationRule | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbData: AutomationRuleUpdate = {};
       if (data.name !== undefined) dbData.name = data.name;
       if (data.description !== undefined) dbData.description = data.description;
@@ -114,7 +112,7 @@ export const automationService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase
         .from('automation_rules')
         .delete()
@@ -128,7 +126,7 @@ export const automationService = {
 
   async getByTrigger(event: AutomationTriggerEvent): Promise<AutomationRule[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('automation_rules')
         .select('*')
@@ -166,32 +164,119 @@ export const automationService = {
     });
   },
 
-  async executeActions(actions: import('@/types/automation.types').AutomationAction[], context: Record<string, unknown>): Promise<void> {
+  async executeActions(
+    actions: AutomationAction[],
+    context: Record<string, unknown>,
+  ): Promise<{ success: boolean; results: { action: string; success: boolean; error?: string }[] }> {
+    const entityType = context.entityType as string;
+    const entityId = context.entityId as string;
+    const results: { action: string; success: boolean; error?: string }[] = [];
+
+    const entityTableMap: Record<string, string> = {
+      lead: 'leads',
+      contact: 'contacts',
+      company: 'companies',
+      task: 'tasks',
+      meeting: 'meetings',
+      deal: 'deals',
+    };
+
     for (const action of actions) {
       try {
         switch (action.type) {
-          case 'assign_user':
-            console.log('[Automation] Assign user:', action.config.targetUser, 'to entity:', context.id);
+          case 'assign_user': {
+            const table = entityTableMap[entityType];
+            if (!table) {
+              results.push({ action: action.type, success: false, error: `Unknown entity type: ${entityType}` });
+              break;
+            }
+            const supabase = await getSharedClient();
+            const { error } = await supabase
+              .from(table)
+              .update({ assigned_to: action.config.targetUser })
+              .eq('id', entityId);
+            if (error) throw new Error(error.message);
+            activityService.log(entityType, entityId, 'assigned', `Assigned to user ${action.config.targetUser}`);
+            results.push({ action: action.type, success: true });
             break;
-          case 'change_status':
-            console.log('[Automation] Change status to:', action.config.status, 'for entity:', context.id);
+          }
+
+          case 'change_status': {
+            const table = entityTableMap[entityType];
+            if (!table) {
+              results.push({ action: action.type, success: false, error: `Unknown entity type: ${entityType}` });
+              break;
+            }
+            const supabase = await getSharedClient();
+            const { error } = await supabase
+              .from(table)
+              .update({ status: action.config.status })
+              .eq('id', entityId);
+            if (error) throw new Error(error.message);
+            results.push({ action: action.type, success: true });
             break;
-          case 'add_tag':
-            console.log('[Automation] Add tag:', action.config.tag, 'to entity:', context.id);
+          }
+
+          case 'add_tag': {
+            await tagService.addTagToEntity(entityType, entityId, action.config.tag);
+            results.push({ action: action.type, success: true });
             break;
-          case 'send_email':
-            console.log('[Automation] Send email with template:', action.config.templateId, 'to:', action.config.recipient);
+          }
+
+          case 'send_email': {
+            await communicationService.sendEmail({
+              toAddress: action.config.recipient,
+              subject: `Automated message: ${action.config.templateId}`,
+              body: '',
+              relatedToType: entityType,
+              relatedToId: entityId,
+            });
+            results.push({ action: action.type, success: true });
             break;
-          case 'send_notification':
-            console.log('[Automation] Send notification:', action.config.message, 'to user:', action.config.userId);
+          }
+
+          case 'send_notification': {
+            await activityService.log(
+              entityType,
+              entityId,
+              'created',
+              `Automation notification: ${action.config.message || 'No message provided'}`,
+              { automationAction: action.type, ...action.config },
+            );
+            results.push({ action: action.type, success: true });
             break;
-          case 'trigger_webhook':
-            console.log('[Automation] Trigger webhook:', action.config.url, 'with payload:', JSON.stringify(context));
+          }
+
+          case 'trigger_webhook': {
+            const sent = await triggerWebhook(`automation.${action.type}`, {
+              ...context,
+              webhookUrl: action.config.url,
+            });
+            results.push({
+              action: action.type,
+              success: sent,
+              error: sent ? undefined : 'Webhook delivery failed or webhooks are not configured',
+            });
             break;
+          }
+
+          default: {
+            results.push({ action: action.type, success: false, error: `Unknown action type: ${action.type}` });
+            break;
+          }
         }
-      } catch (e) {
-        console.error(`[Automation] Failed to execute action ${action.type}:`, e);
+      } catch (error) {
+        results.push({
+          action: action.type,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
       }
     }
+
+    return {
+      success: results.every((r) => r.success),
+      results,
+    };
   },
 };

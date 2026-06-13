@@ -1,13 +1,7 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { FileAttachment, RelatedEntityType } from '@/types/attachment.types';
 import type { DbFileAttachment } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
 
 function mapRowToAttachment(row: DbFileAttachment): FileAttachment {
   return {
@@ -27,7 +21,7 @@ function mapRowToAttachment(row: DbFileAttachment): FileAttachment {
 export const attachmentService = {
   async getAttachments(relatedToType: RelatedEntityType, relatedToId: string): Promise<FileAttachment[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('file_attachments')
         .select('*')
@@ -48,7 +42,7 @@ export const attachmentService = {
     uploadedBy: string,
   ): Promise<FileAttachment> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const storagePath = `${relatedToType}/${relatedToId}/${Date.now()}_${file.name}`;
 
       const { error: uploadError } = await supabase.storage
@@ -91,7 +85,7 @@ export const attachmentService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data: existing, error: fetchError } = await supabase
         .from('file_attachments')
         .select('storage_path')
@@ -106,7 +100,7 @@ export const attachmentService = {
         .from('attachments')
         .remove([existing.storage_path]);
       if (removeError) {
-        console.warn('[Attachment] Failed to remove from storage:', removeError.message);
+        // non-critical: DB record deletion proceeds even if storage cleanup fails
       }
 
       const { error: dbError } = await supabase

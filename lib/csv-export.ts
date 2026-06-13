@@ -21,8 +21,8 @@ function escapeCsvValue(value: string): string {
  * @param columns - Column definitions with key (property name) and label (header text).
  * @returns A CSV-formatted string with BOM for Excel UTF-8 compatibility.
  */
-export function convertToCSV(
-  data: Record<string, unknown>[],
+export function convertToCSV<T extends Record<string, any> = Record<string, any>>(
+  data: T[],
   columns: { key: string; label: string }[],
 ): string {
   if (columns.length === 0) {

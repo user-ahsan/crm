@@ -66,7 +66,14 @@ export function useAllScores() {
       const client = await supabase();
       const { data, error: err } = await client.from('lead_scores').select('*');
       if (err) throw new Error(err.message);
-      const mapped = (data ?? []).map((r: any) => ({
+      type DbLeadScoreRow = {
+        id: string;
+        lead_id: string;
+        score: number;
+        factors: Record<string, number>;
+        updated_at: string;
+      };
+      const mapped = (data ?? []).map((r: DbLeadScoreRow) => ({
         id: r.id,
         leadId: r.lead_id,
         score: r.score,

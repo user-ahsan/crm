@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import type { AuthChangeEvent } from '@supabase/supabase-js';
 import type { CurrentUser } from '@/types/account.types';
-
 /**
  * Derives initials from a full name (max 2 characters).
  * "Alice Johnson" → "AJ", "Bob" → "B", "" → "?"
@@ -31,56 +31,69 @@ export function useCurrentUser() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const supabase = await createClient();
+      const { data, error: authError } = await supabase.auth.getUser();
+
+      if (authError) {
+        setError(authError.message);
+        setUser(null);
+        return;
+      }
+
+      if (!data.user) {
+        setUser(null);
+        return;
+      }
+
+      const meta = data.user.user_metadata ?? {};
+      const fullName: string = typeof meta.full_name === 'string'
+        ? meta.full_name
+        : data.user.email ?? 'Unknown';
+      const initials = deriveInitials(fullName);
+
+      setUser({
+        id: data.user.id,
+        email: data.user.email ?? '',
+        fullName,
+        initials,
+        avatarUrl: meta.avatar_url ?? null,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to fetch user');
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
+    let subscription: { unsubscribe: () => void } | null = null;
 
-    async function fetchUser() {
-      try {
-        const supabase = await createClient();
-        const { data, error: authError } = await supabase.auth.getUser();
+    async function init() {
+      await refresh();
+      if (cancelled) return;
 
-        if (cancelled) return;
-
-        if (authError) {
-          setError(authError.message);
-          setUser(null);
-          return;
+      const supabase = await createClient();
+      const { data: { subscription: sub } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent) => {
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+          refresh();
         }
-
-        if (!data.user) {
-          setUser(null);
-          return;
-        }
-
-        const meta = data.user.user_metadata ?? {};
-        const fullName: string = typeof meta.full_name === 'string'
-          ? meta.full_name
-          : data.user.email ?? 'Unknown';
-        const initials = deriveInitials(fullName);
-
-        setUser({
-          id: data.user.id,
-          email: data.user.email ?? '',
-          fullName,
-          initials,
-          avatarUrl: meta.avatar_url ?? null,
-        });
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Failed to fetch user');
-          setUser(null);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      });
+      subscription = sub;
     }
 
-    fetchUser();
+    init();
 
     return () => {
       cancelled = true;
+      subscription?.unsubscribe();
     };
-  }, []);
+  }, [refresh]);
 
-  return { user, loading, error };
+  return { user, loading, error, refresh };
 }

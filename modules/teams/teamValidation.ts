@@ -1,9 +1,6 @@
 import type { TeamFormData, InviteMemberFormData } from '@/types/team.types';
-
-export interface ValidationResult {
-  isValid: boolean;
-  errors: Record<string, string>;
-}
+import type { ValidationResult } from '@/types/common.types';
+import { EMAIL_REGEX } from '@/lib/utils';
 
 /**
  * Validate team creation/edit form data.
@@ -32,7 +29,7 @@ export function validateInviteForm(data: Partial<InviteMemberFormData>): Validat
 
   if (!data.email || data.email.trim().length === 0) {
     errors.email = 'Email is required';
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+  } else if (!EMAIL_REGEX.test(data.email)) {
     errors.email = 'Enter a valid email address';
   }
 

@@ -29,26 +29,15 @@ export function useDeals() {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [dealsData, stagesData] = await Promise.all([
-          dealService.getAll(),
-          dealService.getStages(),
-        ]);
-        if (!cancelled) {
-          setDeals(dealsData);
-          setStages(stagesData);
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load deals');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      await refresh();
     })();
-    return () => { cancelled = true; };
-  }, []);
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [refresh]);
 
   const createDeal = useCallback(async (data: DealFormData) => {
     const tempId = `temp-${Date.now()}`;
@@ -138,6 +127,10 @@ export function useDeals() {
     }
   }, []);
 
+  const updateDealStage = useCallback(async (id: string, stageId: string) => {
+    return updateDeal(id, { stageId });
+  }, [updateDeal]);
+
   const getTotalValue = useCallback(async () => {
     try {
       return await dealService.getTotalValue();
@@ -160,5 +153,6 @@ export function useDeals() {
     deleteStage,
     getPipeline,
     getTotalValue,
+    updateDealStage,
   };
 }

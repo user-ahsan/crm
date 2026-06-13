@@ -24,20 +24,15 @@ export function useQuotes() {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await quoteService.getAll();
-        if (!cancelled) setQuotes(data);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load quotes');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      await refresh();
     })();
-    return () => { cancelled = true; };
-  }, []);
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [refresh]);
 
   const createQuote = useCallback(async (data: QuoteFormData) => {
     const tempId = `temp-${Date.now()}`;

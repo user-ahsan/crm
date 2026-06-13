@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { Lead } from '@/types/lead.types';
 import type { Task } from '@/types/task.types';
 import type { Meeting } from '@/types/meeting.types';
@@ -135,6 +136,7 @@ function SimpleBarChart({
 
 /* ── Dashboard Page ─────────────────────────────────────── */
 export default function DashboardPage() {
+  const router = useRouter();
   const { leads, loading: leadsLoading, error: leadsError, refresh: refreshLeads } = useLeads();
   const { tasks, loading: tasksLoading, error: tasksError, refresh: refreshTasks } = useTasks();
   const { meetings, loading: meetingsLoading, error: meetingsError, refresh: refreshMeetings } = useMeetings();
@@ -287,7 +289,7 @@ export default function DashboardPage() {
           action={{
             label: 'Add Lead',
             onClick: () => {
-              window.location.href = '/leads';
+              router.push('/leads');
             },
           }}
         />

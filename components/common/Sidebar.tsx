@@ -217,7 +217,9 @@ export function Sidebar({
                 type="button"
                 onClick={onToggleCollapse}
                 className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                aria-label="Expand sidebar"
+                aria-label={
+                  collapsed ? 'Expand sidebar' : 'Collapse sidebar'
+                }
               >
                 <IconChevronLeft className="size-3.5 rotate-180" />
               </button>

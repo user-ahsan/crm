@@ -25,28 +25,8 @@ export function useCompanies() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await companyService.getAll();
-        if (!cancelled) {
-          setCompanies(data);
-          useEntityCache.getState().setCompanies(data);
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load companies');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, []);
+    refresh();
+  }, [refresh]);
 
   const getById = useCallback(async (id: string) => {
     try {

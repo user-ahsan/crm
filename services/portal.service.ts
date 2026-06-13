@@ -1,13 +1,7 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { PortalUser, PortalUserFormData, PortalShare, PortalShareFormData } from '@/types/portal.types';
 import type { DbPortalUser, DbPortalShare } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
 
 function hashPassword(password: string): string {
   let hash = 0;
@@ -44,7 +38,7 @@ function mapShareRow(row: DbPortalShare): PortalShare {
 export const portalService = {
   async getUsers(): Promise<PortalUser[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('portal_users')
         .select('*')
@@ -58,7 +52,7 @@ export const portalService = {
 
   async createUser(data: PortalUserFormData): Promise<PortalUser> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbRow = {
         email: data.email,
         name: data.name,
@@ -78,7 +72,7 @@ export const portalService = {
 
   async toggleUserActive(id: string, active: boolean): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase
         .from('portal_users')
         .update({ active })
@@ -92,7 +86,7 @@ export const portalService = {
 
   async deleteUser(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase.from('portal_users').delete().eq('id', id);
       if (error) throw new Error(error.message);
       return true;
@@ -103,7 +97,7 @@ export const portalService = {
 
   async getShares(portalUserId: string): Promise<PortalShare[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('portal_shares')
         .select('*')
@@ -118,7 +112,7 @@ export const portalService = {
 
   async shareRecord(data: PortalShareFormData): Promise<PortalShare> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbRow = {
         portal_user_id: data.portalUserId,
         related_to_type: data.relatedToType,
@@ -139,7 +133,7 @@ export const portalService = {
 
   async removeShare(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase.from('portal_shares').delete().eq('id', id);
       if (error) throw new Error(error.message);
       return true;

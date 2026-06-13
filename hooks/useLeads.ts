@@ -26,28 +26,8 @@ export function useLeads() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await leadService.getAll();
-        if (!cancelled) {
-          setLeads(data);
-          useEntityCache.getState().setLeads(data);
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load leads');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, []);
+    refresh();
+  }, [refresh]);
 
   const getFiltered = useCallback((filters: LeadFilters) => {
     return applyLeadFilters(leads, filters);

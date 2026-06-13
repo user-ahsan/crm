@@ -1,15 +1,9 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { Team, TeamMember, TeamInvitation, TeamFormData, InviteMemberFormData, TeamRole } from '@/types/team.types';
-import type { DbTeam, DbTeamMember, DbTeamInvitation } from '@/types/supabase.types';
+import type { DbTeam, DbTeamMember, DbTeamInvitation, TeamInsert } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
 
 function mapRowToTeam(row: DbTeam): Team {
   return {
@@ -22,8 +16,8 @@ function mapRowToTeam(row: DbTeam): Team {
   };
 }
 
-function mapTeamToDb(team: Partial<TeamFormData>): Record<string, unknown> {
-  const db: Record<string, unknown> = {};
+function mapTeamToDb(team: Partial<TeamFormData>): Partial<TeamInsert> {
+  const db: Partial<TeamInsert> = {};
   if (team.name !== undefined) db.name = team.name;
   if (team.description !== undefined) db.description = team.description || null;
   return db;
@@ -55,7 +49,7 @@ function mapRowToTeamInvitation(row: DbTeamInvitation): TeamInvitation {
 export const teamService = {
   async getCurrentTeam(): Promise<Team | null> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('teams')
         .select('*')
@@ -73,7 +67,7 @@ export const teamService = {
 
   async getMembers(teamId: string): Promise<TeamMember[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('team_members')
         .select('*')
@@ -87,7 +81,7 @@ export const teamService = {
 
   async getInvitations(teamId: string): Promise<TeamInvitation[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('team_invitations')
         .select('*')
@@ -101,7 +95,7 @@ export const teamService = {
 
   async create(data: TeamFormData): Promise<Team> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
 
       /* Get the real authenticated user's ID */
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -129,8 +123,8 @@ export const teamService = {
 
   async update(id: string, data: Partial<TeamFormData>): Promise<Team | undefined> {
     try {
-      const supabase = await getClient();
-      const dbData: Record<string, unknown> = { ...mapTeamToDb(data) };
+      const supabase = await getSharedClient();
+      const dbData = { ...mapTeamToDb(data) };
       const { data: updated, error } = await supabase
         .from('teams')
         .update(dbData)
@@ -153,7 +147,7 @@ export const teamService = {
   async inviteMember(teamId: string, data: InviteMemberFormData): Promise<TeamInvitation> {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
 
       /* Get the real authenticated user's ID */
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -186,7 +180,7 @@ export const teamService = {
 
   async cancelInvitation(invitationId: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase
         .from('team_invitations')
         .delete()
@@ -200,7 +194,7 @@ export const teamService = {
 
   async changeMemberRole(memberId: string, role: TeamRole): Promise<TeamMember | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data: updated, error } = await supabase
         .from('team_members')
         .update({ role })
@@ -219,7 +213,7 @@ export const teamService = {
 
   async removeMember(memberId: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase
         .from('team_members')
         .delete()
@@ -233,7 +227,7 @@ export const teamService = {
 
   async createTeamWithAdmin(data: TeamFormData): Promise<{ team: Team; member: TeamMember }> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
 
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error(userError?.message ?? 'Not authenticated');

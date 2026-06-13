@@ -1,14 +1,8 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { SmsLog, SmsFormData } from '@/types/sms.types';
-import type { DbSmsLog } from '@/types/supabase.types';
+import type { DbSmsLog, SmsLogInsert } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
 
 function mapRowToSms(row: DbSmsLog): SmsLog {
   return {
@@ -25,8 +19,8 @@ function mapRowToSms(row: DbSmsLog): SmsLog {
   };
 }
 
-function mapSmsToDb(data: SmsLog): Record<string, unknown> {
-  const db: Record<string, unknown> = {};
+function mapSmsToDb(data: SmsLog): Partial<SmsLogInsert> {
+  const db: Partial<SmsLogInsert> = {};
   db.to_number = data.toNumber;
   db.from_number = data.fromNumber;
   db.body = data.body;
@@ -41,7 +35,7 @@ function mapSmsToDb(data: SmsLog): Record<string, unknown> {
 export const smsService = {
   async getLogs(relatedToType?: string, relatedToId?: string): Promise<SmsLog[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       let query = supabase
         .from('sms_logs')
         .select('*')
@@ -59,7 +53,7 @@ export const smsService = {
 
   async send(data: SmsFormData): Promise<SmsLog> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data: userData } = await supabase.auth.getUser();
       const createdBy = userData?.user?.id ?? 'system';
       const dbRow = {

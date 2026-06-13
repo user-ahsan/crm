@@ -26,28 +26,8 @@ export function useTasks() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await taskService.getAll();
-        if (!cancelled) {
-          setTasks(data);
-          useEntityCache.getState().setTasks(data);
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load tasks');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, []);
+    refresh();
+  }, [refresh]);
 
   const getFiltered = useCallback((status?: TaskStatus | 'all', priority?: TaskPriority | 'all') => {
     return filterTasks(tasks, status, priority);

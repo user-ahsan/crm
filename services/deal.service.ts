@@ -1,6 +1,6 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { Deal, DealFormData, DealStage, DealStageFormData } from '@/types/deal.types';
-import type { DbDeal, DbDealStage } from '@/types/supabase.types';
+import type { DbDeal, DbDealStage, DealInsert, DealStageInsert } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
 
@@ -37,8 +37,8 @@ function mapDealRow(row: DbDeal, stage?: DealStage): Deal {
   };
 }
 
-function mapDealToDb(data: Partial<DealFormData>): Record<string, unknown> {
-  const db: Record<string, unknown> = {};
+function mapDealToDb(data: Partial<DealFormData>): Partial<DealInsert> {
+  const db: Partial<DealInsert> = {};
   if (data.title !== undefined) db.title = data.title;
   if (data.description !== undefined) db.description = data.description || '';
   if (data.value !== undefined) db.value = data.value;
@@ -53,24 +53,18 @@ function mapDealToDb(data: Partial<DealFormData>): Record<string, unknown> {
   return db;
 }
 
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
-
 export const dealService = {
   // ── Stages ────────────────────────────────────────────────
 
   async getStages(): Promise<DealStage[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('deal_stages')
         .select('*')
         .order('sort_order', { ascending: true });
-      if (error) throw new Error(error.message);
-      return data?.map(mapStageRow) ?? [];
+if (error) throw new Error(error.message);
+      return data?.map((row: DbDeal & { deal_stages?: DbDealStage }) => mapDealRow(row, row.deal_stages ? mapStageRow(row.deal_stages) : undefined)) ?? [];
     } catch (e) {
       throw new Error(formatSupabaseError(e));
     }
@@ -78,7 +72,7 @@ export const dealService = {
 
   async createStage(data: DealStageFormData): Promise<DealStage> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data: inserted, error } = await supabase
         .from('deal_stages')
         .insert({
@@ -98,8 +92,8 @@ export const dealService = {
 
   async updateStage(id: string, data: Partial<DealStageFormData>): Promise<DealStage> {
     try {
-      const supabase = await getClient();
-      const dbData: Record<string, unknown> = {};
+      const supabase = await getSharedClient();
+      const dbData: Partial<DealStageInsert> = {};
       if (data.name !== undefined) dbData.name = data.name;
       if (data.color !== undefined) dbData.color = data.color;
       if (data.probability !== undefined) dbData.probability = data.probability;
@@ -119,7 +113,7 @@ export const dealService = {
 
   async deleteStage(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase.from('deal_stages').delete().eq('id', id);
       if (error) throw new Error(error.message);
       return true;
@@ -132,14 +126,14 @@ export const dealService = {
 
   async getAll(page = 1, pageSize = 50): Promise<Deal[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('deals')
         .select('*, deal_stages(*)')
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
       if (error) throw new Error(error.message);
-      return data?.map((row) => mapDealRow(row, row.deal_stages ? mapStageRow(row.deal_stages) : undefined)) ?? [];
+      return data?.map((row: DbDeal & { deal_stages?: DbDealStage }) => mapDealRow(row, row.deal_stages ? mapStageRow(row.deal_stages) : undefined)) ?? [];
     } catch (e) {
       throw new Error(formatSupabaseError(e));
     }
@@ -147,7 +141,7 @@ export const dealService = {
 
   async getById(id: string): Promise<Deal | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('deals')
         .select('*, deal_stages(*)')
@@ -165,7 +159,7 @@ export const dealService = {
 
   async create(data: DealFormData): Promise<Deal> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbRow = {
         ...mapDealToDb(data),
         created_by: 'user-1',
@@ -186,7 +180,7 @@ export const dealService = {
 
   async update(id: string, data: Partial<DealFormData>): Promise<Deal | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbData = { ...mapDealToDb(data) };
       const { data: updated, error } = await supabase
         .from('deals')
@@ -208,7 +202,7 @@ export const dealService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       await supabase.from('quotes').delete().eq('deal_id', id);
       await supabase.from('activities').delete().eq('entity_id', id);
       const { error } = await supabase.from('deals').delete().eq('id', id);
@@ -222,14 +216,14 @@ export const dealService = {
 
   async getByStage(stageId: string): Promise<Deal[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('deals')
         .select('*, deal_stages(*)')
         .eq('stage_id', stageId)
         .order('created_at', { ascending: false });
       if (error) throw new Error(error.message);
-      return data?.map((row) => mapDealRow(row, row.deal_stages ? mapStageRow(row.deal_stages) : undefined)) ?? [];
+      return data?.map((row: DbDeal & { deal_stages?: DbDealStage }) => mapDealRow(row, row.deal_stages ? mapStageRow(row.deal_stages) : undefined)) ?? [];
     } catch (e) {
       throw new Error(formatSupabaseError(e));
     }
@@ -238,16 +232,16 @@ export const dealService = {
   async getPipeline(): Promise<{ stage: DealStage; deals: Deal[] }[]> {
     try {
       const stages = await this.getStages();
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('deals')
         .select('*, deal_stages(*)')
         .order('created_at', { ascending: false });
       if (error) throw new Error(error.message);
-      const deals = data?.map((row) => mapDealRow(row, row.deal_stages ? mapStageRow(row.deal_stages) : undefined)) ?? [];
-      return stages.map((stage) => ({
+      const deals: Deal[] = data?.map((row: DbDeal & { deal_stages?: DbDealStage }) => mapDealRow(row, row.deal_stages ? mapStageRow(row.deal_stages) : undefined)) ?? [];
+      return stages.map((stage: DealStage) => ({
         stage,
-        deals: deals.filter((d) => d.stageId === stage.id),
+        deals: deals.filter((d: Deal) => d.stageId === stage.id),
       }));
     } catch (e) {
       throw new Error(formatSupabaseError(e));
@@ -256,10 +250,10 @@ export const dealService = {
 
   async getTotalValue(): Promise<number> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase.from('deals').select('value');
       if (error) throw new Error(error.message);
-      return data?.reduce((sum, row) => sum + (row.value ?? 0), 0) ?? 0;
+      return data?.reduce((sum: number, row: { value: number }) => sum + (row.value ?? 0), 0) ?? 0;
     } catch (e) {
       throw new Error(formatSupabaseError(e));
     }

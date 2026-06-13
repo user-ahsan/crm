@@ -8,12 +8,14 @@ import { NextRequest, NextResponse } from 'next/server';
  * tasks, and meetings.
  *
  * Authentication:
- *   All requests must include an Authorization header:
+ *   POST requests must include an Authorization header:
  *     Authorization: Bearer {N8N_WEBHOOK_SECRET}
+ *   GET health-check requests must include an x-api-key header:
+ *     x-api-key: {N8N_WEBHOOK_SECRET}
  *
  * Environment variables:
- *   N8N_WEBHOOK_SECRET — Shared secret for HMAC-like bearer auth
- *   (defaults to 'nexuscrm-webhook-secret' for development only)
+ *   N8N_WEBHOOK_SECRET — Shared secret for bearer/api-key auth.
+ *   This MUST be set in production.
  * ─────────────────────────────────────────────────────────────────────
  */
 
@@ -110,11 +112,10 @@ type ApiResponse = SuccessResponse | ErrorResponse | HealthResponse;
 // ── Helpers ───────────────────────────────────────────────────────────
 
 /**
- * Retrieves the webhook secret from environment, falling back to a
- * development-only default. In production, always set N8N_WEBHOOK_SECRET.
+ * Returns the webhook secret or undefined if not configured.
  */
-function getWebhookSecret(): string {
-  return process.env.N8N_WEBHOOK_SECRET || 'nexuscrm-webhook-secret';
+function getWebhookSecret(): string | undefined {
+  return process.env.N8N_WEBHOOK_SECRET;
 }
 
 /**
@@ -201,9 +202,16 @@ function processWebhookEvent(body: WebhookPayload): string {
 export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse>> {
   const webhookSecret = getWebhookSecret();
 
+  if (!webhookSecret) {
+    return NextResponse.json(
+      { success: false, error: 'Webhook secret not configured' },
+      { status: 401 },
+    );
+  }
+
   // Verify bearer token
   const authHeader = request.headers.get('authorization');
-  if (!authHeader || authHeader !== `Bearer ${webhookSecret}`) {
+  if (authHeader !== `Bearer ${webhookSecret}`) {
     return NextResponse.json(
       { success: false, error: 'Unauthorized' },
       { status: 401 },
@@ -252,7 +260,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
   const summary = processWebhookEvent(body);
   const receivedAt = new Date().toISOString();
 
-  console.log(`[n8n Webhook] ${summary} (received: ${receivedAt})`);
+  // Operational log for webhook delivery debugging
+  console.log(JSON.stringify({
+    level: 'info',
+    source: 'n8n-webhook',
+    event: body.event,
+    entityId: (body.data.id as string) || 'unknown',
+    summary,
+    receivedAt,
+  }));
 
   return NextResponse.json(
     {
@@ -270,10 +286,26 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
  * Health check endpoint for n8n to verify the webhook endpoint is
  * reachable and responding. Returns the list of supported events.
  *
- * Note: This endpoint does NOT require authentication, as it is used
- * by n8n for connectivity checks before workflow execution.
+ * Requires x-api-key header matching N8N_WEBHOOK_SECRET.
  */
-export async function GET(): Promise<NextResponse<HealthResponse>> {
+export async function GET(request: NextRequest): Promise<NextResponse<HealthResponse | ErrorResponse>> {
+  const webhookSecret = getWebhookSecret();
+
+  if (!webhookSecret) {
+    return NextResponse.json(
+      { success: false, error: 'Webhook secret not configured' },
+      { status: 401 },
+    );
+  }
+
+  const apiKey = request.headers.get('x-api-key');
+  if (apiKey !== webhookSecret) {
+    return NextResponse.json(
+      { success: false, error: 'Unauthorized' },
+      { status: 401 },
+    );
+  }
+
   return NextResponse.json(
     {
       status: 'ok',

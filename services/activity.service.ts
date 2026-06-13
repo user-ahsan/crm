@@ -1,14 +1,8 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { Activity, ActivityType } from '@/types/activity.types';
 import type { DbActivity } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
 import { triggerWebhook } from './webhook.service';
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
 
 function mapRowToActivity(row: DbActivity): Activity {
   return {
@@ -25,7 +19,7 @@ function mapRowToActivity(row: DbActivity): Activity {
 export const activityService = {
   async getAll(page = 1, pageSize = 50): Promise<Activity[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('activities')
         .select('*')
@@ -40,7 +34,7 @@ export const activityService = {
 
   async getByEntity(entityType: string, entityId: string): Promise<Activity[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('activities')
         .select('*')
@@ -56,7 +50,7 @@ export const activityService = {
 
   async getByType(type: ActivityType): Promise<Activity[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('activities')
         .select('*')
@@ -71,7 +65,7 @@ export const activityService = {
 
   async getRecent(limit = 20): Promise<Activity[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('activities')
         .select('*')
@@ -93,7 +87,7 @@ export const activityService = {
   ): Promise<Activity> {
     const timestamp = new Date().toISOString();
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbRow = {
         entity_type: entityType,
         entity_id: entityId,

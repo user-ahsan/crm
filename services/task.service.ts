@@ -1,15 +1,9 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { Task, TaskFormData, TaskStatus } from '@/types/task.types';
-import type { DbTask } from '@/types/supabase.types';
+import type { DbTask, TaskInsert } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
 
 function mapRowToTask(row: DbTask): Task {
   return {
@@ -27,8 +21,8 @@ function mapRowToTask(row: DbTask): Task {
   };
 }
 
-function mapTaskToDb(task: Partial<TaskFormData & { status: TaskStatus }>): Record<string, unknown> {
-  const db: Record<string, unknown> = {};
+function mapTaskToDb(task: Partial<TaskFormData & { status: TaskStatus }>): Partial<TaskInsert> {
+  const db: Partial<TaskInsert> = {};
   if (task.title !== undefined) db.title = task.title;
   if (task.description !== undefined) db.description = task.description || null;
   if (task.relatedToType !== undefined) db.related_to_type = task.relatedToType || null;
@@ -47,7 +41,7 @@ export const taskService = {
 
   async getAllRaw(page = 1, pageSize = 50): Promise<Task[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
@@ -56,7 +50,7 @@ export const taskService = {
       if (error) throw new Error(error.message);
       const tasks = data?.map(mapRowToTask) ?? [];
       const now = new Date();
-      const updatedTasks = await Promise.all(tasks.map(async (task) => {
+      const updatedTasks = await Promise.all(tasks.map(async (task: Task) => {
         if (task.dueDate && task.status === 'pending') {
           const dueDate = new Date(task.dueDate);
           if (dueDate < now) {
@@ -87,7 +81,7 @@ export const taskService = {
 
   async getById(id: string): Promise<Task | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
@@ -114,7 +108,7 @@ export const taskService = {
 
   async getByEntity(entityType: string, entityId: string, page = 1, pageSize = 50): Promise<Task[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
@@ -132,7 +126,7 @@ export const taskService = {
 
   async getByAssignedTo(userId: string, page = 1, pageSize = 50): Promise<Task[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
@@ -149,7 +143,7 @@ export const taskService = {
 
   async create(data: TaskFormData): Promise<Task> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbRow = {
         ...mapTaskToDb(data),
         status: 'pending',
@@ -179,7 +173,7 @@ export const taskService = {
 
   async update(id: string, data: Partial<TaskFormData & { status: TaskStatus }>): Promise<Task | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbData = { ...mapTaskToDb(data) };
       const { data: updated, error } = await supabase
         .from('tasks')
@@ -204,7 +198,7 @@ export const taskService = {
 
   async toggleStatus(id: string): Promise<Task | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data: completedData, error: completedErr } = await supabase
         .from('tasks')
         .update({ status: 'completed' })
@@ -239,7 +233,7 @@ export const taskService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase.from('tasks').delete().eq('id', id);
       if (error) throw new Error(error.message);
       activityService.log('task', id, 'deleted', `Task deleted`);

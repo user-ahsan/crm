@@ -1,13 +1,7 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { Tag } from '@/types/tag.types';
 import type { DbTag, DbTagging } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
 
 function mapTag(row: DbTag): Tag {
   return {
@@ -21,7 +15,7 @@ function mapTag(row: DbTag): Tag {
 export const tagService = {
   async getAll(): Promise<Tag[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('tags')
         .select('*')
@@ -35,7 +29,7 @@ export const tagService = {
 
   async getById(id: string): Promise<Tag | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('tags')
         .select('*')
@@ -53,7 +47,7 @@ export const tagService = {
 
   async create(name: string, color?: string): Promise<Tag> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('tags')
         .insert({ name, color: color ?? '#6366f1' })
@@ -68,7 +62,7 @@ export const tagService = {
 
   async update(id: string, updates: { name?: string; color?: string }): Promise<Tag | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('tags')
         .update(updates)
@@ -87,7 +81,7 @@ export const tagService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase.from('tags').delete().eq('id', id);
       if (error) throw new Error(error.message);
       return true;
@@ -98,7 +92,7 @@ export const tagService = {
 
   async getTagsForEntity(entityType: string, entityId: string): Promise<Tag[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data: taggings, error: tgError } = await supabase
         .from('taggings')
         .select('tag_id')
@@ -122,7 +116,7 @@ export const tagService = {
 
   async addTagToEntity(entityType: string, entityId: string, tagId: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase
         .from('taggings')
         .insert({ tag_id: tagId, taggable_id: entityId, taggable_type: entityType });
@@ -138,7 +132,7 @@ export const tagService = {
 
   async removeTagFromEntity(entityType: string, entityId: string, tagId: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase
         .from('taggings')
         .delete()
@@ -154,7 +148,7 @@ export const tagService = {
 
   async setTagsForEntity(entityType: string, entityId: string, tagIds: string[]): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const existing = await supabase
         .from('taggings')
         .select('tag_id')
@@ -162,8 +156,8 @@ export const tagService = {
         .eq('taggable_id', entityId);
       const existingIds = existing.data?.map((t: { tag_id: string }) => t.tag_id) ?? [];
 
-      const toAdd = tagIds.filter((id) => !existingIds.includes(id));
-      const toRemove = existingIds.filter((id) => !tagIds.includes(id));
+      const toAdd = tagIds.filter((id: string) => !existingIds.includes(id));
+      const toRemove = existingIds.filter((id: string) => !tagIds.includes(id));
 
       if (toRemove.length > 0) {
         const { error: delErr } = await supabase
@@ -193,7 +187,7 @@ export const tagService = {
 
   async getUsageCounts(): Promise<Record<string, number>> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('taggings')
         .select('tag_id');

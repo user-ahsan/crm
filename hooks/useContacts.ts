@@ -25,28 +25,8 @@ export function useContacts() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await contactService.getAll();
-        if (!cancelled) {
-          setContacts(data);
-          useEntityCache.getState().setContacts(data);
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load contacts');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, []);
+    refresh();
+  }, [refresh]);
 
   const getById = useCallback(async (id: string) => {
     try {

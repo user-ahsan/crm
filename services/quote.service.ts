@@ -1,13 +1,7 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { Quote, QuoteFormData, QuoteStatus } from '@/types/quote.types';
-import type { DbQuote, DbQuoteItem } from '@/types/supabase.types';
+import type { DbQuote, DbQuoteItem, QuoteInsert } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
 
 function mapRowToQuote(row: DbQuote, items: DbQuoteItem[] = []): Quote {
   return {
@@ -42,8 +36,8 @@ function mapRowToQuoteItem(row: DbQuoteItem) {
   };
 }
 
-function mapFormToQuoteDb(data: Partial<QuoteFormData>) {
-  const db: Record<string, unknown> = {};
+function mapFormToQuoteDb(data: Partial<QuoteFormData>): Partial<QuoteInsert> {
+  const db: Partial<QuoteInsert> = {};
   if (data.title !== undefined) db.title = data.title;
   if (data.dealId !== undefined) db.deal_id = data.dealId || null;
   if (data.leadId !== undefined) db.lead_id = data.leadId || null;
@@ -69,15 +63,15 @@ function computeTotals(items: { description: string; quantity: number; unitPrice
 export const quoteService = {
   async getAll(page = 1, pageSize = 50): Promise<Quote[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('quotes')
         .select('*, quote_items(*)')
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
       if (error) throw new Error(error.message);
-      return (data ?? []).map((row) =>
-        mapRowToQuote(row as DbQuote, (row as { quote_items?: DbQuoteItem[] }).quote_items ?? []),
+      return (data ?? []).map((row: DbQuote & { quote_items?: DbQuoteItem[] }) =>
+        mapRowToQuote(row, row.quote_items ?? []),
       );
     } catch (e) {
       throw new Error(formatSupabaseError(e));
@@ -86,7 +80,7 @@ export const quoteService = {
 
   async getById(id: string): Promise<Quote | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('quotes')
         .select('*, quote_items(*)')
@@ -106,7 +100,7 @@ export const quoteService = {
 
   async create(data: QuoteFormData): Promise<Quote> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { itemTotals, subtotal, total } = computeTotals(data.items, data.discount ?? 0);
 
       const { data: inserted, error } = await supabase
@@ -145,7 +139,7 @@ export const quoteService = {
 
   async update(id: string, data: Partial<QuoteFormData>): Promise<Quote | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
 
       const existing = await this.getById(id);
       if (!existing) return undefined;
@@ -194,7 +188,7 @@ export const quoteService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase.from('quotes').delete().eq('id', id);
       if (error) throw new Error(error.message);
       return true;
@@ -205,7 +199,7 @@ export const quoteService = {
 
   async updateStatus(id: string, status: QuoteStatus): Promise<Quote | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('quotes')
         .update({ status })

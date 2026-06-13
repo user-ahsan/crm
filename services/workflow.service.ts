@@ -1,13 +1,7 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { WorkflowState, WorkflowTransition, WorkflowStateFormData, WorkflowTransitionFormData, WorkflowEntityType } from '@/types/workflow.types';
 import type { DbWorkflowState, DbWorkflowTransition } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
 
 function mapState(row: DbWorkflowState): WorkflowState {
   return {
@@ -34,7 +28,7 @@ function mapTransition(row: DbWorkflowTransition): WorkflowTransition {
 export const workflowService = {
   async getStates(entityType: WorkflowEntityType): Promise<WorkflowState[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('workflow_states')
         .select('*')
@@ -49,7 +43,7 @@ export const workflowService = {
 
   async createState(data: WorkflowStateFormData & { createdBy: string }): Promise<WorkflowState> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const maxResult = await supabase
         .from('workflow_states')
         .select('sort_order')
@@ -78,7 +72,7 @@ export const workflowService = {
 
   async updateState(id: string, updates: { name?: string; color?: string }): Promise<WorkflowState | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('workflow_states')
         .update(updates)
@@ -97,7 +91,7 @@ export const workflowService = {
 
   async deleteState(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase.from('workflow_states').delete().eq('id', id);
       if (error) throw new Error(error.message);
       return true;
@@ -108,7 +102,7 @@ export const workflowService = {
 
   async reorderStates(ids: string[]): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const updates = ids.map((id, index) => ({ id, sort_order: index }));
       const { error } = await supabase.from('workflow_states').upsert(updates);
       if (error) throw new Error(error.message);
@@ -120,7 +114,7 @@ export const workflowService = {
 
   async getTransitions(): Promise<WorkflowTransition[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('workflow_transitions')
         .select('*')
@@ -134,7 +128,7 @@ export const workflowService = {
 
   async createTransition(data: WorkflowTransitionFormData): Promise<WorkflowTransition> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data: row, error } = await supabase
         .from('workflow_transitions')
         .insert({
@@ -153,7 +147,7 @@ export const workflowService = {
 
   async deleteTransition(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase.from('workflow_transitions').delete().eq('id', id);
       if (error) throw new Error(error.message);
       return true;

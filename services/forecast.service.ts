@@ -1,13 +1,7 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { Forecast, ForecastSummary } from '@/types/forecast.types';
 import type { DbForecast, ForecastInsert, ForecastUpdate } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
 
 function mapRow(row: DbForecast): Forecast {
   return {
@@ -25,7 +19,7 @@ function mapRow(row: DbForecast): Forecast {
 export const forecastService = {
   async getForecasts(year: number): Promise<Forecast[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('forecasts')
         .select('*')
@@ -40,7 +34,7 @@ export const forecastService = {
 
   async upsert(data: ForecastInsert): Promise<Forecast> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data: existing } = await supabase
         .from('forecasts')
         .select('id')
@@ -87,7 +81,7 @@ export const forecastService = {
 
   async getYearly(): Promise<{ year: number; totalTarget: number; totalActual: number; achievement: number }[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('forecasts')
         .select('*')

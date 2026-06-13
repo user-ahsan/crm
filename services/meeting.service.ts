@@ -1,15 +1,9 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { Meeting, MeetingFormData } from '@/types/meeting.types';
-import type { DbMeeting } from '@/types/supabase.types';
+import type { DbMeeting, MeetingInsert } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
 
 function mapRowToMeeting(row: DbMeeting): Meeting {
   return {
@@ -28,8 +22,8 @@ function mapRowToMeeting(row: DbMeeting): Meeting {
   };
 }
 
-function mapMeetingToDb(meeting: Partial<MeetingFormData & { outcome: string }>): Record<string, unknown> {
-  const db: Record<string, unknown> = {};
+function mapMeetingToDb(meeting: Partial<MeetingFormData & { outcome: string }>): Partial<MeetingInsert> {
+  const db: Partial<MeetingInsert> = {};
   if (meeting.title !== undefined) db.title = meeting.title;
   if (meeting.participants !== undefined) db.participants = meeting.participants;
   if (meeting.relatedToType !== undefined) db.related_to_type = meeting.relatedToType || null;
@@ -45,7 +39,7 @@ function mapMeetingToDb(meeting: Partial<MeetingFormData & { outcome: string }>)
 export const meetingService = {
   async getAll(page = 1, pageSize = 50): Promise<Meeting[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('meetings')
         .select('*')
@@ -60,7 +54,7 @@ export const meetingService = {
 
   async getById(id: string): Promise<Meeting | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('meetings')
         .select('*')
@@ -78,7 +72,7 @@ export const meetingService = {
 
   async getByEntity(entityType: string, entityId: string, page = 1, pageSize = 50): Promise<Meeting[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('meetings')
         .select('*')
@@ -95,7 +89,7 @@ export const meetingService = {
 
   async getByDateRange(start: string, end: string, page = 1, pageSize = 50): Promise<Meeting[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('meetings')
         .select('*')
@@ -112,7 +106,7 @@ export const meetingService = {
 
   async getUpcoming(limit = 5): Promise<Meeting[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const now = new Date().toISOString();
       const { data, error } = await supabase
         .from('meetings')
@@ -129,7 +123,7 @@ export const meetingService = {
 
   async create(data: MeetingFormData): Promise<Meeting> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbRow = {
         ...mapMeetingToDb(data),
       };
@@ -158,7 +152,7 @@ export const meetingService = {
 
   async update(id: string, data: Partial<MeetingFormData & { outcome: string }>): Promise<Meeting | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbData = { ...mapMeetingToDb(data) };
       const { data: updated, error } = await supabase
         .from('meetings')
@@ -180,7 +174,7 @@ export const meetingService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       await supabase.from('activities').delete().eq('entity_id', id);
       const { error } = await supabase.from('meetings').delete().eq('id', id);
       if (error) throw new Error(error.message);

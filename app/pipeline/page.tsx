@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/common/PageHeader';
+import { KanbanBoard } from '@/components/pipeline/KanbanBoard';
 import { SwimlaneBoard } from '@/components/pipeline/SwimlaneBoard';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -10,17 +12,17 @@ import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { usePipeline } from '@/hooks/usePipeline';
 import { useDeals } from '@/hooks/useDeals';
 import type { SwimlaneGroup } from '@/types/swimlane.types';
-import { IconRefresh, IconColumns, IconCurrencyDollar } from '@tabler/icons-react';
+import { IconRefresh, IconColumns, IconCurrencyDollar, IconColumns3, IconUser, IconFlag } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency } from '@/lib/formatters';
 
 export default function PipelinePage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('leads');
   const [swimlaneGroup, setSwimlaneGroup] = useState<SwimlaneGroup>('none');
-  const { pipeline, leads, loading: leadsLoading, error: leadsError, refresh: refreshLeads, getStageStats, moveLead } = usePipeline();
-  const { deals, stages, loading: dealsLoading, error: dealsError, refresh: refreshDeals } = useDeals();
+  const { pipeline, leads, loading: leadsLoading, error: leadsError, refresh: refreshLeads, getStageStats, moveLead, swimlaneData } = usePipeline();
+  const { deals, stages, loading: dealsLoading, error: dealsError, refresh: refreshDeals, updateDeal } = useDeals();
 
   const totalValue = useMemo(() => {
     if (!pipeline || pipeline.length === 0) return 0;
@@ -130,20 +132,37 @@ export default function PipelinePage() {
             </TabsList>
 
             <div className="flex items-center justify-end mb-3 mt-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Swimlanes</span>
-                <Select value={swimlaneGroup} onValueChange={(v) => setSwimlaneGroup(v as SwimlaneGroup)}>
-                  <SelectTrigger className="h-8 w-36 text-xs">
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="assigned_to">By Assignee</SelectItem>
-                    {activeTab === 'leads' && <SelectItem value="status">By Status</SelectItem>}
-                    {activeTab === 'leads' && <SelectItem value="priority">By Priority</SelectItem>}
-                    {activeTab === 'deals' && <SelectItem value="status">By Stage</SelectItem>}
-                  </SelectContent>
-                </Select>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground mr-1">Swimlanes</span>
+                <Button
+                  variant={swimlaneGroup === 'none' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-8 px-2.5 text-xs gap-1.5"
+                  onClick={() => setSwimlaneGroup('none')}
+                >
+                  <IconColumns3 size={14} />
+                  None
+                </Button>
+                <Button
+                  variant={swimlaneGroup === 'assigned_to' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-8 px-2.5 text-xs gap-1.5"
+                  onClick={() => setSwimlaneGroup('assigned_to')}
+                >
+                  <IconUser size={14} />
+                  Assignee
+                </Button>
+                {activeTab === 'leads' && (
+                  <Button
+                    variant={swimlaneGroup === 'priority' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    className="h-8 px-2.5 text-xs gap-1.5"
+                    onClick={() => setSwimlaneGroup('priority')}
+                  >
+                    <IconFlag size={14} />
+                    Priority
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -163,13 +182,9 @@ export default function PipelinePage() {
                   />
                 </div>
               )}
-              <SwimlaneBoard
-                type="leads"
-                groupBy={swimlaneGroup}
-                leads={leads}
-                loading={leadsLoading}
-                onLeadDrop={(leadId, stageKey) => { moveLead(leadId, stageKey as import('@/types/lead.types').LeadStatus).catch(() => {}); }}
-                onLeadClick={(lead) => { window.location.href = `/leads/${lead.id}`; }}
+              <KanbanBoard
+                swimlaneGroup={swimlaneGroup}
+                swimlaneData={swimlaneData}
               />
             </TabsContent>
 
@@ -197,12 +212,11 @@ export default function PipelinePage() {
                 loading={dealsLoading}
                 onDealDrop={async (dealId, stageId) => {
                   try {
-                    const { dealService } = await import('@/services/deal.service');
-                    await dealService.update(dealId, { stageId });
+                    await updateDeal(dealId, { stageId });
                     refreshDeals();
                   } catch { console.error('Failed to move deal'); }
                 }}
-                onDealClick={(deal) => { window.location.href = `/deals/${deal.id}`; }}
+                onDealClick={(deal) => { router.push(`/deals/${deal.id}`); }}
               />
             </TabsContent>
           </Tabs>

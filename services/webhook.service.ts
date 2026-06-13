@@ -148,16 +148,11 @@ export async function triggerWebhook(
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      console.warn(
-        `[Webhook] Delivery failed for ${event}: HTTP ${response.status} ${response.statusText}`,
-      );
       return false;
     }
 
     return true;
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`[Webhook] Failed to send event ${event}:`, message);
+  } catch {
     return false;
   }
 }

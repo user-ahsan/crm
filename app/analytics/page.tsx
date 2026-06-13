@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Lead } from '@/types/lead.types';
 import { leadService } from '@/services/lead.service';
 import {
@@ -183,6 +184,7 @@ function ForecastCard() {
 
 /* ── Analytics Page ─────────────────────────────────────── */
 export default function AnalyticsPage() {
+  const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [pageState, setPageState] = useState<PageState>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -317,7 +319,7 @@ export default function AnalyticsPage() {
             action={{
               label: 'Go to Leads',
               onClick: () => {
-                window.location.href = '/leads';
+                router.push('/leads');
               },
             }}
           />

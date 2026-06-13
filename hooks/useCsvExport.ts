@@ -3,11 +3,31 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { convertToCSV, downloadCSV } from '@/lib/csv-export';
-import type { ExportColumn } from '@/lib/csv-export-definitions';
 import { ENTITY_EXPORT_CONFIG } from '@/lib/csv-export-definitions';
+import type { ExportColumn } from '@/lib/csv-export-definitions';
 
 /** Small delay helper to space out sequential downloads */
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Generic CSV export helper. Writes typed data to a CSV file and triggers download.
+ */
+function exportToCsv<T extends Record<string, any>>(
+  data: T[],
+  filename: string,
+  columns: ExportColumn[],
+): void {
+  const mappedData = data.map((item) => {
+    const row: Record<string, unknown> = {};
+    for (const col of columns) {
+      const rawValue = item[col.key];
+      row[col.key] = col.format ? col.format(rawValue, item) : rawValue;
+    }
+    return row;
+  });
+  const csv = convertToCSV(mappedData, columns);
+  downloadCSV(csv, filename);
+}
 
 /**
  * Custom hook for CSV export operations.
@@ -27,61 +47,44 @@ export function useCsvExport() {
       throw new Error(`Unknown entity type: "${entityType}"`);
     }
 
-    const { columns, label: _label } = config;
-
-    // Dynamically import the appropriate service
-    let records: Record<string, unknown>[];
+    const { columns } = config;
+    const today = new Date().toISOString().slice(0, 10);
+    const filename = `${entityType}-export-${today}.csv`;
 
     switch (entityType) {
       case 'leads': {
         const { leadService } = await import('@/services/lead.service');
         const data = await leadService.getAll();
-        records = data as unknown as Record<string, unknown>[];
+        exportToCsv(data, filename, columns);
         break;
       }
       case 'contacts': {
         const { contactService } = await import('@/services/contact.service');
         const data = await contactService.getAll();
-        records = data as unknown as Record<string, unknown>[];
+        exportToCsv(data, filename, columns);
         break;
       }
       case 'companies': {
         const { companyService } = await import('@/services/company.service');
         const data = await companyService.getAll();
-        records = data as unknown as Record<string, unknown>[];
+        exportToCsv(data, filename, columns);
         break;
       }
       case 'tasks': {
         const { taskService } = await import('@/services/task.service');
         const data = await taskService.getAll();
-        records = data as unknown as Record<string, unknown>[];
+        exportToCsv(data, filename, columns);
         break;
       }
       case 'meetings': {
         const { meetingService } = await import('@/services/meeting.service');
         const data = await meetingService.getAll();
-        records = data as unknown as Record<string, unknown>[];
+        exportToCsv(data, filename, columns);
         break;
       }
       default:
         throw new Error(`Unhandled entity type: "${entityType}"`);
     }
-
-    // Apply column formatters to produce flat CSV-ready objects
-    const mappedData = records.map((item) => {
-      const row: Record<string, unknown> = {};
-      for (const col of columns as ExportColumn[]) {
-        const rawValue = item[col.key];
-        row[col.key] = col.format ? col.format(rawValue, item) : rawValue;
-      }
-      return row;
-    });
-
-    const today = new Date().toISOString().slice(0, 10);
-    const filename = `${entityType}-export-${today}.csv`;
-
-    const csv = convertToCSV(mappedData, columns);
-    downloadCSV(csv, filename);
   }, []);
 
   /**

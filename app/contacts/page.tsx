@@ -26,6 +26,8 @@ import { ViewsDropdown } from '@/components/common/ViewsDropdown';
 import { useCsvExport } from '@/hooks/useCsvExport';
 import { contactService } from '@/services/contact.service';
 import { tagService } from '@/services/tag.service';
+import { convertToCSV, downloadCSV } from '@/lib/csv-export';
+import { CONTACT_EXPORT_COLUMNS } from '@/lib/csv-export-definitions';
 import type { SavedView } from '@/types/saved-view.types';
 
 function ContactsPageContent() {
@@ -147,24 +149,37 @@ function ContactsPageContent() {
     // The hook's internal state is already updated
   }, []);
 
-  const handleBulkAction = useCallback(async (action: string, ids: string[], payload?: Record<string, string>) => {
+  // ── Bulk action handlers ──────────────────────────────────────────
+
+  const handleBulkDelete = useCallback(async (ids: string[]) => {
     for (const id of ids) {
-      switch (action) {
-        case 'add_tag':
-          if (payload?.tag) {
-            const existing = contacts.find((c) => c.id === id);
-            if (existing && !existing.tags.includes(payload.tag)) {
-              await contactService.update(id, { tags: [...existing.tags, payload.tag] });
-            }
-          }
-          break;
-        case 'delete':
-          await contactService.delete(id);
-          break;
+      await contactService.delete(id);
+    }
+    refresh();
+  }, [refresh]);
+
+  const handleBulkTag = useCallback(async (ids: string[], tagNames: string[]) => {
+    for (const id of ids) {
+      const existing = contacts.find((c) => c.id === id);
+      if (existing) {
+        const merged = [...new Set([...existing.tags, ...tagNames])];
+        await contactService.update(id, { tags: merged });
       }
     }
     refresh();
   }, [refresh, contacts]);
+
+  const handleBulkExport = useCallback((ids: string[]) => {
+    const selected = filteredContacts.filter((c) => ids.includes(c.id));
+    if (selected.length === 0) {
+      toast.error('No contacts to export');
+      return;
+    }
+    const csv = convertToCSV(selected, CONTACT_EXPORT_COLUMNS);
+    const filename = `contacts-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    downloadCSV(csv, filename);
+    toast.success(`Exported ${selected.length} contact${selected.length !== 1 ? 's' : ''}`);
+  }, [filteredContacts]);
 
   // --- Loading State ---
   if (loading) {
@@ -263,9 +278,12 @@ function ContactsPageContent() {
       {/* Bulk Action Bar */}
       {selectedContactIds.size > 0 && (
         <BulkActionBar
-          selectedIds={Array.from(selectedContactIds)}
+          selectedIds={selectedContactIds}
           entityType="contact"
-          onAction={handleBulkAction}
+          onBulkDelete={handleBulkDelete}
+          onBulkTag={handleBulkTag}
+          onBulkExport={handleBulkExport}
+          tags={tags}
           onClear={() => setSelectedContactIds(new Set())}
         />
       )}

@@ -1,32 +1,11 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSharedClient } from '@/lib/supabase/client';
 import type { Contact, ContactFormData } from '@/types/contact.types';
-import type { DbContact } from '@/types/supabase.types';
+import type { DbContact, ContactInsert } from '@/types/supabase.types';
+import { findDuplicates, normalizePhone, fuzzyNameMatch } from '@/lib/utils';
+import type { DuplicateGroup } from '@/lib/utils';
 import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
-
-function normalizePhone(phone: string): string {
-  return phone.replace(/\D/g, '').slice(-10);
-}
-
-function fuzzyNameMatch(a: string, b: string): boolean {
-  const na = a.toLowerCase().trim();
-  const nb = b.toLowerCase().trim();
-  if (na.length < 3 || nb.length < 3) return na === nb;
-  return na.slice(0, 3) === nb.slice(0, 3) && na.slice(-3) === nb.slice(-3);
-}
-
-interface DuplicateGroup {
-  contact: Contact;
-  duplicates: Contact[];
-  score: number;
-}
-
-let _client: Awaited<ReturnType<typeof createClient>> | null = null;
-async function getClient() {
-  if (!_client) _client = await createClient();
-  return _client;
-}
 
 function mapRowToContact(row: DbContact): Contact {
   return {
@@ -46,8 +25,8 @@ function mapRowToContact(row: DbContact): Contact {
   };
 }
 
-function mapContactToDb(contact: Partial<ContactFormData>): Record<string, unknown> {
-  const db: Record<string, unknown> = {};
+function mapContactToDb(contact: Partial<ContactFormData>): Partial<ContactInsert> {
+  const db: Partial<ContactInsert> = {};
   if (contact.name !== undefined) db.name = contact.name;
   if (contact.email !== undefined) db.email = contact.email || null;
   if (contact.phone !== undefined) db.phone = contact.phone || null;
@@ -63,7 +42,7 @@ function mapContactToDb(contact: Partial<ContactFormData>): Record<string, unkno
 export const contactService = {
   async getAll(page = 1, pageSize = 50): Promise<Contact[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
@@ -78,7 +57,7 @@ export const contactService = {
 
   async getById(id: string): Promise<Contact | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
@@ -96,7 +75,7 @@ export const contactService = {
 
   async getByCompanyId(companyId: string, page = 1, pageSize = 50): Promise<Contact[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
@@ -112,7 +91,7 @@ export const contactService = {
 
   async getByLeadId(leadId: string, page = 1, pageSize = 50): Promise<Contact[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
@@ -128,7 +107,7 @@ export const contactService = {
 
   async search(query: string, page = 1, pageSize = 50): Promise<Contact[]> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const s = query.toLowerCase();
       const { data, error } = await supabase
         .from('contacts')
@@ -145,7 +124,7 @@ export const contactService = {
 
   async create(data: ContactFormData): Promise<Contact> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbRow = {
         ...mapContactToDb(data),
         lead_ids: [],
@@ -172,7 +151,7 @@ export const contactService = {
 
   async update(id: string, data: Partial<ContactFormData>): Promise<Contact | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const dbData = { ...mapContactToDb(data) };
       const { data: updated, error } = await supabase
         .from('contacts')
@@ -195,7 +174,7 @@ export const contactService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       await supabase.from('tasks').delete().eq('related_to_id', id);
       await supabase.from('meetings').delete().eq('related_to_id', id);
       await supabase.from('activities').delete().eq('entity_id', id);
@@ -209,51 +188,23 @@ export const contactService = {
     }
   },
 
-  async findDuplicates(): Promise<DuplicateGroup[]> {
+  /**
+   * Find duplicate contacts using email, phone, and name matching.
+   * Uses shared utilities from @/lib/utils (normalizePhone, fuzzyNameMatch).
+   * @see leadService.findDuplicates — same pattern with different weights (includes companyName)
+   */
+  async findDuplicates(): Promise<DuplicateGroup<Contact>[]> {
     try {
       const all = await this.getAll();
-      const groups: DuplicateGroup[] = [];
-      const visited = new Set<string>();
-
-      for (let i = 0; i < all.length; i++) {
-        if (visited.has(all[i].id)) continue;
-        const a = all[i];
-        const matches: Contact[] = [];
-        let maxScore = 0;
-
-        for (let j = i + 1; j < all.length; j++) {
-          const b = all[j];
-          if (visited.has(b.id)) continue;
-          let score = 0;
-
-          if (a.email && b.email && a.email.toLowerCase() === b.email.toLowerCase()) {
-            score += 45;
-          }
-          if (a.phone && b.phone) {
-            const npA = normalizePhone(a.phone);
-            const npB = normalizePhone(b.phone);
-            if (npA === npB && npA.length >= 10) {
-              score += 40;
-            }
-          }
-          if (a.name && b.name && fuzzyNameMatch(a.name, b.name)) {
-            score += 15;
-          }
-
-          if (score >= 25) {
-            matches.push(b);
-            if (score > maxScore) maxScore = score;
-          }
-        }
-
-        if (matches.length > 0) {
-          groups.push({ contact: a, duplicates: matches, score: maxScore });
-          for (const m of matches) visited.add(m.id);
-          visited.add(a.id);
-        }
-      }
-
-      return groups.sort((a, b) => b.score - a.score);
+      return findDuplicates(
+        all,
+        [
+          { key: (c: Contact) => c.email ?? '', weight: 45, type: 'exact' as const },
+          { key: (c: Contact) => c.phone ?? '', weight: 40, type: 'normalized' as const },
+          { key: (c: Contact) => c.name ?? '', weight: 15, type: 'fuzzy' as const },
+        ],
+        25,
+      );
     } catch (e) {
       throw new Error(formatSupabaseError(e));
     }
@@ -261,7 +212,7 @@ export const contactService = {
 
   async merge(survivorId: string, mergeIds: string[]): Promise<Contact> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
 
       await supabase.from('tasks').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'contact');
       await supabase.from('meetings').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'contact');
@@ -283,7 +234,7 @@ export const contactService = {
 
   async linkToLead(contactId: string, leadId: string): Promise<Contact | undefined> {
     try {
-      const supabase = await getClient();
+      const supabase = await getSharedClient();
       const { data: contact, error: fetchError } = await supabase
         .from('contacts')
         .select('lead_ids')

@@ -3,20 +3,17 @@ import type { ContactFormData } from '@/types/contact.types';
 import type { CompanyFormData } from '@/types/company.types';
 import type { TaskFormData } from '@/types/task.types';
 import type { MeetingFormData } from '@/types/meeting.types';
+import type { ValidationResult } from '@/types/common.types';
+import { EMAIL_REGEX } from '@/lib/utils';
 
 export const PHONE_REGEX = /^\+?[\d\s\-().]{7,20}$/;
-
-export interface ValidationResult {
-  isValid: boolean;
-  errors: Record<string, string>;
-}
 
 export function validateLeadForm(data: Partial<LeadFormData>): ValidationResult {
   const errors: Record<string, string> = {};
   if (!data.fullName || data.fullName.trim().length === 0) {
     errors.fullName = 'Full name is required';
   }
-  if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+  if (data.email && !EMAIL_REGEX.test(data.email)) {
     errors.email = 'Invalid email format';
   }
   if (data.phone && !PHONE_REGEX.test(data.phone)) {
@@ -33,7 +30,7 @@ export function validateContactForm(data: Partial<ContactFormData>): ValidationR
   if (!data.name || data.name.trim().length === 0) {
     errors.name = 'Name is required';
   }
-  if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+  if (data.email && !EMAIL_REGEX.test(data.email)) {
     errors.email = 'Invalid email format';
   }
   if (data.phone && !PHONE_REGEX.test(data.phone)) {
