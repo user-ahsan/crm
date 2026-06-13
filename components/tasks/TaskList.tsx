@@ -172,8 +172,8 @@ export function TaskList({ tasks: externalTasks, showEntity, onTaskUpdate }: Tas
   );
 
   const handleToggle = useCallback(
-    (id: string) => {
-      const result = toggleTask(id);
+    async (id: string) => {
+      const result = await toggleTask(id);
       if (result) {
         onTaskUpdate?.();
       }

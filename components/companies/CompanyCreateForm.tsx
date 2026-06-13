@@ -112,7 +112,7 @@ export function CompanyCreateForm({ open, onOpenChange, onSuccess, editCompany }
       };
 
       if (isEditMode && editCompany) {
-        const updated = updateCompany(editCompany.id, payload);
+        const updated = await updateCompany(editCompany.id, payload);
         if (updated) {
           toast.success('Company updated successfully');
           onSuccess?.(updated);
@@ -121,7 +121,7 @@ export function CompanyCreateForm({ open, onOpenChange, onSuccess, editCompany }
           toast.error('Failed to update company');
         }
       } else {
-        const created = createCompany(payload);
+        const created = await createCompany(payload);
         if (created) {
           toast.success('Company created successfully');
           onSuccess?.(created);

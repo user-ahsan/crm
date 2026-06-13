@@ -9,11 +9,12 @@ export function useContacts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setContacts(contactService.getAll());
+      const data = await contactService.getAll();
+      setContacts(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load contacts');
     } finally {
@@ -23,12 +24,25 @@ export function useContacts() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const getById = useCallback((id: string) => contactService.getById(id), []);
-  const getByCompanyId = useCallback((companyId: string) => contactService.getByCompanyId(companyId), []);
-
-  const createContact = useCallback((data: ContactFormData) => {
+  const getById = useCallback(async (id: string) => {
     try {
-      const newContact = contactService.create(data);
+      return await contactService.getById(id);
+    } catch {
+      return undefined;
+    }
+  }, []);
+
+  const getByCompanyId = useCallback(async (companyId: string) => {
+    try {
+      return await contactService.getByCompanyId(companyId);
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const createContact = useCallback(async (data: ContactFormData) => {
+    try {
+      const newContact = await contactService.create(data);
       setContacts((prev) => [newContact, ...prev]);
       return newContact;
     } catch (e) {
@@ -37,9 +51,9 @@ export function useContacts() {
     }
   }, []);
 
-  const updateContact = useCallback((id: string, data: Partial<ContactFormData>) => {
+  const updateContact = useCallback(async (id: string, data: Partial<ContactFormData>) => {
     try {
-      const updated = contactService.update(id, data);
+      const updated = await contactService.update(id, data);
       if (updated) setContacts((prev) => prev.map((c) => (c.id === id ? updated : c)));
       return updated;
     } catch (e) {
@@ -48,9 +62,9 @@ export function useContacts() {
     }
   }, []);
 
-  const deleteContact = useCallback((id: string) => {
+  const deleteContact = useCallback(async (id: string) => {
     try {
-      const success = contactService.delete(id);
+      const success = await contactService.delete(id);
       if (success) setContacts((prev) => prev.filter((c) => c.id !== id));
       return success;
     } catch (e) {

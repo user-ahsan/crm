@@ -138,7 +138,7 @@ export function TaskCreateForm({
           priority: priority as TaskPriority,
         };
 
-        const result = createTask(formData);
+        const result = await createTask(formData);
 
         if (result) {
           toast.success('Task created successfully');

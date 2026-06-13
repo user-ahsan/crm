@@ -53,9 +53,9 @@ export default function CompaniesPage() {
         duration: 5000,
         action: {
           label: 'Delete',
-          onClick: () => {
+          onClick: async () => {
             try {
-              const success = deleteCompany(id);
+              const success = await deleteCompany(id);
               if (success) {
                 toast.success('Company deleted successfully');
               } else {

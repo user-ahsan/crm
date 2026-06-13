@@ -33,10 +33,14 @@ export interface TopBarProps {
   onMenuToggle: () => void;
   /** Opens the command palette (Cmd+K) */
   onSearchClick: () => void;
+  /** Opens the notification panel */
+  onNotificationClick: () => void;
+  /** Number of unread notifications */
+  notificationCount?: number;
 }
 
 /* ── Component ───────────────────────────────────────────── */
-export function TopBar({ onMenuToggle, onSearchClick }: TopBarProps) {
+export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notificationCount = 3 }: TopBarProps) {
   const { theme, toggleTheme } = useThemeStore();
   const isDark = theme === 'dark';
   const currentUser = USERS[0] ?? { initials: '?', name: 'User' };
@@ -115,14 +119,17 @@ export function TopBar({ onMenuToggle, onSearchClick }: TopBarProps) {
           size="icon"
           className="relative"
           aria-label="Notifications"
+          onClick={onNotificationClick}
         >
           <IconBell className="size-5" />
-          <Badge
-            variant="destructive"
-            className="absolute -top-0.5 -right-0.5 flex size-4 min-w-0 items-center justify-center rounded-full p-0 text-[10px] leading-none"
-          >
-            3
-          </Badge>
+          {notificationCount > 0 && (
+            <Badge
+              variant="destructive"
+              className="absolute -top-0.5 -right-0.5 flex size-4 min-w-0 items-center justify-center rounded-full p-0 text-[10px] leading-none"
+            >
+              {notificationCount > 99 ? '99+' : notificationCount}
+            </Badge>
+          )}
         </Button>
 
         {/* User Avatar Dropdown */}
@@ -144,23 +151,25 @@ export function TopBar({ onMenuToggle, onSearchClick }: TopBarProps) {
           />
 
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>
-              <div className="flex items-center gap-3">
-                <Avatar size="sm">
-                  <AvatarFallback className="text-xs">
-                    {currentUser.initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
-                    {currentUser.name}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    admin@nexuscrm.io
-                  </p>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>
+                <div className="flex items-center gap-3">
+                  <Avatar size="sm">
+                    <AvatarFallback className="text-xs">
+                      {currentUser.initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {currentUser.name}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      admin@nexuscrm.io
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </DropdownMenuLabel>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
 
             <DropdownMenuSeparator />
 

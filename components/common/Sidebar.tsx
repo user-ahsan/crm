@@ -110,7 +110,7 @@ export function Sidebar({
               onClick={onNavClick}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                collapsed && 'justify-center px-0',
+                collapsed && 'justify-center px-0 gap-0',
                 isActive
                   ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                   : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
@@ -126,7 +126,9 @@ export function Sidebar({
           if (collapsed) {
             return (
               <Tooltip key={item.href}>
-                <TooltipTrigger>{linkElement}</TooltipTrigger>
+                <TooltipTrigger>
+                  {linkElement}
+                </TooltipTrigger>
                 <TooltipContent side="right" sideOffset={8}>
                   {item.label}
                 </TooltipContent>
@@ -143,24 +145,37 @@ export function Sidebar({
       {/* ── User Area ─────────────────────────────────── */}
       <div className={cn('p-3', collapsed && 'p-2')}>
         {collapsed ? (
-          <Tooltip>
-            <TooltipTrigger>
+          <div className="flex flex-col items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger>
+                <button
+                  type="button"
+                  className="flex items-center justify-center rounded-lg py-2 transition-colors hover:bg-sidebar-accent/50"
+                  aria-label={currentUser.name}
+                >
+                  <Avatar size="sm">
+                    <AvatarFallback className="text-xs">
+                      {currentUser.initials}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={8}>
+                {currentUser.name}
+              </TooltipContent>
+            </Tooltip>
+
+            {onToggleCollapse && (
               <button
                 type="button"
-                className="flex w-full items-center justify-center rounded-lg py-2 transition-colors hover:bg-sidebar-accent/50"
-                aria-label={currentUser.name}
+                onClick={onToggleCollapse}
+                className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                aria-label="Expand sidebar"
               >
-                <Avatar size="sm">
-                  <AvatarFallback className="text-xs">
-                    {currentUser.initials}
-                  </AvatarFallback>
-                </Avatar>
+                <IconChevronLeft className="size-3.5 rotate-180" />
               </button>
-            </TooltipTrigger>
-            <TooltipContent side="right" sideOffset={8}>
-              {currentUser.name}
-            </TooltipContent>
-          </Tooltip>
+            )}
+          </div>
         ) : (
           <div className="flex items-center gap-3">
             <Avatar size="sm">

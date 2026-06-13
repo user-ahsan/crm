@@ -10,11 +10,12 @@ export function useCompanies() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setCompanies(companyService.getAll());
+      const data = await companyService.getAll();
+      setCompanies(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load companies');
     } finally {
@@ -24,11 +25,17 @@ export function useCompanies() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const getById = useCallback((id: string) => companyService.getById(id), []);
-
-  const createCompany = useCallback((data: CompanyFormData) => {
+  const getById = useCallback(async (id: string) => {
     try {
-      const newCompany = companyService.create(data);
+      return await companyService.getById(id);
+    } catch {
+      return undefined;
+    }
+  }, []);
+
+  const createCompany = useCallback(async (data: CompanyFormData) => {
+    try {
+      const newCompany = await companyService.create(data);
       setCompanies((prev) => [newCompany, ...prev]);
       return newCompany;
     } catch (e) {
@@ -37,9 +44,9 @@ export function useCompanies() {
     }
   }, []);
 
-  const updateCompany = useCallback((id: string, data: Partial<CompanyFormData>) => {
+  const updateCompany = useCallback(async (id: string, data: Partial<CompanyFormData>) => {
     try {
-      const updated = companyService.update(id, data);
+      const updated = await companyService.update(id, data);
       if (updated) setCompanies((prev) => prev.map((c) => (c.id === id ? updated : c)));
       return updated;
     } catch (e) {
@@ -48,9 +55,9 @@ export function useCompanies() {
     }
   }, []);
 
-  const deleteCompany = useCallback((id: string) => {
+  const deleteCompany = useCallback(async (id: string) => {
     try {
-      const success = companyService.delete(id);
+      const success = await companyService.delete(id);
       if (success) setCompanies((prev) => prev.filter((c) => c.id !== id));
       return success;
     } catch (e) {
@@ -59,8 +66,12 @@ export function useCompanies() {
     }
   }, []);
 
-  const getContactsForCompany = useCallback((companyId: string) => {
-    return contactService.getByCompanyId(companyId);
+  const getContactsForCompany = useCallback(async (companyId: string) => {
+    try {
+      return await contactService.getByCompanyId(companyId);
+    } catch {
+      return [];
+    }
   }, []);
 
   return { companies, loading, error, refresh, getById, createCompany, updateCompany, deleteCompany, getContactsForCompany };

@@ -21,11 +21,11 @@ export default function CompanyDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const loadCompany = useCallback(() => {
+  const loadCompany = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const found = companyService.getById(companyId);
+      const found = await companyService.getById(companyId);
       if (found) {
         setCompany(found);
       } else {

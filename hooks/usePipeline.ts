@@ -10,11 +10,12 @@ export function usePipeline() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setLeads(leadService.getAll());
+      const data = await leadService.getAll();
+      setLeads(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load pipeline');
     } finally {
@@ -26,9 +27,9 @@ export function usePipeline() {
 
   const pipeline = useMemo(() => buildPipeline(leads), [leads]);
 
-  const moveLead = useCallback((leadId: string, newStage: LeadStatus) => {
+  const moveLead = useCallback(async (leadId: string, newStage: LeadStatus) => {
     try {
-      const updated = leadService.updateStatus(leadId, newStage);
+      const updated = await leadService.updateStatus(leadId, newStage);
       if (updated) {
         setLeads((prev) => prev.map((l) => (l.id === leadId ? updated : l)));
       }
@@ -39,8 +40,12 @@ export function usePipeline() {
     }
   }, []);
 
-  const getStageStats = useCallback(() => {
-    return leadService.getPipelineStats();
+  const getStageStats = useCallback(async () => {
+    try {
+      return await leadService.getPipelineStats();
+    } catch {
+      return null;
+    }
   }, []);
 
   return { pipeline, leads, loading, error, refresh, moveLead, getStageStats };

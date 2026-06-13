@@ -10,11 +10,11 @@ export function useLeads() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = leadService.getAll();
+      const data = await leadService.getAll();
       setLeads(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load leads');
@@ -29,13 +29,17 @@ export function useLeads() {
     return applyLeadFilters(leads, filters);
   }, [leads]);
 
-  const getById = useCallback((id: string) => {
-    return leadService.getById(id);
+  const getById = useCallback(async (id: string) => {
+    try {
+      return await leadService.getById(id);
+    } catch {
+      return undefined;
+    }
   }, []);
 
-  const createLead = useCallback((data: LeadFormData) => {
+  const createLead = useCallback(async (data: LeadFormData) => {
     try {
-      const newLead = leadService.create(data);
+      const newLead = await leadService.create(data);
       setLeads((prev) => [newLead, ...prev]);
       return newLead;
     } catch (e) {
@@ -44,9 +48,9 @@ export function useLeads() {
     }
   }, []);
 
-  const updateLead = useCallback((id: string, data: Partial<LeadFormData>) => {
+  const updateLead = useCallback(async (id: string, data: Partial<LeadFormData>) => {
     try {
-      const updated = leadService.update(id, data);
+      const updated = await leadService.update(id, data);
       if (updated) {
         setLeads((prev) => prev.map((l) => (l.id === id ? updated : l)));
       }
@@ -57,9 +61,9 @@ export function useLeads() {
     }
   }, []);
 
-  const deleteLead = useCallback((id: string) => {
+  const deleteLead = useCallback(async (id: string) => {
     try {
-      const success = leadService.delete(id);
+      const success = await leadService.delete(id);
       if (success) setLeads((prev) => prev.filter((l) => l.id !== id));
       return success;
     } catch (e) {

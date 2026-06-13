@@ -43,11 +43,11 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const found = companyService.getById(companyId);
+      const found = await companyService.getById(companyId);
       if (!found) {
         setError('Company not found');
         setLoading(false);
@@ -55,15 +55,12 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
       }
       setCompany(found);
 
-      const contacts = found.contactIds
-        .map((contactId) => contactService.getById(contactId))
-        .filter((c): c is Contact => c !== undefined);
-      setLinkedContacts(contacts);
-
-      const leads = found.leadIds
-        .map((leadId) => leadService.getById(leadId))
-        .filter((l): l is Lead => l !== undefined);
-      setLinkedLeads(leads);
+      const [contactResults, leadResults] = await Promise.all([
+        Promise.all(found.contactIds.map((contactId) => contactService.getById(contactId))),
+        Promise.all(found.leadIds.map((leadId) => leadService.getById(leadId))),
+      ]);
+      setLinkedContacts(contactResults.filter((c): c is Contact => c !== undefined));
+      setLinkedLeads(leadResults.filter((l): l is Lead => l !== undefined));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load company details');
     } finally {

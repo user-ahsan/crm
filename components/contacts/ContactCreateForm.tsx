@@ -138,7 +138,7 @@ export function ContactCreateForm({ open, onOpenChange, onSuccess, editContact }
     setSubmitting(true);
     try {
       if (isEditMode && editContact) {
-        const updated = updateContact(editContact.id, formData);
+        const updated = await updateContact(editContact.id, formData);
         if (updated) {
           toast.success('Contact updated successfully');
           onSuccess?.(updated);
@@ -147,7 +147,7 @@ export function ContactCreateForm({ open, onOpenChange, onSuccess, editContact }
           toast.error('Failed to update contact');
         }
       } else {
-        const created = createContact(formData);
+        const created = await createContact(formData);
         if (created) {
           toast.success('Contact created successfully');
           onSuccess?.(created);

@@ -21,11 +21,11 @@ export default function ContactDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const loadContact = useCallback(() => {
+  const loadContact = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const found = contactService.getById(contactId);
+      const found = await contactService.getById(contactId);
       if (found) {
         setContact(found);
       } else {

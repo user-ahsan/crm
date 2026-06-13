@@ -16,8 +16,9 @@ import { contactService } from '@/services/contact.service';
 import { leadService } from '@/services/lead.service';
 import { taskService } from '@/services/task.service';
 import { meetingService } from '@/services/meeting.service';
+import { companyService } from '@/services/company.service';
+import type { Company } from '@/types/company.types';
 import { formatDate, getInitials, formatCurrency } from '@/lib/formatters';
-import { companies } from '@/data/companies';
 import {
   IconArrowLeft,
   IconMail,
@@ -46,15 +47,19 @@ export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
   const [linkedLeads, setLinkedLeads] = useState<Lead[]>([]);
   const [relatedTasks, setRelatedTasks] = useState<Task[]>([]);
   const [relatedMeetings, setRelatedMeetings] = useState<Meeting[]>([]);
+  const [company, setCompany] = useState<Company | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const found = contactService.getById(contactId);
+      const [found, allCompanies] = await Promise.all([
+        contactService.getById(contactId),
+        companyService.getAll(),
+      ]);
       if (!found) {
         setError('Contact not found');
         setLoading(false);
@@ -62,15 +67,19 @@ export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
       }
       setContact(found);
 
-      const leads = found.leadIds
-        .map((leadId) => leadService.getById(leadId))
-        .filter((l): l is Lead => l !== undefined);
-      setLinkedLeads(leads);
+      if (found.companyId) {
+        setCompany(allCompanies.find((c) => c.id === found.companyId));
+      }
 
-      const tasks = taskService.getByEntity('contact', contactId);
+      const leadResults = await Promise.all(
+        found.leadIds.map((leadId) => leadService.getById(leadId)),
+      );
+      setLinkedLeads(leadResults.filter((l): l is Lead => l !== undefined));
+
+      const tasks = await taskService.getByEntity('contact', contactId);
       setRelatedTasks(tasks);
 
-      const meetings = meetingService.getByEntity('contact', contactId);
+      const meetings = await meetingService.getByEntity('contact', contactId);
       setRelatedMeetings(meetings);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load contact details');
@@ -132,9 +141,7 @@ export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
     );
   }
 
-  const company = contact.companyId
-    ? companies.find((c) => c.id === contact.companyId)
-    : undefined;
+  // company loaded via loadData into state
 
   return (
     <div className="space-y-6">

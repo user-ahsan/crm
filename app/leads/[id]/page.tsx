@@ -21,11 +21,11 @@ export default function LeadDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const loadLead = useCallback(() => {
+  const loadLead = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const found = leadService.getById(leadId);
+      const found = await leadService.getById(leadId);
       if (found) {
         setLead(found);
       } else {

@@ -10,11 +10,12 @@ export function useTasks() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setTasks(taskService.getAll());
+      const data = await taskService.getAll();
+      setTasks(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load tasks');
     } finally {
@@ -32,16 +33,20 @@ export function useTasks() {
     return sortTasks(tasks, by);
   }, [tasks]);
 
-  const getByEntity = useCallback((entityType: string, entityId: string) => {
-    return taskService.getByEntity(entityType, entityId);
+  const getByEntity = useCallback(async (entityType: string, entityId: string) => {
+    try {
+      return await taskService.getByEntity(entityType, entityId);
+    } catch {
+      return [];
+    }
   }, []);
 
   const overdue = useCallback(() => getOverdueTasks(tasks), [tasks]);
   const dueToday = useCallback(() => getDueTodayTasks(tasks), [tasks]);
 
-  const createTask = useCallback((data: TaskFormData) => {
+  const createTask = useCallback(async (data: TaskFormData) => {
     try {
-      const newTask = taskService.create(data);
+      const newTask = await taskService.create(data);
       setTasks((prev) => [newTask, ...prev]);
       return newTask;
     } catch (e) {
@@ -50,9 +55,9 @@ export function useTasks() {
     }
   }, []);
 
-  const updateTask = useCallback((id: string, data: Partial<TaskFormData & { status: TaskStatus }>) => {
+  const updateTask = useCallback(async (id: string, data: Partial<TaskFormData & { status: TaskStatus }>) => {
     try {
-      const updated = taskService.update(id, data);
+      const updated = await taskService.update(id, data);
       if (updated) setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
       return updated;
     } catch (e) {
@@ -61,9 +66,9 @@ export function useTasks() {
     }
   }, []);
 
-  const toggleTask = useCallback((id: string) => {
+  const toggleTask = useCallback(async (id: string) => {
     try {
-      const updated = taskService.toggleStatus(id);
+      const updated = await taskService.toggleStatus(id);
       if (updated) setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
       return updated;
     } catch (e) {
@@ -72,9 +77,9 @@ export function useTasks() {
     }
   }, []);
 
-  const deleteTask = useCallback((id: string) => {
+  const deleteTask = useCallback(async (id: string) => {
     try {
-      const success = taskService.delete(id);
+      const success = await taskService.delete(id);
       if (success) setTasks((prev) => prev.filter((t) => t.id !== id));
       return success;
     } catch (e) {

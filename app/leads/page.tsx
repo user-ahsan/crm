@@ -73,9 +73,9 @@ export default function LeadsPage() {
         duration: 5000,
         action: {
           label: 'Delete',
-          onClick: () => {
+          onClick: async () => {
             try {
-              const success = deleteLead(id);
+              const success = await deleteLead(id);
               if (success) {
                 toast.success('Lead deleted successfully');
               } else {

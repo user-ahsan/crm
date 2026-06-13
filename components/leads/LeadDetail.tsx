@@ -70,62 +70,65 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
 
   // Fetch lead data
   useEffect(() => {
+    let cancelled = false;
     setLeadState({ status: 'loading' });
-    try {
-      const lead = leadService.getById(leadId);
+    leadService.getById(leadId).then((lead) => {
+      if (cancelled) return;
       if (lead) {
         setLeadState({ status: 'success', data: lead });
       } else {
         setLeadState({ status: 'error', message: 'Lead not found' });
       }
-    } catch (err) {
+    }).catch((err) => {
+      if (cancelled) return;
       setLeadState({
         status: 'error',
         message: err instanceof Error ? err.message : 'Failed to load lead',
       });
-    }
+    });
+    return () => { cancelled = true; };
   }, [leadId]);
 
   // Fetch related tasks, meetings, activities when tab changes or lead loads
   useEffect(() => {
     if (leadState.status !== 'success') return;
     const lead = leadState.data;
+    let cancelled = false;
 
     if (activeTab === 'tasks' || activeTab === 'overview') {
       setTasksLoading(true);
-      try {
-        const relatedTasks = taskService.getByEntity('lead', lead.id);
-        setTasks(relatedTasks);
-      } catch {
-        setTasks([]);
-      } finally {
-        setTasksLoading(false);
-      }
+      taskService.getByEntity('lead', lead.id).then((relatedTasks) => {
+        if (!cancelled) setTasks(relatedTasks);
+      }).catch(() => {
+        if (!cancelled) setTasks([]);
+      }).finally(() => {
+        if (!cancelled) setTasksLoading(false);
+      });
     }
 
     if (activeTab === 'meetings' || activeTab === 'overview') {
       setMeetingsLoading(true);
-      try {
-        const relatedMeetings = meetingService.getByEntity('lead', lead.id);
-        setMeetings(relatedMeetings);
-      } catch {
-        setMeetings([]);
-      } finally {
-        setMeetingsLoading(false);
-      }
+      meetingService.getByEntity('lead', lead.id).then((relatedMeetings) => {
+        if (!cancelled) setMeetings(relatedMeetings);
+      }).catch(() => {
+        if (!cancelled) setMeetings([]);
+      }).finally(() => {
+        if (!cancelled) setMeetingsLoading(false);
+      });
     }
 
     if (activeTab === 'activity' || activeTab === 'overview') {
       setActivitiesLoading(true);
-      try {
-        const relatedActivities = activityService.getByEntity('lead', lead.id);
-        setActivities(relatedActivities);
-      } catch {
-        setActivities([]);
-      } finally {
-        setActivitiesLoading(false);
-      }
+      activityService.getByEntity('lead', lead.id).then((relatedActivities) => {
+        if (!cancelled) setActivities(relatedActivities);
+      }).catch(() => {
+        if (!cancelled) setActivities([]);
+      }).finally(() => {
+        if (!cancelled) setActivitiesLoading(false);
+      });
     }
+
+    return () => { cancelled = true; };
   }, [leadState, activeTab]);
 
   // Loading state

@@ -13,6 +13,7 @@ import {
 import { Sidebar } from '@/components/common/Sidebar';
 import { TopBar } from '@/components/common/TopBar';
 import { CommandPalette } from '@/components/common/CommandPalette';
+import { NotificationPanel } from '@/components/common/NotificationPanel';
 
 /* ── Props ───────────────────────────────────────────────── */
 export interface AppShellProps {
@@ -24,6 +25,7 @@ export function AppShell({ children }: AppShellProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
 
   const handleMenuToggle = useCallback(() => {
     setMobileSidebarOpen((prev) => !prev);
@@ -39,6 +41,10 @@ export function AppShell({ children }: AppShellProps) {
 
   const handleSearchClick = useCallback(() => {
     setSearchOpen(true);
+  }, []);
+
+  const handleNotificationClick = useCallback(() => {
+    setNotificationOpen((prev) => !prev);
   }, []);
 
   useEffect(() => {
@@ -87,6 +93,7 @@ export function AppShell({ children }: AppShellProps) {
           <TopBar
             onMenuToggle={handleMenuToggle}
             onSearchClick={handleSearchClick}
+            onNotificationClick={handleNotificationClick}
           />
 
           <Separator />
@@ -100,6 +107,7 @@ export function AppShell({ children }: AppShellProps) {
       </div>
 
       <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <NotificationPanel open={notificationOpen} onOpenChange={setNotificationOpen} />
     </TooltipProvider>
   );
 }

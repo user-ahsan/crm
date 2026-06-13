@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { leads } from '@/data/leads';
+import type { Lead } from '@/types/lead.types';
+import { leadService } from '@/services/lead.service';
 import {
   computePipelineFunnel,
   computeLeadSources,
@@ -113,54 +114,40 @@ function BarChart({
 
 /* ── Analytics Page ─────────────────────────────────────── */
 export default function AnalyticsPage() {
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [pageState, setPageState] = useState<PageState>('loading');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      if (cancelled) return;
-      try {
-        if (leads.length === 0) {
-          setPageState('empty');
-        } else {
-          setPageState('ready');
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Failed to load analytics');
-          setPageState('error');
-        }
-      }
-    }, 350);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, []);
-
-  const handleRetry = useCallback(() => {
+  const loadData = useCallback(async () => {
     setPageState('loading');
     setError(null);
-    setTimeout(() => {
-      try {
-        if (leads.length === 0) {
-          setPageState('empty');
-        } else {
-          setPageState('ready');
-        }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load analytics');
-        setPageState('error');
+    try {
+      const l = await leadService.getAll();
+      setLeads(l);
+      if (l.length === 0) {
+        setPageState('empty');
+      } else {
+        setPageState('ready');
       }
-    }, 350);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load analytics');
+      setPageState('error');
+    }
   }, []);
 
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleRetry = useCallback(() => {
+    loadData();
+  }, [loadData]);
+
   /* Memoised computations */
-  const kpis = useMemo(() => computeDashboardKPIs(leads, [], []), []);
-  const funnel = useMemo(() => computePipelineFunnel(leads), []);
-  const sources = useMemo(() => computeLeadSources(leads), []);
-  const monthly = useMemo(() => computeMonthlyPerformance(leads), []);
+  const kpis = useMemo(() => computeDashboardKPIs(leads, [], []), [leads]);
+  const funnel = useMemo(() => computePipelineFunnel(leads), [leads]);
+  const sources = useMemo(() => computeLeadSources(leads), [leads]);
+  const monthly = useMemo(() => computeMonthlyPerformance(leads), [leads]);
 
   /* ── Status distribution (derived) ──────────────────────── */
   const statusDistribution = useMemo(() => {
@@ -175,7 +162,7 @@ export default function AnalyticsPage() {
       count: counts[s],
       percentage: leads.length > 0 ? Math.round((counts[s] / leads.length) * 100) : 0,
     }));
-  }, []);
+  }, [leads]);
 
   const maxFunnelCount = Math.max(...funnel.map((s) => s.count), 1);
   const maxFunnelValue = Math.max(...funnel.map((s) => s.value), 1);

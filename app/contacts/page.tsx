@@ -54,9 +54,9 @@ export default function ContactsPage() {
         duration: 5000,
         action: {
           label: 'Delete',
-          onClick: () => {
+          onClick: async () => {
             try {
-              const success = deleteContact(id);
+              const success = await deleteContact(id);
               if (success) {
                 toast.success('Contact deleted successfully');
               } else {

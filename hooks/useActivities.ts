@@ -9,11 +9,12 @@ export function useActivities() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setActivities(activityService.getAll());
+      const data = await activityService.getAll();
+      setActivities(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load activities');
     } finally {
@@ -21,17 +22,23 @@ export function useActivities() {
     }
   }, []);
 
-  const getByEntity = useCallback((entityType: string, entityId: string) => {
+  const getByEntity = useCallback(async (entityType: string, entityId: string) => {
     try {
-      return activityService.getByEntity(entityType, entityId);
+      return await activityService.getByEntity(entityType, entityId);
     } catch {
       return [];
     }
   }, []);
 
-  const logActivity = useCallback((entityType: string, entityId: string, type: ActivityType, description: string, metadata?: Record<string, unknown>) => {
+  const logActivity = useCallback(async (
+    entityType: string,
+    entityId: string,
+    type: ActivityType,
+    description: string,
+    metadata?: Record<string, unknown>,
+  ) => {
     try {
-      const activity = activityService.log(entityType, entityId, type, description, metadata);
+      const activity = await activityService.log(entityType, entityId, type, description, metadata);
       setActivities((prev) => [activity, ...prev]);
       return activity;
     } catch {

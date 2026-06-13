@@ -217,12 +217,12 @@ export function MeetingCreateForm({
         let result: Meeting | undefined;
 
         if (editMeeting) {
-          result = updateMeeting(editMeeting.id, formData);
+          result = await updateMeeting(editMeeting.id, formData);
           if (result) {
             toast.success('Meeting updated successfully');
           }
         } else {
-          result = createMeeting(formData);
+          result = await createMeeting(formData);
           if (result) {
             toast.success('Meeting created successfully');
           }

@@ -159,7 +159,7 @@ export function LeadCreateForm({ open, onOpenChange, onSuccess, editLead }: Lead
     setSubmitting(true);
     try {
       if (isEditMode && editLead) {
-        const updated = updateLead(editLead.id, formData);
+        const updated = await updateLead(editLead.id, formData);
         if (updated) {
           toast.success('Lead updated successfully');
           onSuccess?.(updated);
@@ -168,7 +168,7 @@ export function LeadCreateForm({ open, onOpenChange, onSuccess, editLead }: Lead
           toast.error('Failed to update lead');
         }
       } else {
-        const created = createLead(formData);
+        const created = await createLead(formData);
         if (created) {
           toast.success('Lead created successfully');
           onSuccess?.(created);
