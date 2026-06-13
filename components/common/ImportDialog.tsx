@@ -15,6 +15,71 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
+// ─── Column Definitions for Format Guide ─────────────────────────────────
+
+interface ColumnSpec {
+  name: string;
+  type: string;
+  required: boolean;
+  description: string;
+  example: string;
+}
+
+const ENTITY_COLUMNS: Record<string, ColumnSpec[]> = {
+  leads: [
+    { name: 'fullName', type: 'text', required: true, description: 'Lead full name', example: 'John Davis' },
+    { name: 'email', type: 'email', required: false, description: 'Email address', example: 'john@acme.com' },
+    { name: 'phone', type: 'text', required: false, description: 'Phone number', example: '+1 (555) 123-4567' },
+    { name: 'companyName', type: 'text', required: false, description: 'Company name', example: 'Acme Corp' },
+    { name: 'industry', type: 'text', required: false, description: 'Industry vertical', example: 'Technology' },
+    { name: 'country', type: 'text', required: false, description: 'Country/region', example: 'United States' },
+    { name: 'source', type: 'text', required: false, description: 'Lead source: manual, website, referral, ads, social', example: 'website' },
+    { name: 'status', type: 'text', required: false, description: 'Pipeline status: new, contacted, qualified, proposal, won, lost', example: 'new' },
+    { name: 'priority', type: 'text', required: false, description: 'Priority: low, medium, high', example: 'medium' },
+    { name: 'assignedTo', type: 'text', required: false, description: 'Assigned user ID', example: 'user-1' },
+    { name: 'estimatedValue', type: 'number', required: false, description: 'Deal value in USD', example: '25000' },
+    { name: 'tags', type: 'text', required: false, description: 'Comma-separated tags', example: 'tech,enterprise' },
+    { name: 'notes', type: 'text', required: false, description: 'Internal notes', example: 'Interested in enterprise plan' },
+  ],
+  contacts: [
+    { name: 'name', type: 'text', required: true, description: 'Contact full name', example: 'John Davis' },
+    { name: 'email', type: 'email', required: false, description: 'Email address', example: 'john@acme.com' },
+    { name: 'phone', type: 'text', required: false, description: 'Phone number', example: '+1 (555) 123-4567' },
+    { name: 'jobTitle', type: 'text', required: false, description: 'Job position', example: 'CTO' },
+    { name: 'companyId', type: 'text', required: false, description: 'Associated company ID', example: 'company-001' },
+    { name: 'location', type: 'text', required: false, description: 'Geographic location', example: 'San Francisco, CA' },
+    { name: 'tags', type: 'text', required: false, description: 'Comma-separated tags', example: 'decision-maker,tech' },
+    { name: 'notes', type: 'text', required: false, description: 'Internal notes', example: 'Key decision maker' },
+  ],
+  companies: [
+    { name: 'name', type: 'text', required: true, description: 'Company name', example: 'Acme Corp' },
+    { name: 'industry', type: 'text', required: false, description: 'Industry vertical', example: 'Technology' },
+    { name: 'size', type: 'text', required: false, description: 'Company size: 1-10, 11-50, 51-200, 201-1000, 1000+', example: '201-1000' },
+    { name: 'revenue', type: 'number', required: false, description: 'Annual revenue in USD', example: '50000000' },
+    { name: 'location', type: 'text', required: false, description: 'Headquarters location', example: 'San Francisco, CA' },
+    { name: 'website', type: 'text', required: false, description: 'Company website URL', example: 'https://acme.com' },
+  ],
+  tasks: [
+    { name: 'title', type: 'text', required: true, description: 'Task title', example: 'Send proposal to Acme Corp' },
+    { name: 'description', type: 'text', required: false, description: 'Detailed description', example: 'Send enterprise proposal package' },
+    { name: 'relatedToType', type: 'text', required: false, description: 'Related entity: lead, contact, company', example: 'lead' },
+    { name: 'relatedToId', type: 'text', required: false, description: 'Related entity ID', example: 'lead-001' },
+    { name: 'assignedTo', type: 'text', required: false, description: 'Assigned user ID', example: 'user-1' },
+    { name: 'dueDate', type: 'text', required: false, description: 'Due date (ISO format)', example: '2026-06-15T17:00:00Z' },
+    { name: 'priority', type: 'text', required: false, description: 'Priority: low, medium, high, critical', example: 'high' },
+  ],
+  meetings: [
+    { name: 'title', type: 'text', required: true, description: 'Meeting title', example: 'Enterprise Demo - Acme Corp' },
+    { name: 'dateTime', type: 'text', required: true, description: 'Date & time (ISO format)', example: '2026-06-15T10:00:00Z' },
+    { name: 'duration', type: 'number', required: false, description: 'Duration in minutes', example: '60' },
+    { name: 'type', type: 'text', required: false, description: 'Meeting type: online, offline, call', example: 'online' },
+    { name: 'relatedToType', type: 'text', required: false, description: 'Related entity: lead, contact, company', example: 'lead' },
+    { name: 'relatedToId', type: 'text', required: false, description: 'Related entity ID', example: 'lead-001' },
+    { name: 'participants', type: 'text', required: false, description: 'Comma-separated participant names', example: 'John Davis,Alice Johnson' },
+    { name: 'notes', type: 'text', required: false, description: 'Meeting notes', example: 'Demo of enterprise features' },
+  ],
+};
+
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 interface ParsedCSV {
@@ -100,7 +165,7 @@ function parseCSV(content: string): ParsedCSV {
 export function ImportDialog({
   open,
   onOpenChange,
-  entityType: _entityType,
+  entityType,
   entityLabel,
   onImportComplete,
 }: ImportDialogProps) {
@@ -110,6 +175,9 @@ export function ImportDialog({
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  /** Column specs for the current entity type — shows users exact format expected */
+  const columns = ENTITY_COLUMNS[entityType] ?? ENTITY_COLUMNS.leads;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -287,6 +355,59 @@ export function ImportDialog({
               <IconAlertTriangle className="mt-0.5 size-4 shrink-0" />
               <span>{error}</span>
             </div>
+          )}
+
+          {/* ── Format Guide ─────────────────────────── */}
+          {!hasFile && (
+            <details className="group rounded-xl border border-border bg-muted/30">
+              <summary className="flex cursor-pointer items-center gap-2 px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+                <IconFileDescription className="size-4 shrink-0" />
+                <span>CSV format guide — what columns to use</span>
+                <span className="ml-auto text-[10px] text-muted-foreground/50 group-open:hidden">Expand</span>
+                <span className="ml-auto text-[10px] text-muted-foreground/50 hidden group-open:inline">Collapse</span>
+              </summary>
+              <div className="border-t border-border px-3 pb-3 pt-2">
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Your CSV header row must use these column names. <span className="font-medium text-destructive">*</span> = required.
+                </p>
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full table-auto text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/50">
+                        <th className="whitespace-nowrap px-2.5 py-1.5 font-medium text-muted-foreground">Column</th>
+                        <th className="whitespace-nowrap px-2.5 py-1.5 font-medium text-muted-foreground">Type</th>
+                        <th className="whitespace-nowrap px-2.5 py-1.5 font-medium text-muted-foreground">Req</th>
+                        <th className="px-2.5 py-1.5 font-medium text-muted-foreground">Description</th>
+                        <th className="px-2.5 py-1.5 font-medium text-muted-foreground">Example</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {columns.map((col) => (
+                        <tr key={col.name} className="border-b border-border last:border-b-0 hover:bg-muted/20">
+                          <td className="whitespace-nowrap px-2.5 py-1 font-mono text-[10px] font-medium">
+                            {col.name}
+                            {col.required && <span className="text-destructive">*</span>}
+                          </td>
+                          <td className="whitespace-nowrap px-2.5 py-1 text-muted-foreground">{col.type}</td>
+                          <td className="px-2.5 py-1">
+                            {col.required ? (
+                              <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[9px] font-medium text-destructive">Yes</span>
+                            ) : (
+                              <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground">No</span>
+                            )}
+                          </td>
+                          <td className="px-2.5 py-1 text-muted-foreground">{col.description}</td>
+                          <td className="max-w-[100px] truncate px-2.5 py-1 font-mono text-[10px] text-muted-foreground">{col.example}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-1.5 text-[10px] text-muted-foreground">
+                  Row example: <code className="rounded bg-muted/70 px-1 py-0.5 font-mono text-[9px]">{columns.slice(0, 3).map((c) => c.example).join(',')}{columns.length > 3 ? ',...' : ''}</code>
+                </p>
+              </div>
+            </details>
           )}
 
           {/* Upload area — only show when no file is loaded or after reset */}

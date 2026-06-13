@@ -100,8 +100,8 @@ export function Sidebar({
       {/* ── Navigation Items ──────────────────────────── */}
       <div
         className={cn(
-          'flex-1 overflow-y-auto px-2 py-2',
-          collapsed ? 'grid grid-cols-2 gap-1' : 'space-y-1',
+          'flex-1 overflow-y-auto',
+          collapsed ? 'flex flex-col items-center gap-0.5 px-1 py-1.5' : 'space-y-0.5 px-2 py-2',
         )}
       >
 
