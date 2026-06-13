@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { teamMembers } from '@/data/team-members';
 
 /* ── Validation ──────────────────────────────────────────── */
 interface LoginFormData {
@@ -90,13 +91,24 @@ export default function LoginPage() {
         // Simulate auth delay
         await new Promise((resolve) => setTimeout(resolve, 1200));
 
-        /* 3. Show success toast */
+        /* 3. Check team membership */
+        const userTeams = teamMembers.filter((m) => m.userId === formData.email);
+
+        /* 4. Set auto-login cookies */
+        document.cookie = 'sb-access-token=simulated; path=/; max-age=3600';
+        document.cookie = 'sb-refresh-token=simulated; path=/; max-age=3600';
+
+        /* 5. Show success toast */
         toast.success('Welcome to NexusCRM!', {
           description: 'You have been signed in successfully.',
         });
 
-        /* 4. Redirect to dashboard */
-        router.push('/dashboard');
+        /* 6. Redirect based on team membership */
+        if (userTeams.length > 0) {
+          router.push('/dashboard');
+        } else {
+          router.push('/onboarding');
+        }
       } catch {
         setSubmitError('An unexpected error occurred. Please try again.');
       } finally {

@@ -4,6 +4,8 @@ import { useState, useCallback, type FormEvent, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { teamService } from '@/services/team.service';
+import { teamMembers } from '@/data/team-members';
 import { IconNetwork, IconEye, IconEyeOff } from '@tabler/icons-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -119,6 +121,29 @@ export default function SignupPage() {
         /* 3. Simulate auto-login (set cookies & session storage) */
         document.cookie = 'sb-access-token=simulated; path=/; max-age=3600';
         document.cookie = 'sb-refresh-token=simulated; path=/; max-age=3600';
+
+        /* 4. Auto-create a default team & add user as admin */
+        const newTeam = await teamService.create({
+          name: `${formData.fullName.split(' ')[0]}'s Team`,
+          description: '',
+        });
+
+        teamMembers.push({
+          id: `tm-${crypto.randomUUID().slice(0, 8)}`,
+          teamId: newTeam.id,
+          userId: formData.email,
+          role: 'admin',
+          joinedAt: new Date().toISOString(),
+          user: { name: formData.fullName, email: formData.email },
+        });
+
+        sessionStorage.setItem(
+          'onboarding-team',
+          JSON.stringify({
+            id: newTeam.id,
+            name: newTeam.name,
+          }),
+        );
 
         sessionStorage.setItem(
           'onboarding-user',

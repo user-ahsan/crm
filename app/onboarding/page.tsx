@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select';
 import OnboardingLayout from '@/components/common/OnboardingLayout';
 import { cn } from '@/lib/utils';
+import { teamService } from '@/services/team.service';
 import {
   IconRocket,
   IconArrowRight,
@@ -111,6 +112,13 @@ export default function OnboardingPage() {
           setFormData((prev) => ({ ...prev, fullName: parsed.fullName! }));
         }
       }
+      const storedTeam = sessionStorage.getItem('onboarding-team');
+      if (storedTeam) {
+        const parsed = JSON.parse(storedTeam) as { id: string; name: string };
+        if (parsed.name) {
+          setFormData((prev) => ({ ...prev, companyName: parsed.name }));
+        }
+      }
     } catch {
       /* Silently ignore — sessionStorage may be empty or corrupted */
     }
@@ -170,10 +178,28 @@ export default function OnboardingPage() {
     }
   }, [currentStep]);
 
-  const handleGoToDashboard = useCallback(() => {
+  const handleGoToDashboard = useCallback(async () => {
     setIsRedirecting(true);
+    // Update team with onboarding data
+    const storedTeam = sessionStorage.getItem('onboarding-team');
+    if (storedTeam) {
+      try {
+        const parsed = JSON.parse(storedTeam) as { id: string };
+        if (parsed.id && formData.companyName) {
+          await teamService.update(parsed.id, {
+            name: formData.companyName,
+            description: `${formData.companyName} - ${formData.industry} ${formData.companySize ? `(${formData.companySize})` : ''}`,
+          });
+        }
+      } catch {
+        /* Silently ignore */
+      }
+    }
+    // Clear onboarding data
+    sessionStorage.removeItem('onboarding-user');
+    sessionStorage.removeItem('onboarding-team');
     router.push('/dashboard');
-  }, [router]);
+  }, [router, formData]);
 
   /* ── Derived data for summary ───────────────────────────── */
   const selectedGoalLabels = useMemo(
