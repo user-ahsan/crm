@@ -95,10 +95,15 @@ export const teamService = {
     const now = new Date().toISOString();
     try {
       const supabase = await createClient();
+
+      /* Get the real authenticated user's ID */
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error(userError?.message ?? 'Not authenticated');
+
       const dbRow = {
         name: data.name,
         description: data.description ?? null,
-        created_by: crypto.randomUUID(),
+        created_by: user.id,
         created_at: now,
         updated_at: now,
       };
@@ -140,11 +145,16 @@ export const teamService = {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     try {
       const supabase = await createClient();
+
+      /* Get the real authenticated user's ID */
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error(userError?.message ?? 'Not authenticated');
+
       const dbRow = {
         team_id: teamId,
         email: data.email,
         role: data.role,
-        invited_by: crypto.randomUUID(),
+        invited_by: user.id,
         status: 'pending',
         expires_at: expiresAt,
         created_at: now,
