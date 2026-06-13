@@ -8,6 +8,8 @@ import type { Activity } from '@/types/activity.types';
 import type { LeadScore } from '@/types/lead-scoring.types';
 import { useEmail } from '@/hooks/useEmail';
 import { EmailHistory } from '@/components/communication/EmailHistory';
+import { useSms } from '@/hooks/useSms';
+import { SmsHistory } from '@/components/communication/SmsHistory';
 import {
   Tabs,
   TabsList,
@@ -61,6 +63,7 @@ import {
   IconNote,
   IconRefresh,
   IconPaperclip,
+  IconDeviceMobileMessage,
 } from '@tabler/icons-react';
 
 interface LeadDetailProps {
@@ -100,6 +103,8 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
   } = useEmail('lead', leadId);
 
   const { callLogs, loading: callLogsLoading, logCall, refresh: refreshCallLogs } = useCallLogs('lead', leadId);
+
+  const { smsLogs, loading: smsLoading, sendSms, refresh: refreshSms } = useSms('lead', leadId);
 
   const [entityTags, setEntityTags] = useState<Tag[]>([]);
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
@@ -545,6 +550,15 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
             <IconActivity className="size-4" />
             Activity
           </TabsTrigger>
+          <TabsTrigger value="sms">
+            <IconDeviceMobileMessage className="size-4" />
+            SMS
+            {!smsLoading && smsLogs.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-muted-foreground/20 px-1.5 py-0.5 text-xs tabular-nums">
+                {smsLogs.length}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="emails">
             <IconMail className="size-4" />
             Emails
@@ -847,6 +861,26 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
             entityType="lead"
             entityId={leadId}
             onLogCall={logCall}
+          />
+        </TabsContent>
+
+        {/* SMS Tab */}
+        <TabsContent value="sms" className="pt-4">
+          <SmsHistory
+            smsLogs={smsLogs}
+            loading={smsLoading}
+            entityType="lead"
+            entityId={leadId}
+            onSend={async (data) => {
+              await sendSms({
+                ...data,
+                relatedToType: 'lead',
+                relatedToId: leadId,
+              });
+              refreshSms();
+            }}
+            onRefresh={refreshSms}
+            toNumber={lead.phone}
           />
         </TabsContent>
 

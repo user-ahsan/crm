@@ -21,6 +21,8 @@ import {
   IconFlag,
   IconPhone,
   IconFilter,
+  IconCalendarShare,
+  IconWorld,
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { NAV_ITEMS } from '@/lib/constants';
@@ -53,6 +55,8 @@ const iconMap = {
   flag: IconFlag,
   phone: IconPhone,
   filter: IconFilter,
+  'calendar-share': IconCalendarShare,
+  world: IconWorld,
 } as const;
 
 type IconKey = keyof typeof iconMap;

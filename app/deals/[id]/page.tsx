@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { IconEdit, IconArrowLeft, IconCurrencyDollar, IconCalendarEvent, IconUser, IconTags, IconNote, IconMail, IconPaperclip } from '@tabler/icons-react';
+import { IconEdit, IconArrowLeft, IconCurrencyDollar, IconCalendarEvent, IconUser, IconTags, IconNote, IconMail, IconPaperclip, IconDeviceMobileMessage } from '@tabler/icons-react';
 import type { Deal, DealStage } from '@/types/deal.types';
 import { dealService } from '@/services/deal.service';
 import { DealCreateForm } from '@/components/deals/DealCreateForm';
@@ -20,6 +20,8 @@ import { EmailHistory } from '@/components/communication/EmailHistory';
 import { TagBadge } from '@/components/common/TagBadge';
 import { FileAttachmentList } from '@/components/common/FileAttachmentList';
 import { useEmail } from '@/hooks/useEmail';
+import { useSms } from '@/hooks/useSms';
+import { SmsHistory } from '@/components/communication/SmsHistory';
 import { USERS } from '@/lib/constants';
 import { formatCurrency, formatDate, formatRelativeTime, getInitials } from '@/lib/formatters';
 
@@ -35,6 +37,7 @@ export default function DealDetailPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const { emails, loading: emailsLoading, sendEmail, refresh: refreshEmails } = useEmail('deal', dealId);
+  const { smsLogs, loading: smsLoading, sendSms, refresh: refreshSms } = useSms('deal', dealId);
 
   const loadDeal = useCallback(async () => {
     setLoading(true);
@@ -245,6 +248,15 @@ export default function DealDetailPage() {
             <IconNote className="size-4" />
             Notes
           </TabsTrigger>
+          <TabsTrigger value="sms">
+            <IconDeviceMobileMessage className="size-4" />
+            SMS
+            {!smsLoading && smsLogs.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-muted-foreground/20 px-1.5 py-0.5 text-xs tabular-nums">
+                {smsLogs.length}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="emails">
             <IconMail className="size-4" />
             Emails
@@ -283,6 +295,24 @@ export default function DealDetailPage() {
               <NotesList entityType="deal" entityId={deal.id} />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="sms" className="pt-4">
+          <SmsHistory
+            smsLogs={smsLogs}
+            loading={smsLoading}
+            entityType="deal"
+            entityId={dealId}
+            onSend={async (data) => {
+              await sendSms({
+                ...data,
+                relatedToType: 'deal',
+                relatedToId: dealId,
+              });
+              refreshSms();
+            }}
+            onRefresh={refreshSms}
+          />
         </TabsContent>
 
         <TabsContent value="emails" className="pt-4">

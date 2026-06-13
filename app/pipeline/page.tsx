@@ -1,23 +1,25 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { PageHeader } from '@/components/common/PageHeader';
-import { KanbanBoard } from '@/components/pipeline/KanbanBoard';
-import { DealKanbanBoard } from '@/components/deals/DealKanbanBoard';
+import { SwimlaneBoard } from '@/components/pipeline/SwimlaneBoard';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { usePipeline } from '@/hooks/usePipeline';
 import { useDeals } from '@/hooks/useDeals';
+import type { SwimlaneGroup } from '@/types/swimlane.types';
 import { IconRefresh, IconColumns, IconCurrencyDollar } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency } from '@/lib/formatters';
 
 export default function PipelinePage() {
   const [activeTab, setActiveTab] = useState('leads');
-  const { pipeline, leads, loading: leadsLoading, error: leadsError, refresh: refreshLeads, getStageStats } = usePipeline();
+  const [swimlaneGroup, setSwimlaneGroup] = useState<SwimlaneGroup>('none');
+  const { pipeline, leads, loading: leadsLoading, error: leadsError, refresh: refreshLeads, getStageStats, moveLead } = usePipeline();
   const { deals, stages, loading: dealsLoading, error: dealsError, refresh: refreshDeals } = useDeals();
 
   const totalValue = useMemo(() => {
@@ -115,7 +117,7 @@ export default function PipelinePage() {
             </Button>
           </PageHeader>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setSwimlaneGroup('none'); }}>
             <TabsList>
               <TabsTrigger value="leads">
                 <IconColumns size={16} />
@@ -126,6 +128,24 @@ export default function PipelinePage() {
                 Deals Pipeline
               </TabsTrigger>
             </TabsList>
+
+            <div className="flex items-center justify-end mb-3 mt-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Swimlanes</span>
+                <Select value={swimlaneGroup} onValueChange={(v) => setSwimlaneGroup(v as SwimlaneGroup)}>
+                  <SelectTrigger className="h-8 w-36 text-xs">
+                    <SelectValue placeholder="None" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="assigned_to">By Assignee</SelectItem>
+                    {activeTab === 'leads' && <SelectItem value="status">By Status</SelectItem>}
+                    {activeTab === 'leads' && <SelectItem value="priority">By Priority</SelectItem>}
+                    {activeTab === 'deals' && <SelectItem value="status">By Stage</SelectItem>}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
             <TabsContent value="leads" className="pt-4">
               {!leadsLoading && (
@@ -143,7 +163,14 @@ export default function PipelinePage() {
                   />
                 </div>
               )}
-              <KanbanBoard />
+              <SwimlaneBoard
+                type="leads"
+                groupBy={swimlaneGroup}
+                leads={leads}
+                loading={leadsLoading}
+                onLeadDrop={(leadId, stageKey) => { moveLead(leadId, stageKey as import('@/types/lead.types').LeadStatus).catch(() => {}); }}
+                onLeadClick={(lead) => { window.location.href = `/leads/${lead.id}`; }}
+              />
             </TabsContent>
 
             <TabsContent value="deals" className="pt-4">
@@ -162,7 +189,21 @@ export default function PipelinePage() {
                   />
                 </div>
               )}
-              <DealKanbanBoard />
+              <SwimlaneBoard
+                type="deals"
+                groupBy={swimlaneGroup}
+                deals={deals}
+                stages={stages}
+                loading={dealsLoading}
+                onDealDrop={async (dealId, stageId) => {
+                  try {
+                    const { dealService } = await import('@/services/deal.service');
+                    await dealService.update(dealId, { stageId });
+                    refreshDeals();
+                  } catch { console.error('Failed to move deal'); }
+                }}
+                onDealClick={(deal) => { window.location.href = `/deals/${deal.id}`; }}
+              />
             </TabsContent>
           </Tabs>
         </div>

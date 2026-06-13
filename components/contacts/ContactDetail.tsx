@@ -8,6 +8,8 @@ import type { Task } from '@/types/task.types';
 import type { Meeting } from '@/types/meeting.types';
 import { useEmail } from '@/hooks/useEmail';
 import { EmailHistory } from '@/components/communication/EmailHistory';
+import { useSms } from '@/hooks/useSms';
+import { SmsHistory } from '@/components/communication/SmsHistory';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +47,7 @@ import {
   IconAlertCircle,
   IconLoader2,
   IconPaperclip,
+  IconDeviceMobileMessage,
 } from '@tabler/icons-react';
 
 interface ContactDetailProps {
@@ -52,7 +55,7 @@ interface ContactDetailProps {
   onBack?: () => void;
 }
 
-type ActiveTab = 'overview' | 'leads' | 'meetings' | 'tasks' | 'notes' | 'calls' | 'emails';
+type ActiveTab = 'overview' | 'leads' | 'meetings' | 'tasks' | 'notes' | 'calls' | 'emails' | 'sms';
 
 export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
   const router = useRouter();
@@ -69,6 +72,7 @@ export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
     sendEmail: sendEmailHook,
     refresh: refreshEmails,
   } = useEmail('contact', contactId);
+  const { smsLogs, loading: smsLoading, sendSms, refresh: refreshSms } = useSms('contact', contactId);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
@@ -319,6 +323,15 @@ export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="sms">
+            <IconDeviceMobileMessage className="size-4" />
+            SMS
+            {!smsLoading && smsLogs.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-muted-foreground/20 px-1.5 py-0.5 text-xs tabular-nums">
+                {smsLogs.length}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="emails">
             <IconMail className="size-4" />
             Emails
@@ -532,6 +545,26 @@ export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
             entityType="contact"
             entityId={contactId}
             onLogCall={logCall}
+          />
+        </TabsContent>
+
+        {/* SMS Tab */}
+        <TabsContent value="sms" className="pt-4">
+          <SmsHistory
+            smsLogs={smsLogs}
+            loading={smsLoading}
+            entityType="contact"
+            entityId={contactId}
+            onSend={async (data) => {
+              await sendSms({
+                ...data,
+                relatedToType: 'contact',
+                relatedToId: contactId,
+              });
+              refreshSms();
+            }}
+            onRefresh={refreshSms}
+            toNumber={contact?.phone}
           />
         </TabsContent>
 

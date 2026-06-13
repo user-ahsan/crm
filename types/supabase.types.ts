@@ -13,6 +13,7 @@ import type { AutomationTriggerEvent, AutomationCondition, AutomationAction } fr
 import type { CallDirection, CallResult } from '@/types/communication.types';
 import type { QuoteStatus } from '@/types/quote.types';
 import type { GoalType, GoalPeriod } from '@/types/goal.types';
+import type { WorkflowEntityType } from '@/types/workflow.types';
 
 // ──────────────────────────────────────────────
 // Database public schema definition
@@ -155,6 +156,16 @@ export interface Database {
         Row: ApiKeyRow;
         Insert: ApiKeyInsert;
         Update: ApiKeyUpdate;
+      };
+      workflow_states: {
+        Row: WorkflowStateRow;
+        Insert: WorkflowStateInsert;
+        Update: WorkflowStateUpdate;
+      };
+      workflow_transitions: {
+        Row: WorkflowTransitionRow;
+        Insert: WorkflowTransitionInsert;
+        Update: WorkflowTransitionUpdate;
       };
     };
     Views: Record<string, never>;
@@ -1003,6 +1014,61 @@ export interface QuoteItemUpdate {
 export type DbQuote = QuoteRow;
 export type DbQuoteItem = QuoteItemRow;
 
+// ── Workflow types ────────────────────────────────────────────
+
+export interface WorkflowStateRow {
+  id: string;
+  name: string;
+  color: string;
+  entity_type: WorkflowEntityType;
+  sort_order: number;
+  created_by: string;
+  created_at: string;
+}
+
+export interface WorkflowStateInsert {
+  id?: string;
+  name: string;
+  color?: string;
+  entity_type: WorkflowEntityType;
+  sort_order?: number;
+  created_by: string;
+}
+
+export interface WorkflowStateUpdate {
+  id?: string;
+  name?: string;
+  color?: string;
+  entity_type?: WorkflowEntityType;
+  sort_order?: number;
+  created_by?: string;
+}
+
+export interface WorkflowTransitionRow {
+  id: string;
+  from_state_id: string;
+  to_state_id: string;
+  label: string;
+  created_at: string;
+}
+
+export interface WorkflowTransitionInsert {
+  id?: string;
+  from_state_id: string;
+  to_state_id: string;
+  label?: string;
+}
+
+export interface WorkflowTransitionUpdate {
+  id?: string;
+  from_state_id?: string;
+  to_state_id?: string;
+  label?: string;
+}
+
+export type DbWorkflowState = WorkflowStateRow;
+export type DbWorkflowTransition = WorkflowTransitionRow;
+
 // ── Attachment types ────────────────────────────────────────
 
 export interface FileAttachmentRow {
@@ -1228,3 +1294,148 @@ export interface ApiKeyUpdate {
 }
 
 export type DbApiKey = ApiKeyRow;
+
+// ── Calendar Integration types ─────────────────────────────────────────
+
+export interface CalendarIntegrationRow {
+  id: string;
+  provider: string;
+  email: string;
+  access_token: string;
+  refresh_token: string | null;
+  expires_at: string | null;
+  sync_enabled: boolean;
+  last_synced_at: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export interface CalendarIntegrationInsert {
+  id?: string;
+  provider: string;
+  email: string;
+  access_token: string;
+  refresh_token?: string | null;
+  expires_at?: string | null;
+  sync_enabled?: boolean;
+  last_synced_at?: string | null;
+  created_by: string;
+}
+
+export interface CalendarIntegrationUpdate {
+  id?: string;
+  provider?: string;
+  email?: string;
+  access_token?: string;
+  refresh_token?: string | null;
+  expires_at?: string | null;
+  sync_enabled?: boolean;
+  last_synced_at?: string | null;
+  created_by?: string;
+}
+
+export type DbCalendarIntegration = CalendarIntegrationRow;
+
+// ── Portal User types ─────────────────────────────────────────────────
+
+export interface PortalUserRow {
+  id: string;
+  email: string;
+  name: string;
+  password_hash: string;
+  last_login: string | null;
+  active: boolean;
+  created_at: string;
+}
+
+export interface PortalUserInsert {
+  id?: string;
+  email: string;
+  name: string;
+  password_hash: string;
+  last_login?: string | null;
+  active?: boolean;
+}
+
+export interface PortalUserUpdate {
+  id?: string;
+  email?: string;
+  name?: string;
+  password_hash?: string;
+  last_login?: string | null;
+  active?: boolean;
+}
+
+export type DbPortalUser = PortalUserRow;
+
+// ── Portal Share types ────────────────────────────────────────────────
+
+export interface PortalShareRow {
+  id: string;
+  portal_user_id: string;
+  related_to_type: string;
+  related_to_id: string;
+  permission: string;
+  created_at: string;
+}
+
+export interface PortalShareInsert {
+  id?: string;
+  portal_user_id: string;
+  related_to_type: string;
+  related_to_id: string;
+  permission?: string;
+}
+
+export interface PortalShareUpdate {
+  id?: string;
+  portal_user_id?: string;
+  related_to_type?: string;
+  related_to_id?: string;
+  permission?: string;
+}
+
+export type DbPortalShare = PortalShareRow;
+
+// ── SMS Log types ─────────────────────────────────────────────
+
+export interface SmsLogRow {
+  id: string;
+  to_number: string;
+  from_number: string;
+  body: string;
+  direction: string;
+  status: string;
+  related_to_type: string | null;
+  related_to_id: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export interface SmsLogInsert {
+  id?: string;
+  to_number: string;
+  from_number: string;
+  body: string;
+  direction: string;
+  status?: string;
+  related_to_type?: string | null;
+  related_to_id?: string | null;
+  created_by: string;
+  created_at?: string;
+}
+
+export interface SmsLogUpdate {
+  id?: string;
+  to_number?: string;
+  from_number?: string;
+  body?: string;
+  direction?: string;
+  status?: string;
+  related_to_type?: string | null;
+  related_to_id?: string | null;
+  created_by?: string;
+  created_at?: string;
+}
+
+export type DbSmsLog = SmsLogRow;

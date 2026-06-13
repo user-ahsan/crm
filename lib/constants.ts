@@ -104,9 +104,12 @@ export const NAV_ITEMS = [
   { label: 'Goals', href: '/goals', icon: 'flag' },
   { label: 'Campaigns', href: '/campaigns', icon: 'mail-forward' },
   { label: 'Analytics', href: '/analytics', icon: 'chart-bar' },
+  { label: 'Workflows', href: '/settings/workflows', icon: 'hierarchy' },
   { label: 'Automation', href: '/settings/automation', icon: 'zap' },
   { label: 'Team', href: '/settings/team', icon: 'users-group' },
   { label: 'Data Quality', href: '/settings/data-quality', icon: 'filter' },
+  { label: 'Integrations', href: '/settings/integrations', icon: 'calendar-share' },
+  { label: 'Portal', href: '/settings/portal', icon: 'world' },
   { label: 'API Keys', href: '/settings/api-keys', icon: 'api-key' },
   { label: 'Settings', href: '/settings', icon: 'settings' },
 ] as const;
