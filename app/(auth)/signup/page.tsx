@@ -123,27 +123,33 @@ export default function SignupPage() {
         document.cookie = 'sb-refresh-token=simulated; path=/; max-age=3600';
 
         /* 4. Auto-create a default team & add user as admin */
-        const newTeam = await teamService.create({
-          name: `${formData.fullName.split(' ')[0]}'s Team`,
-          description: '',
-        });
+        try {
+          const newTeam = await teamService.create({
+            name: `${formData.fullName.split(' ')[0]}'s Team`,
+            description: '',
+          });
 
-        teamMembers.push({
-          id: `tm-${crypto.randomUUID().slice(0, 8)}`,
-          teamId: newTeam.id,
-          userId: formData.email,
-          role: 'admin',
-          joinedAt: new Date().toISOString(),
-          user: { name: formData.fullName, email: formData.email },
-        });
+          teamMembers.push({
+            id: `tm-${crypto.randomUUID().slice(0, 8)}`,
+            teamId: newTeam.id,
+            userId: formData.email,
+            role: 'admin',
+            joinedAt: new Date().toISOString(),
+            user: { name: formData.fullName, email: formData.email },
+          });
 
-        sessionStorage.setItem(
-          'onboarding-team',
-          JSON.stringify({
-            id: newTeam.id,
-            name: newTeam.name,
-          }),
-        );
+          sessionStorage.setItem(
+            'onboarding-team',
+            JSON.stringify({
+              id: newTeam.id,
+              name: newTeam.name,
+            }),
+          );
+        } catch {
+          // Team creation may fail if Supabase is configured without teams table
+          // This is non-critical - onboarding will still work
+          console.info('Team auto-creation skipped (non-critical)');
+        }
 
         sessionStorage.setItem(
           'onboarding-user',

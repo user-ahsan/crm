@@ -24,6 +24,7 @@ import {
 import { PageHeader } from '@/components/common/PageHeader';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { useThemeStore } from '@/store/theme';
+import { useTeamContext } from '@/context/TeamContext';
 import { toast } from 'sonner';
 import {
   IconMoon,
@@ -33,6 +34,7 @@ import {
   IconDeviceFloppy,
   IconBuilding,
   IconArrowRight,
+  IconUsersGroup,
 } from '@tabler/icons-react';
 import Link from 'next/link';
 
@@ -84,6 +86,7 @@ function saveSettings(data: SettingsData) {
 export default function SettingsPage() {
   const router = useRouter();
   const { theme, toggleTheme } = useThemeStore();
+  const { team, members, loading: teamLoading } = useTeamContext();
 
   const [displayName, setDisplayName] = useState(DEFAULT_SETTINGS.displayName);
   const [email, setEmail] = useState(DEFAULT_SETTINGS.email);
@@ -374,20 +377,52 @@ export default function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <p className="text-sm font-medium">Team Management</p>
-              <p className="text-xs text-muted-foreground">
-                Invite members, assign roles, and configure team permissions.
-              </p>
+          {teamLoading ? (
+            <div className="space-y-2">
+              <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+              <div className="h-3 w-48 animate-pulse rounded bg-muted" />
             </div>
-            <Link href="/settings/team">
-              <Button variant="outline" size="sm">
-                Team Settings
-                <IconArrowRight size={16} className="ml-1.5" />
-              </Button>
-            </Link>
-          </div>
+          ) : team ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
+                  <IconUsersGroup size={20} className="text-primary" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">{team.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {members.length} {members.length === 1 ? 'member' : 'members'}
+                  </p>
+                </div>
+              </div>
+              <Link href="/settings/team">
+                <Button variant="outline" size="sm">
+                  Manage Team
+                  <IconArrowRight size={16} className="ml-1.5" />
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                  <IconUsersGroup size={20} className="text-amber-600 dark:text-amber-400" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">No team set up yet</p>
+                  <p className="text-xs text-muted-foreground">
+                    Create a team to collaborate with members and manage permissions.
+                  </p>
+                </div>
+              </div>
+              <Link href="/settings/team">
+                <Button variant="default" size="sm" className="gap-1.5">
+                  <IconUsersGroup size={16} />
+                  Create Team
+                </Button>
+              </Link>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -69,7 +69,7 @@ export const teamService = {
         const dbRow = {
           name: data.name,
           description: data.description ?? null,
-          created_by: 'current-user',
+          created_by: '00000000-0000-0000-0000-000000000001',
           created_at: now,
           updated_at: now,
         };
@@ -140,7 +140,7 @@ export const teamService = {
           team_id: teamId,
           email: data.email,
           role: data.role,
-          invited_by: 'current-user',
+          invited_by: '00000000-0000-0000-0000-000000000001',
           status: 'pending',
           expires_at: expiresAt,
           created_at: now,

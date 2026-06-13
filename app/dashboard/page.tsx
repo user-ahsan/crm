@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import Link from 'next/link';
 import type { Lead } from '@/types/lead.types';
 import type { Task } from '@/types/task.types';
 import type { Meeting } from '@/types/meeting.types';
@@ -35,6 +36,7 @@ import { Button } from '@/components/ui/button';
 import { StatCard } from '@/components/common/StatCard';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
+import { useTeamContext } from '@/context/TeamContext';
 import {
   IconUsers,
   IconTrendingUp,
@@ -43,6 +45,8 @@ import {
   IconCalendar,
   IconArrowUpRight,
   IconArrowDownRight,
+  IconArrowRight,
+  IconUsersGroup,
 } from '@tabler/icons-react';
 
 type PageState = 'loading' | 'error' | 'empty' | 'ready';
@@ -101,6 +105,7 @@ export default function DashboardPage() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [pageState, setPageState] = useState<PageState>('loading');
   const [error, setError] = useState<string | null>(null);
+  const { team, loading: teamLoading } = useTeamContext();
 
   const loadData = useCallback(async () => {
     setPageState('loading');
@@ -255,6 +260,27 @@ export default function DashboardPage() {
         </h1>
         <p className="text-sm text-muted-foreground">{today}</p>
       </div>
+
+      {/* Team Status Banner */}
+      {!teamLoading && !team && (
+        <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20">
+          <CardContent className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <IconUsersGroup size={24} className="text-amber-600 dark:text-amber-400" stroke={1.5} />
+              <div>
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">No team set up yet</p>
+                <p className="text-xs text-amber-600 dark:text-amber-400">Create a team to collaborate with members and manage permissions.</p>
+              </div>
+            </div>
+            <Link href="/settings/team">
+              <Button variant="outline" size="sm" className="shrink-0 gap-1.5 border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/30">
+                Create Team
+                <IconArrowRight size={14} />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
