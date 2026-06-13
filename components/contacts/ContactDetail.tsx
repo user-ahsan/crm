@@ -6,6 +6,8 @@ import type { Contact } from '@/types/contact.types';
 import type { Lead } from '@/types/lead.types';
 import type { Task } from '@/types/task.types';
 import type { Meeting } from '@/types/meeting.types';
+import { useEmail } from '@/hooks/useEmail';
+import { EmailHistory } from '@/components/communication/EmailHistory';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +26,9 @@ import { meetingService } from '@/services/meeting.service';
 import { companyService } from '@/services/company.service';
 import type { Company } from '@/types/company.types';
 import { formatDate, getInitials, formatCurrency } from '@/lib/formatters';
+import { useCallLogs } from '@/hooks/useCallLogs';
+import { CallLogList } from '@/components/communication/CallLogList';
+import { NotesList } from '@/components/communication/NotesList';
 import {
   IconArrowLeft,
   IconMail,
@@ -45,7 +50,7 @@ interface ContactDetailProps {
   onBack?: () => void;
 }
 
-type ActiveTab = 'overview' | 'leads' | 'meetings' | 'tasks' | 'notes';
+type ActiveTab = 'overview' | 'leads' | 'meetings' | 'tasks' | 'notes' | 'calls' | 'emails';
 
 export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
   const router = useRouter();
@@ -54,6 +59,14 @@ export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
   const [relatedTasks, setRelatedTasks] = useState<Task[]>([]);
   const [relatedMeetings, setRelatedMeetings] = useState<Meeting[]>([]);
   const [company, setCompany] = useState<Company | undefined>(undefined);
+
+  const { callLogs, loading: callLogsLoading, logCall } = useCallLogs('contact', contactId);
+  const {
+    emails,
+    loading: emailsLoading,
+    sendEmail: sendEmailHook,
+    refresh: refreshEmails,
+  } = useEmail('contact', contactId);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
@@ -296,6 +309,23 @@ export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
             )}
           </TabsTrigger>
           <TabsTrigger value="notes">Notes</TabsTrigger>
+          <TabsTrigger value="calls">
+            Calls
+            {callLogs.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-muted-foreground/20 px-1.5 py-0.5 text-xs tabular-nums">
+                {callLogs.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="emails">
+            <IconMail className="size-4" />
+            Emails
+            {!emailsLoading && emails.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-muted-foreground/20 px-1.5 py-0.5 text-xs tabular-nums">
+                {emails.length}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -488,31 +518,40 @@ export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
           )}
         </TabsContent>
 
+        {/* Calls Tab */}
+        <TabsContent value="calls">
+          <CallLogList
+            callLogs={callLogs}
+            loading={callLogsLoading}
+            entityType="contact"
+            entityId={contactId}
+            onLogCall={logCall}
+          />
+        </TabsContent>
+
+        {/* Emails Tab */}
+        <TabsContent value="emails" className="pt-4">
+          <EmailHistory
+            emails={emails}
+            loading={emailsLoading}
+            entityType="contact"
+            entityId={contactId}
+            onSend={async (data) => {
+              await sendEmailHook({
+                ...data,
+                relatedToType: 'contact',
+                relatedToId: contactId,
+              });
+              refreshEmails();
+            }}
+            onRefresh={refreshEmails}
+            toAddress={contact?.email}
+          />
+        </TabsContent>
+
         {/* Notes Tab */}
         <TabsContent value="notes">
-          {contact.notes ? (
-            <Card>
-              <CardContent className="py-4">
-                <div className="flex items-start gap-2">
-                  <IconNote className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Notes</p>
-                    <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
-                      {contact.notes}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <IconNote className="mb-3 size-8 text-muted-foreground" />
-              <h3 className="mb-1 text-base font-medium">No notes</h3>
-              <p className="max-w-sm text-sm text-muted-foreground">
-                No notes have been added for this contact.
-              </p>
-            </div>
-          )}
+          <NotesList entityType="contact" entityId={contactId} />
         </TabsContent>
       </Tabs>
     </div>

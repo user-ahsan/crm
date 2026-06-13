@@ -5,6 +5,8 @@ import type { Lead } from '@/types/lead.types';
 import type { Task } from '@/types/task.types';
 import type { Meeting } from '@/types/meeting.types';
 import type { Activity } from '@/types/activity.types';
+import { useEmail } from '@/hooks/useEmail';
+import { EmailHistory } from '@/components/communication/EmailHistory';
 import {
   Tabs,
   TabsList,
@@ -27,6 +29,9 @@ import type { Tag } from '@/types/tag.types';
 import { useTasks } from '@/hooks/useTasks';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useActivities } from '@/hooks/useActivities';
+import { NotesList } from '@/components/communication/NotesList';
+import { useCallLogs } from '@/hooks/useCallLogs';
+import { CallLogList } from '@/components/communication/CallLogList';
 import { STATUS_COLORS, PRIORITY_COLORS, USERS } from '@/lib/constants';
 import { formatCurrency, formatDate, formatDateTime, formatRelativeTime, getInitials, formatDuration } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -78,6 +83,15 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
 
   const [activities, setActivities] = useState<Activity[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
+
+  const {
+    emails,
+    loading: emailsLoading,
+    sendEmail: sendEmailHook,
+    refresh: refreshEmails,
+  } = useEmail('lead', leadId);
+
+  const { callLogs, loading: callLogsLoading, logCall, refresh: refreshCallLogs } = useCallLogs('lead', leadId);
 
   const [entityTags, setEntityTags] = useState<Tag[]>([]);
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
@@ -465,9 +479,22 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
             <IconCalendarEvent className="size-4" />
             Meetings
           </TabsTrigger>
+          <TabsTrigger value="calls">
+            <IconPhone className="size-4" />
+            Calls
+          </TabsTrigger>
           <TabsTrigger value="activity">
             <IconActivity className="size-4" />
             Activity
+          </TabsTrigger>
+          <TabsTrigger value="emails">
+            <IconMail className="size-4" />
+            Emails
+            {!emailsLoading && emails.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-muted-foreground/20 px-1.5 py-0.5 text-xs tabular-nums">
+                {emails.length}
+              </span>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -605,80 +632,8 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
                 Notes
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Existing notes displayed as timeline */}
-              {lead.notes ? (
-                <div className="relative space-y-0 pl-8">
-                  {/* Timeline line */}
-                  <div className="absolute bottom-0 left-[15px] top-0 w-px bg-border" />
-                  <div className="relative flex gap-3 pb-4">
-                    <div className="relative z-10 -ml-8 flex shrink-0">
-                      <Avatar size="sm" className="size-8">
-                        <AvatarFallback className="text-[10px]">
-                          {getInitials(
-                            USERS.find((u) => u.id === (lead.createdBy ?? lead.assignedTo))?.name ??
-                              '?'
-                          )}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-foreground">
-                          {USERS.find((u) => u.id === (lead.createdBy ?? lead.assignedTo))?.name ??
-                            'Unknown'}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatRelativeTime(lead.createdAt)}
-                        </span>
-                      </div>
-                      <p className="whitespace-pre-wrap rounded-lg bg-muted/50 p-3 text-sm text-foreground">
-                        {lead.notes}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <IconNote className="mb-2 size-8 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">No notes added yet.</p>
-                </div>
-              )}
-
-              {/* Add note input */}
-              <div className="border-t pt-4">
-                <label className="mb-2 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Add a Note
-                </label>
-                <div className="flex items-start gap-3">
-                  <Avatar size="sm" className="size-8 shrink-0">
-                    <AvatarFallback className="text-[10px]">
-                      {getInitials(
-                        USERS.find((u) => u.id === (lead.assignedTo ?? 'user-1'))?.name ?? 'U'
-                      )}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 space-y-2">
-                    <textarea
-                      className="w-full rounded-lg border bg-background p-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring resize-none"
-                      rows={3}
-                      placeholder="Write a note... (simulated — no backend persistence)"
-                      disabled
-                    />
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">
-                        Adding notes as{' '}
-                        <span className="font-medium text-foreground">
-                          {USERS[0]?.name ?? 'User'}
-                        </span>
-                      </span>
-                      <Button size="sm" disabled>
-                        Add Note
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <CardContent>
+              <NotesList entityType="lead" entityId={lead.id} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -820,6 +775,37 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        {/* Calls Tab */}
+        <TabsContent value="calls" className="pt-4">
+          <CallLogList
+            callLogs={callLogs}
+            loading={callLogsLoading}
+            entityType="lead"
+            entityId={leadId}
+            onLogCall={logCall}
+          />
+        </TabsContent>
+
+        {/* Emails Tab */}
+        <TabsContent value="emails" className="pt-4">
+          <EmailHistory
+            emails={emails}
+            loading={emailsLoading}
+            entityType="lead"
+            entityId={leadId}
+            onSend={async (data) => {
+              await sendEmailHook({
+                ...data,
+                relatedToType: 'lead',
+                relatedToId: leadId,
+              });
+              refreshEmails();
+            }}
+            onRefresh={refreshEmails}
+            toAddress={lead.email}
+          />
         </TabsContent>
 
         {/* Activity Tab */}

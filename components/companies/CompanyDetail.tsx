@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import type { Company } from '@/types/company.types';
 import type { Contact } from '@/types/contact.types';
 import type { Lead } from '@/types/lead.types';
+import { useEmail } from '@/hooks/useEmail';
+import { EmailHistory } from '@/components/communication/EmailHistory';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,9 +22,13 @@ import { companyService } from '@/services/company.service';
 import { contactService } from '@/services/contact.service';
 import { leadService } from '@/services/lead.service';
 import { formatDate, formatCurrency, getInitials } from '@/lib/formatters';
+import { useCallLogs } from '@/hooks/useCallLogs';
+import { CallLogList } from '@/components/communication/CallLogList';
+import { NotesList } from '@/components/communication/NotesList';
 import {
   IconArrowLeft,
   IconBuilding,
+  IconNote,
   IconUsers,
   IconTrendingUp,
   IconMapPin,
@@ -31,6 +37,7 @@ import {
   IconTags,
   IconAlertCircle,
   IconLoader2,
+  IconMail,
 } from '@tabler/icons-react';
 
 interface CompanyDetailProps {
@@ -38,7 +45,7 @@ interface CompanyDetailProps {
   onBack?: () => void;
 }
 
-type ActiveTab = 'overview' | 'contacts' | 'leads';
+type ActiveTab = 'overview' | 'contacts' | 'leads' | 'calls' | 'notes' | 'emails';
 
 export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
   const router = useRouter();
@@ -50,6 +57,14 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [entityTags, setEntityTags] = useState<Tag[]>([]);
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
+
+  const { callLogs, loading: callLogsLoading, logCall } = useCallLogs('company', companyId);
+  const {
+    emails,
+    loading: emailsLoading,
+    sendEmail: sendEmailHook,
+    refresh: refreshEmails,
+  } = useEmail('company', companyId);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -267,6 +282,27 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="calls">
+            Calls
+            {callLogs.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-muted-foreground/20 px-1.5 py-0.5 text-xs tabular-nums">
+                {callLogs.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="notes">
+            <IconNote className="size-4" />
+            Notes
+          </TabsTrigger>
+          <TabsTrigger value="emails">
+            <IconMail className="size-4" />
+            Emails
+            {!emailsLoading && emails.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-muted-foreground/20 px-1.5 py-0.5 text-xs tabular-nums">
+                {emails.length}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -400,6 +436,41 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        {/* Calls Tab */}
+        <TabsContent value="calls">
+          <CallLogList
+            callLogs={callLogs}
+            loading={callLogsLoading}
+            entityType="company"
+            entityId={companyId}
+            onLogCall={logCall}
+          />
+        </TabsContent>
+
+        {/* Notes Tab */}
+        <TabsContent value="notes">
+          <NotesList entityType="company" entityId={companyId} />
+        </TabsContent>
+
+        {/* Emails Tab */}
+        <TabsContent value="emails" className="pt-4">
+          <EmailHistory
+            emails={emails}
+            loading={emailsLoading}
+            entityType="company"
+            entityId={companyId}
+            onSend={async (data) => {
+              await sendEmailHook({
+                ...data,
+                relatedToType: 'company',
+                relatedToId: companyId,
+              });
+              refreshEmails();
+            }}
+            onRefresh={refreshEmails}
+          />
         </TabsContent>
 
         {/* Leads Tab */}

@@ -10,6 +10,7 @@ import type { TaskPriority, TaskStatus, RelatedEntityType } from '@/types/task.t
 import type { MeetingType } from '@/types/meeting.types';
 import type { ActivityType } from '@/types/activity.types';
 import type { AutomationTriggerEvent, AutomationCondition, AutomationAction } from '@/types/automation.types';
+import type { CallDirection, CallResult } from '@/types/communication.types';
 
 // ──────────────────────────────────────────────
 // Database public schema definition
@@ -68,6 +69,16 @@ export interface Database {
         Insert: AutomationRuleInsert;
         Update: AutomationRuleUpdate;
       };
+      email_history: {
+        Row: EmailHistoryRow;
+        Insert: EmailHistoryInsert;
+        Update: EmailHistoryUpdate;
+      };
+      call_logs: {
+        Row: CallLogRow;
+        Insert: CallLogInsert;
+        Update: CallLogUpdate;
+      };
       tags: {
         Row: TagRow;
         Insert: TagInsert;
@@ -77,6 +88,11 @@ export interface Database {
         Row: TaggingRow;
         Insert: TaggingInsert;
         Update: TaggingUpdate;
+      };
+      notes: {
+        Row: NoteRow;
+        Insert: NoteInsert;
+        Update: NoteUpdate;
       };
     };
     Views: Record<string, never>;
@@ -382,6 +398,50 @@ export interface ActivityUpdate {
 }
 
 // ──────────────────────────────────────────────
+// Email History types
+// ──────────────────────────────────────────────
+
+export interface EmailHistoryRow {
+  id: string;
+  from_address: string;
+  to_address: string;
+  subject: string;
+  body: string;
+  direction: string;
+  status: string;
+  related_to_type: string | null;
+  related_to_id: string | null;
+  sent_at: string | null;
+  created_at: string;
+}
+
+export interface EmailHistoryInsert {
+  id?: string;
+  from_address: string;
+  to_address: string;
+  subject: string;
+  body: string;
+  direction: string;
+  status?: string;
+  related_to_type?: string | null;
+  related_to_id?: string | null;
+  sent_at?: string | null;
+}
+
+export interface EmailHistoryUpdate {
+  id?: string;
+  from_address?: string;
+  to_address?: string;
+  subject?: string;
+  body?: string;
+  direction?: string;
+  status?: string;
+  related_to_type?: string | null;
+  related_to_id?: string | null;
+  sent_at?: string | null;
+}
+
+// ──────────────────────────────────────────────
 // DbXxx aliases for service layer compatibility
 // ──────────────────────────────────────────────
 
@@ -391,6 +451,7 @@ export type DbCompany = CompanyRow;
 export type DbTask = TaskRow;
 export type DbMeeting = MeetingRow;
 export type DbActivity = ActivityRow;
+export type DbEmailHistory = EmailHistoryRow;
 
 // ──────────────────────────────────────────────
 // Team types
@@ -476,6 +537,54 @@ export interface TeamInvitationUpdate {
 }
 
 // ──────────────────────────────────────────────
+// Call log types
+// ──────────────────────────────────────────────
+
+export interface CallLogRow {
+  id: string;
+  direction: CallDirection;
+  duration: number;
+  caller: string;
+  callee: string;
+  notes: string;
+  call_result: CallResult;
+  related_to_type: string | null;
+  related_to_id: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export interface CallLogInsert {
+  id?: string;
+  direction: CallDirection;
+  duration?: number;
+  caller: string;
+  callee: string;
+  notes?: string;
+  call_result?: CallResult;
+  related_to_type?: string | null;
+  related_to_id?: string | null;
+  created_by: string;
+  created_at?: string;
+}
+
+export interface CallLogUpdate {
+  id?: string;
+  direction?: CallDirection;
+  duration?: number;
+  caller?: string;
+  callee?: string;
+  notes?: string;
+  call_result?: CallResult;
+  related_to_type?: string | null;
+  related_to_id?: string | null;
+  created_by?: string;
+  created_at?: string;
+}
+
+export type DbCallLog = CallLogRow;
+
+// ──────────────────────────────────────────────
 // Tag types
 // ──────────────────────────────────────────────
 
@@ -522,6 +631,39 @@ export interface TaggingUpdate {
 
 export type DbTag = TagRow;
 export type DbTagging = TaggingRow;
+
+// ── Note types ─────────────────────────────────────────
+
+export interface NoteRow {
+  id: string;
+  title: string;
+  body: string;
+  related_to_type: string | null;
+  related_to_id: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NoteInsert {
+  id?: string;
+  title?: string;
+  body: string;
+  related_to_type?: string | null;
+  related_to_id?: string | null;
+  created_by: string;
+}
+
+export interface NoteUpdate {
+  id?: string;
+  title?: string;
+  body?: string;
+  related_to_type?: string | null;
+  related_to_id?: string | null;
+  created_by?: string;
+}
+
+export type DbNote = NoteRow;
 
 // ── Automation Rule types ──────────────────────────────
 
