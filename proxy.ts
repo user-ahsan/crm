@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { updateSession } from '@/lib/supabase/update-session';
+import { createServerClient } from '@supabase/ssr';
+import type { Database } from '@/types/supabase.types';
 
 /**
  * ─── Auth Routing Logic ─────────────────────────────────────────────
@@ -19,19 +20,18 @@ import { updateSession } from '@/lib/supabase/update-session';
  *       so they come right back after signing in.
  *
  * Session check:
- *   We look for 'sb-access-token' or 'sb-refresh-token' cookies set by
- *   the Supabase client. Presence of either cookie indicates an active
- *   session (or a token that can be refreshed).
+ *   We create a Supabase server client from the request cookies and
+ *   call supabase.auth.getUser() to validate the actual session.
+ *   This is far more reliable than guessing cookie names, because
+ *   @supabase/ssr v0.12 uses cookie names like sb-{ref}-auth-token
+ *   rather than the sb-access-token / sb-refresh-token convention.
  *
  * Session refresh:
- *   Every request calls updateSession() at the end so the cookie is
- *   silently refreshed on each navigation.
+ *   Every response goes through the same server client so Supabase
+ *   silently refreshes the session cookies on each navigation.
  * ─────────────────────────────────────────────────────────────────────
  */
 
-/**
- * Protected route prefixes that require an active Supabase session.
- */
 const protectedRoutes = [
   '/dashboard',
   '/leads',
@@ -42,49 +42,62 @@ const protectedRoutes = [
   '/meetings',
   '/analytics',
   '/settings',
-  '/onboarding', // protected so only authenticated users can access; has its own special layout
+  '/onboarding',
 ] as const;
 
-/**
- * Auth-only routes that redirect to /dashboard when the user is already
- * signed in (login and signup pages).
- */
 const authRoutes = ['/login', '/signup'] as const;
 
 /**
- * Public routes that do not require authentication. The landing page (/)
- * is always allowed even with a session.
+ * Creates a Supabase server client for the middleware and performs
+ * the auth check + cookie refresh in one call.
+ *
+ * @returns [supabaseResponse, isAuthenticated]
  */
-const publicRoutes = ['/', '/login', '/signup'] as const;
+async function checkSession(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({ request });
 
-/**
- * Next.js proxy that refreshes the Supabase session on every request.
- *
- * - Public routes are always allowed, but auth routes (/login, /signup)
- *   redirect to /dashboard if the user already has a session.
- * - Protected routes without a valid session are redirected to /login
- *   with the original path as a ?redirect= parameter.
- * - Every response goes through updateSession() to refresh the cookie.
- *
- * @param request - The incoming Next.js request.
- * @returns A NextResponse with any updated session cookies or a redirect.
- */
+  const supabase = createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value),
+          );
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options),
+          );
+        },
+      },
+    },
+  );
+
+  // This validates the session with Supabase (not just cookie existence)
+  const { data: { user } } = await supabase.auth.getUser();
+
+  return [supabaseResponse, user !== null] as const;
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ── Check for an active Supabase session ──────────────────────────
-  const hasSession =
-    request.cookies.has('sb-access-token') ||
-    request.cookies.has('sb-refresh-token');
-
   // ── Landing page (/) — always allow, no redirect ever ─────────────
   if (pathname === '/') {
-    return updateSession(request);
+    const [response] = await checkSession(request);
+    return response;
   }
+
+  // ── Check auth for all other routes ──────────────────────────────
+  const [supabaseResponse, isAuthenticated] = await checkSession(request);
 
   // ── Auth routes (/login, /signup) — redirect to dashboard if session exists ─
   const isAuthRoute = authRoutes.some((route) => pathname === route);
-  if (isAuthRoute && hasSession) {
+  if (isAuthRoute && isAuthenticated) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
@@ -93,22 +106,17 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith(route),
   );
 
-  if (isProtectedRoute && !hasSession) {
+  if (isProtectedRoute && !isAuthenticated) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // ── Always refresh the session for every request ──────────────────
-  return updateSession(request);
+  return supabaseResponse;
 }
 
-/**
- * Proxy matcher – run on all routes except static assets and Next.js internals.
- */
 export const config = {
   matcher: [
-    // Skip static files, _next, and public assets
     '/((?!_next/static|_next/image|favicon.ico|api/public|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
