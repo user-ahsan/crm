@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { TeamInfoCard } from '@/components/teams/TeamInfoCard';
 import { TeamMemberList } from '@/components/teams/TeamMemberList';
 import { InviteMemberDialog } from '@/components/teams/InviteMemberDialog';
+import { CreateTeamDialog } from '@/components/teams/CreateTeamDialog';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
@@ -33,11 +34,13 @@ export default function TeamSettingsPage() {
     changeMemberRole,
     removeMember,
     refresh,
+    createTeam,
   } = useTeam();
 
   const { canManageTeam, role } = usePermissions(currentMember?.role ?? null);
   const isAdmin = canManageTeam();
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
@@ -133,12 +136,17 @@ export default function TeamSettingsPage() {
         />
         <EmptyState
           icon={<IconUsersGroup size={48} stroke={1.5} />}
-          title="No team found"
-          description="You are not part of any team yet. Contact your administrator to get started."
+          title="No team yet"
+          description="Create your first team to start collaborating with your team members."
           action={{
-            label: 'Refresh',
-            onClick: refresh,
+            label: 'Create Team',
+            onClick: () => setCreateDialogOpen(true),
           }}
+        />
+        <CreateTeamDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          onCreateTeam={createTeam}
         />
       </div>
     );

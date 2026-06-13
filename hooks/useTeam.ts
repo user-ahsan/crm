@@ -41,7 +41,7 @@ export function useTeam() {
   useEffect(() => { refresh(); }, [refresh]);
 
   const currentMember: TeamMember | null = members.length > 0
-    ? (members.find((m) => m.userId === 'user-admin-001') ?? members[0])
+    ? (members.find((m) => m.userId === 'user-1') ?? members[0])
     : null;
 
   const updateTeam = useCallback(async (data: TeamFormData) => {
@@ -102,6 +102,29 @@ export function useTeam() {
     }
   }, []);
 
+  const createTeam = useCallback(async (data: TeamFormData) => {
+    try {
+      const newTeam = await teamService.create(data);
+      setTeam(newTeam);
+      // Add current user as admin member in mock data
+      const { teamMembers } = await import('@/data/team-members');
+      const { generateId } = await import('@/lib/formatters');
+      teamMembers.push({
+        id: `tm-${generateId().slice(0, 8)}`,
+        teamId: newTeam.id,
+        userId: 'user-1', // current user
+        role: 'admin',
+        joinedAt: new Date().toISOString(),
+        user: { name: 'Current User', email: 'user@nexuscrm.com' },
+      });
+      setMembers([...teamMembers.filter(m => m.teamId === newTeam.id)]);
+      return newTeam;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create team');
+      throw e;
+    }
+  }, []);
+
   return {
     team,
     members,
@@ -114,6 +137,7 @@ export function useTeam() {
     cancelInvitation,
     changeMemberRole,
     removeMember,
+    createTeam,
     refresh,
   };
 }

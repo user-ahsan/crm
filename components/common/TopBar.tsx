@@ -11,6 +11,7 @@ import {
   IconLogout,
   IconChevronDown,
 } from '@tabler/icons-react';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { USERS } from '@/lib/constants';
 import { useThemeStore } from '@/store/theme';
@@ -46,6 +47,7 @@ export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notif
   const isDark = theme === 'dark';
   const currentUser = USERS[0] ?? { initials: '?', name: 'User' };
   const { team } = useTeamContext();
+  const router = useRouter();
 
   return (
     <header
@@ -185,11 +187,11 @@ export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notif
             <DropdownMenuSeparator />
 
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/settings')}>
                 <IconUser className="size-4" />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/settings')}>
                 <IconSettings className="size-4" />
                 Settings
               </DropdownMenuItem>
@@ -197,7 +199,13 @@ export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notif
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem variant="destructive">
+            <DropdownMenuItem variant="destructive" onClick={() => {
+              // Clear auth cookies
+              document.cookie = 'sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+              document.cookie = 'sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+              // Redirect to login
+              router.push('/login');
+            }}>
               <IconLogout className="size-4" />
               Sign out
             </DropdownMenuItem>

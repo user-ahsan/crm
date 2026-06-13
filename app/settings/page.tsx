@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -12,8 +13,18 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { PageHeader } from '@/components/common/PageHeader';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { useThemeStore } from '@/store/theme';
+import { toast } from 'sonner';
 import {
   IconMoon,
   IconSun,
@@ -25,22 +36,110 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 
+const STORAGE_KEY = 'nexuscrm-settings';
+
+interface SettingsData {
+  displayName: string;
+  email: string;
+  timezone: string;
+  emailNotif: boolean;
+  taskReminders: boolean;
+  meetingAlerts: boolean;
+}
+
+const DEFAULT_SETTINGS: SettingsData = {
+  displayName: 'Alice Johnson',
+  email: 'alice@nexuscrm.com',
+  timezone: 'America/New_York',
+  emailNotif: true,
+  taskReminders: true,
+  meetingAlerts: true,
+};
+
+const TIMEZONE_OPTIONS = [
+  { value: 'America/New_York', label: 'Eastern Time (UTC-5)' },
+  { value: 'America/Chicago', label: 'Central Time (UTC-6)' },
+  { value: 'America/Denver', label: 'Mountain Time (UTC-7)' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (UTC-8)' },
+  { value: 'Europe/London', label: 'London (UTC+0)' },
+  { value: 'Europe/Berlin', label: 'Berlin (UTC+1)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (UTC+9)' },
+];
+
+function loadSettings(): SettingsData {
+  if (typeof window === 'undefined') return { ...DEFAULT_SETTINGS };
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_SETTINGS };
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+function saveSettings(data: SettingsData) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
 export default function SettingsPage() {
+  const router = useRouter();
   const { theme, toggleTheme } = useThemeStore();
+
+  const [displayName, setDisplayName] = useState(DEFAULT_SETTINGS.displayName);
+  const [email, setEmail] = useState(DEFAULT_SETTINGS.email);
+  const [timezone, setTimezone] = useState(DEFAULT_SETTINGS.timezone);
+  const [emailNotif, setEmailNotif] = useState(DEFAULT_SETTINGS.emailNotif);
+  const [taskReminders, setTaskReminders] = useState(DEFAULT_SETTINGS.taskReminders);
+  const [meetingAlerts, setMeetingAlerts] = useState(DEFAULT_SETTINGS.meetingAlerts);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  // Load settings from localStorage on mount
+  useEffect(() => {
+    const saved = loadSettings();
+    setDisplayName(saved.displayName);
+    setEmail(saved.email);
+    setTimezone(saved.timezone);
+    setEmailNotif(saved.emailNotif);
+    setTaskReminders(saved.taskReminders);
+    setMeetingAlerts(saved.meetingAlerts);
+  }, []);
 
   const handleThemeToggle = useCallback(() => {
     toggleTheme();
   }, [toggleTheme]);
 
   const handleSaveNotifications = useCallback(() => {
-    // Mock: would persist notification preferences
-    // Intentionally empty — this is a UI mock for future implementation
-  }, []);
+    const data: SettingsData = {
+      displayName,
+      email,
+      timezone,
+      emailNotif,
+      taskReminders,
+      meetingAlerts,
+    };
+    saveSettings(data);
+    toast.success('Notification preferences saved successfully.');
+  }, [displayName, email, timezone, emailNotif, taskReminders, meetingAlerts]);
 
   const handleSaveAccount = useCallback(() => {
-    // Mock: would persist account settings
-    // Intentionally empty — this is a UI mock for future implementation
-  }, []);
+    const data: SettingsData = {
+      displayName,
+      email,
+      timezone,
+      emailNotif,
+      taskReminders,
+      meetingAlerts,
+    };
+    saveSettings(data);
+    toast.success('Account settings saved successfully.');
+  }, [displayName, email, timezone, emailNotif, taskReminders, meetingAlerts]);
+
+  const handleDeleteAccount = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.clear();
+    toast.success('Account has been deleted.');
+    router.push('/signup');
+  }, [router]);
 
   return (
     <div className="space-y-6">
@@ -106,7 +205,8 @@ export default function SettingsPage() {
             </div>
             <Switch
               id="email-notif"
-              defaultChecked
+              checked={emailNotif}
+              onCheckedChange={setEmailNotif}
               aria-label="Toggle email notifications"
             />
           </div>
@@ -123,7 +223,8 @@ export default function SettingsPage() {
             </div>
             <Switch
               id="task-reminders"
-              defaultChecked
+              checked={taskReminders}
+              onCheckedChange={setTaskReminders}
               aria-label="Toggle task reminders"
             />
           </div>
@@ -140,7 +241,8 @@ export default function SettingsPage() {
             </div>
             <Switch
               id="meeting-alerts"
-              defaultChecked
+              checked={meetingAlerts}
+              onCheckedChange={setMeetingAlerts}
               aria-label="Toggle meeting alerts"
             />
           </div>
@@ -178,21 +280,21 @@ export default function SettingsPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="display-name">Display Name</Label>
-              <input
+              <Input
                 id="display-name"
                 type="text"
-                defaultValue="Alice Johnson"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
                 aria-label="Display name"
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="email-address">Email</Label>
-              <input
+              <Input
                 id="email-address"
                 type="email"
-                defaultValue="alice@nexuscrm.com"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 aria-label="Email address"
               />
             </div>
@@ -208,20 +310,18 @@ export default function SettingsPage() {
                 Set your local timezone for correct scheduling.
               </p>
             </div>
-            <select
-              id="timezone"
-              defaultValue="America/New_York"
-              className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              aria-label="Select timezone"
-            >
-              <option value="America/New_York">Eastern Time (UTC-5)</option>
-              <option value="America/Chicago">Central Time (UTC-6)</option>
-              <option value="America/Denver">Mountain Time (UTC-7)</option>
-              <option value="America/Los_Angeles">Pacific Time (UTC-8)</option>
-              <option value="Europe/London">London (UTC+0)</option>
-              <option value="Europe/Berlin">Berlin (UTC+1)</option>
-              <option value="Asia/Tokyo">Tokyo (UTC+9)</option>
-            </select>
+            <Select value={timezone} onValueChange={(v: string | null) => { if (v !== null) setTimezone(v); }}>
+              <SelectTrigger className="w-[220px]" aria-label="Select timezone">
+                <SelectValue placeholder="Select a timezone" />
+              </SelectTrigger>
+              <SelectContent>
+                {TIMEZONE_OPTIONS.map((tz) => (
+                  <SelectItem key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <Separator />
@@ -238,10 +338,7 @@ export default function SettingsPage() {
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => {
-                // Mock: show confirmation dialog
-                // Intentionally empty — placeholder for future implementation
-              }}
+              onClick={() => setDeleteOpen(true)}
               aria-label="Delete account"
             >
               Delete Account
@@ -293,6 +390,17 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Delete Account Confirm Dialog */}
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete Account"
+        description="Are you sure you want to delete your account? This action is permanent and cannot be undone. All your data will be lost."
+        onConfirm={handleDeleteAccount}
+        confirmLabel="Delete Account"
+        variant="destructive"
+      />
     </div>
   );
 }
