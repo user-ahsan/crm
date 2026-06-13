@@ -18,6 +18,9 @@ import {
   IconChevronLeft,
   IconFileInvoice,
   IconCurrencyDollar,
+  IconFlag,
+  IconPhone,
+  IconFilter,
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { NAV_ITEMS } from '@/lib/constants';
@@ -47,6 +50,9 @@ const iconMap = {
   'users-group': IconUsersGroup,
   zap: IconBolt,
   'file-invoice': IconFileInvoice,
+  flag: IconFlag,
+  phone: IconPhone,
+  filter: IconFilter,
 } as const;
 
 type IconKey = keyof typeof iconMap;

@@ -36,6 +36,7 @@ import { useActivities } from '@/hooks/useActivities';
 import { NotesList } from '@/components/communication/NotesList';
 import { useCallLogs } from '@/hooks/useCallLogs';
 import { CallLogList } from '@/components/communication/CallLogList';
+import { FileAttachmentList } from '@/components/common/FileAttachmentList';
 import { STATUS_COLORS, PRIORITY_COLORS, USERS } from '@/lib/constants';
 import { formatCurrency, formatDate, formatDateTime, formatRelativeTime, getInitials, formatDuration } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -59,6 +60,7 @@ import {
   IconFileDescription,
   IconNote,
   IconRefresh,
+  IconPaperclip,
 } from '@tabler/icons-react';
 
 interface LeadDetailProps {
@@ -552,6 +554,10 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="files">
+            <IconPaperclip className="size-4" />
+            Files
+          </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -862,6 +868,21 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
             onRefresh={refreshEmails}
             toAddress={lead.email}
           />
+        </TabsContent>
+
+        {/* Files Tab */}
+        <TabsContent value="files" className="pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="inline-flex items-center gap-2 text-base">
+                <IconPaperclip className="size-4" />
+                Files
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FileAttachmentList relatedToType="lead" relatedToId={lead.id} />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Activity Tab */}

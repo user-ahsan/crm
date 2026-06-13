@@ -19,12 +19,14 @@ import { ExportDropdown } from '@/components/common/ExportDropdown';
 import { ImportDialog } from '@/components/common/ImportDialog';
 import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { BulkActionBar } from '@/components/common/BulkActionBar';
+import { ViewsDropdown } from '@/components/common/ViewsDropdown';
 import { useCompanies } from '@/hooks/useCompanies';
 import { useTags } from '@/hooks/useTags';
 import { useCsvExport } from '@/hooks/useCsvExport';
 import { useDebounce } from '@/hooks/useDebounce';
 import { companyService } from '@/services/company.service';
 import { tagService } from '@/services/tag.service';
+import type { SavedView } from '@/types/saved-view.types';
 
 /* ── Inner component with useSearchParams (requires Suspense wrapper) ── */
 function CompaniesPageContent() {
@@ -52,6 +54,19 @@ function CompaniesPageContent() {
     }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [debouncedSearch, tagFilter, pathname, router, searchParams]);
+
+  const handleLoadView = useCallback((view: SavedView) => {
+    const f = view.filters as Record<string, string>;
+    setSearch(f.search ?? '');
+    setTagFilter(f.tag ?? '');
+  }, []);
+
+  const currentViewFilters = useMemo(() => ({
+    search,
+    tag: tagFilter,
+  }), [search, tagFilter]);
+
+  const hasActiveFilters = !!(search || tagFilter);
 
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<string>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -219,6 +234,12 @@ function CompaniesPageContent() {
             ))}
           </SelectContent>
         </Select>
+        <ViewsDropdown
+          entityType="company"
+          currentFilters={currentViewFilters}
+          onLoadView={handleLoadView}
+          hasActiveFilters={hasActiveFilters}
+        />
       </div>
 
       {/* Empty State */}

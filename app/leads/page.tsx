@@ -30,9 +30,11 @@ import { ExportDropdown } from '@/components/common/ExportDropdown';
 import { ImportDialog } from '@/components/common/ImportDialog';
 import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { BulkActionBar } from '@/components/common/BulkActionBar';
+import { ViewsDropdown } from '@/components/common/ViewsDropdown';
 import { useCsvExport } from '@/hooks/useCsvExport';
 import { leadService } from '@/services/lead.service';
 import { tagService } from '@/services/tag.service';
+import type { SavedView } from '@/types/saved-view.types';
 
 const ALL_STATUS = '__all_statuses';
 const ALL_SOURCE = '__all_sources';
@@ -125,7 +127,26 @@ function LeadsPageContent() {
     return result;
   }, [getFiltered, filters, tagFilter, minScoreFilter, scoresMap]);
 
-  const hasActiveFilters = search || statusFilter !== ALL_STATUS || sourceFilter !== ALL_SOURCE || priorityFilter !== ALL_PRIORITY || !!tagFilter || !!minScoreFilter;
+  const handleLoadView = useCallback((view: SavedView) => {
+    const f = view.filters as Record<string, string>;
+    setSearch(f.search ?? '');
+    setStatusFilter(f.status ?? ALL_STATUS);
+    setSourceFilter(f.source ?? ALL_SOURCE);
+    setPriorityFilter(f.priority ?? ALL_PRIORITY);
+    setTagFilter(f.tag ?? '');
+    setMinScoreFilter(f.minScore ?? '');
+  }, []);
+
+  const currentViewFilters = useMemo(() => ({
+    search,
+    status: statusFilter !== ALL_STATUS ? statusFilter : '',
+    source: sourceFilter !== ALL_SOURCE ? sourceFilter : '',
+    priority: priorityFilter !== ALL_PRIORITY ? priorityFilter : '',
+    tag: tagFilter,
+    minScore: minScoreFilter,
+  }), [search, statusFilter, sourceFilter, priorityFilter, tagFilter, minScoreFilter]);
+
+  const hasActiveFilters = !!(search || statusFilter !== ALL_STATUS || sourceFilter !== ALL_SOURCE || priorityFilter !== ALL_PRIORITY || tagFilter || minScoreFilter);
 
   const handleEdit = useCallback(
     (id: string) => {
@@ -328,6 +349,12 @@ function LeadsPageContent() {
           min={0}
           max={100}
           aria-label="Minimum score filter"
+        />
+        <ViewsDropdown
+          entityType="lead"
+          currentFilters={currentViewFilters}
+          onLoadView={handleLoadView}
+          hasActiveFilters={hasActiveFilters}
         />
       </div>
 

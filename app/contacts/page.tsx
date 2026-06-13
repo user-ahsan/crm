@@ -22,9 +22,11 @@ import { ExportDropdown } from '@/components/common/ExportDropdown';
 import { ImportDialog } from '@/components/common/ImportDialog';
 import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { BulkActionBar } from '@/components/common/BulkActionBar';
+import { ViewsDropdown } from '@/components/common/ViewsDropdown';
 import { useCsvExport } from '@/hooks/useCsvExport';
 import { contactService } from '@/services/contact.service';
 import { tagService } from '@/services/tag.service';
+import type { SavedView } from '@/types/saved-view.types';
 
 function ContactsPageContent() {
   const { contacts, loading, error, refresh, deleteContact } = useContacts();
@@ -52,6 +54,19 @@ function ContactsPageContent() {
     }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [debouncedSearch, tagFilter, pathname, router, searchParams]);
+
+  const handleLoadView = useCallback((view: SavedView) => {
+    const f = view.filters as Record<string, string>;
+    setSearch(f.search ?? '');
+    setTagFilter(f.tag ?? '');
+  }, []);
+
+  const currentViewFilters = useMemo(() => ({
+    search,
+    tag: tagFilter,
+  }), [search, tagFilter]);
+
+  const hasActiveFilters = !!(search || tagFilter);
 
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -220,6 +235,12 @@ function ContactsPageContent() {
             ))}
           </SelectContent>
         </Select>
+        <ViewsDropdown
+          entityType="contact"
+          currentFilters={currentViewFilters}
+          onLoadView={handleLoadView}
+          hasActiveFilters={hasActiveFilters}
+        />
       </div>
 
       {/* Empty State */}

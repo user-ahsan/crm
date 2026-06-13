@@ -25,6 +25,7 @@ import { formatDate, formatCurrency, getInitials } from '@/lib/formatters';
 import { useCallLogs } from '@/hooks/useCallLogs';
 import { CallLogList } from '@/components/communication/CallLogList';
 import { NotesList } from '@/components/communication/NotesList';
+import { FileAttachmentList } from '@/components/common/FileAttachmentList';
 import {
   IconArrowLeft,
   IconBuilding,
@@ -38,6 +39,7 @@ import {
   IconAlertCircle,
   IconLoader2,
   IconMail,
+  IconPaperclip,
 } from '@tabler/icons-react';
 
 interface CompanyDetailProps {
@@ -303,6 +305,10 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="files">
+            <IconPaperclip className="size-4" />
+            Files
+          </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -447,6 +453,21 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
             entityId={companyId}
             onLogCall={logCall}
           />
+        </TabsContent>
+
+        {/* Files Tab */}
+        <TabsContent value="files">
+          <Card>
+            <CardHeader>
+              <CardTitle className="inline-flex items-center gap-2 text-base">
+                <IconPaperclip className="size-4" />
+                Files
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FileAttachmentList relatedToType="company" relatedToId={companyId} />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Notes Tab */}

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { IconEdit, IconArrowLeft, IconCurrencyDollar, IconCalendarEvent, IconUser, IconTags, IconNote, IconMail } from '@tabler/icons-react';
+import { IconEdit, IconArrowLeft, IconCurrencyDollar, IconCalendarEvent, IconUser, IconTags, IconNote, IconMail, IconPaperclip } from '@tabler/icons-react';
 import type { Deal, DealStage } from '@/types/deal.types';
 import { dealService } from '@/services/deal.service';
 import { DealCreateForm } from '@/components/deals/DealCreateForm';
@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { NotesList } from '@/components/communication/NotesList';
 import { EmailHistory } from '@/components/communication/EmailHistory';
 import { TagBadge } from '@/components/common/TagBadge';
+import { FileAttachmentList } from '@/components/common/FileAttachmentList';
 import { useEmail } from '@/hooks/useEmail';
 import { USERS } from '@/lib/constants';
 import { formatCurrency, formatDate, formatRelativeTime, getInitials } from '@/lib/formatters';
@@ -253,6 +254,10 @@ export default function DealDetailPage() {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="files">
+            <IconPaperclip className="size-4" />
+            Files
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="activity" className="pt-4">
@@ -296,6 +301,20 @@ export default function DealDetailPage() {
             }}
             onRefresh={refreshEmails}
           />
+        </TabsContent>
+
+        <TabsContent value="files" className="pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="inline-flex items-center gap-2 text-base">
+                <IconPaperclip className="size-4" />
+                Files
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FileAttachmentList relatedToType="deal" relatedToId={deal.id} />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 

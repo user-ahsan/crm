@@ -12,6 +12,7 @@ import type { ActivityType } from '@/types/activity.types';
 import type { AutomationTriggerEvent, AutomationCondition, AutomationAction } from '@/types/automation.types';
 import type { CallDirection, CallResult } from '@/types/communication.types';
 import type { QuoteStatus } from '@/types/quote.types';
+import type { GoalType, GoalPeriod } from '@/types/goal.types';
 
 // ──────────────────────────────────────────────
 // Database public schema definition
@@ -124,6 +125,36 @@ export interface Database {
         Row: ForecastRow;
         Insert: ForecastInsert;
         Update: ForecastUpdate;
+      };
+      file_attachments: {
+        Row: FileAttachmentRow;
+        Insert: FileAttachmentInsert;
+        Update: FileAttachmentUpdate;
+      };
+      goals: {
+        Row: GoalRow;
+        Insert: GoalInsert;
+        Update: GoalUpdate;
+      };
+      email_sequences: {
+        Row: EmailSequenceRow;
+        Insert: EmailSequenceInsert;
+        Update: EmailSequenceUpdate;
+      };
+      campaign_emails: {
+        Row: CampaignEmailRow;
+        Insert: CampaignEmailInsert;
+        Update: CampaignEmailUpdate;
+      };
+      saved_views: {
+        Row: SavedViewRow;
+        Insert: SavedViewInsert;
+        Update: SavedViewUpdate;
+      };
+      api_keys: {
+        Row: ApiKeyRow;
+        Insert: ApiKeyInsert;
+        Update: ApiKeyUpdate;
       };
     };
     Views: Record<string, never>;
@@ -971,3 +1002,229 @@ export interface QuoteItemUpdate {
 
 export type DbQuote = QuoteRow;
 export type DbQuoteItem = QuoteItemRow;
+
+// ── Attachment types ────────────────────────────────────────
+
+export interface FileAttachmentRow {
+  id: string;
+  filename: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  storage_path: string;
+  related_to_type: string | null;
+  related_to_id: string | null;
+  uploaded_by: string;
+  created_at: string;
+}
+
+export interface FileAttachmentInsert {
+  id?: string;
+  filename: string;
+  original_name: string;
+  mime_type?: string;
+  size_bytes?: number;
+  storage_path: string;
+  related_to_type?: string | null;
+  related_to_id?: string | null;
+  uploaded_by: string;
+  created_at?: string;
+}
+
+export interface FileAttachmentUpdate {
+  id?: string;
+  filename?: string;
+  original_name?: string;
+  mime_type?: string;
+  size_bytes?: number;
+  storage_path?: string;
+  related_to_type?: string | null;
+  related_to_id?: string | null;
+  uploaded_by?: string;
+  created_at?: string;
+}
+
+export type DbFileAttachment = FileAttachmentRow;
+
+// ── Goal types ─────────────────────────────────────────────
+
+export interface GoalRow {
+  id: string;
+  title: string;
+  description: string;
+  type: GoalType;
+  target: number;
+  current: number;
+  period: GoalPeriod;
+  start_date: string;
+  end_date: string;
+  assigned_to: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GoalInsert {
+  id?: string;
+  title: string;
+  description?: string;
+  type: GoalType;
+  target?: number;
+  current?: number;
+  period: GoalPeriod;
+  start_date: string;
+  end_date: string;
+  assigned_to?: string | null;
+  created_by: string;
+}
+
+export interface GoalUpdate {
+  id?: string;
+  title?: string;
+  description?: string;
+  type?: GoalType;
+  target?: number;
+  current?: number;
+  period?: GoalPeriod;
+  start_date?: string;
+  end_date?: string;
+  assigned_to?: string | null;
+  created_by?: string;
+}
+
+export type DbGoal = GoalRow;
+
+// ── Campaign (email_sequences) types ────────────────────────
+
+export interface EmailSequenceRow {
+  id: string;
+  name: string;
+  description: string;
+  status: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmailSequenceInsert {
+  id?: string;
+  name: string;
+  description?: string;
+  status?: string;
+  created_by: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface EmailSequenceUpdate {
+  id?: string;
+  name?: string;
+  description?: string;
+  status?: string;
+  created_by?: string;
+  updated_at?: string;
+}
+
+export interface CampaignEmailRow {
+  id: string;
+  sequence_id: string;
+  subject: string;
+  body: string;
+  delay_days: number;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface CampaignEmailInsert {
+  id?: string;
+  sequence_id: string;
+  subject: string;
+  body?: string;
+  delay_days?: number;
+  sort_order?: number;
+  created_at?: string;
+}
+
+export interface CampaignEmailUpdate {
+  id?: string;
+  sequence_id?: string;
+  subject?: string;
+  body?: string;
+  delay_days?: number;
+  sort_order?: number;
+}
+
+export type DbEmailSequence = EmailSequenceRow;
+export type DbCampaignEmail = CampaignEmailRow;
+
+// ── Saved View types ─────────────────────────────────────────
+
+export interface SavedViewRow {
+  id: string;
+  name: string;
+  entity_type: string;
+  filters: Record<string, unknown>;
+  sort_by: string | null;
+  sort_order: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SavedViewInsert {
+  id?: string;
+  name: string;
+  entity_type: string;
+  filters?: Record<string, unknown>;
+  sort_by?: string | null;
+  sort_order?: string | null;
+  created_by: string;
+}
+
+export interface SavedViewUpdate {
+  id?: string;
+  name?: string;
+  entity_type?: string;
+  filters?: Record<string, unknown>;
+  sort_by?: string | null;
+  sort_order?: string | null;
+}
+
+export type DbSavedView = SavedViewRow;
+
+// ── API Key types ─────────────────────────────────────────────
+
+export interface ApiKeyRow {
+  id: string;
+  name: string;
+  key_prefix: string;
+  key_hash: string;
+  scopes: string[];
+  last_used_at: string | null;
+  expires_at: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export interface ApiKeyInsert {
+  id?: string;
+  name: string;
+  key_prefix: string;
+  key_hash: string;
+  scopes?: string[];
+  expires_at?: string | null;
+  created_by: string;
+}
+
+export interface ApiKeyUpdate {
+  id?: string;
+  name?: string;
+  key_prefix?: string;
+  key_hash?: string;
+  scopes?: string[];
+  last_used_at?: string | null;
+  expires_at?: string | null;
+  created_by?: string;
+}
+
+export type DbApiKey = ApiKeyRow;

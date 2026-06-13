@@ -3,6 +3,7 @@ import type { TaskPriority, TaskStatus } from '@/types/task.types';
 import type { MeetingType } from '@/types/meeting.types';
 import type { CompanySize } from '@/types/company.types';
 import type { ActivityType } from '@/types/activity.types';
+import type { GoalType, GoalPeriod } from '@/types/goal.types';
 export const QUOTE_STATUSES = ['draft', 'sent', 'accepted', 'rejected'] as const;
 
 
@@ -16,6 +17,34 @@ export const TASK_STATUSES: TaskStatus[] = ['pending', 'completed', 'overdue'];
 export const MEETING_TYPES: MeetingType[] = ['online', 'offline', 'call'];
 
 export const COMPANY_SIZES: CompanySize[] = ['1-10', '11-50', '51-200', '201-1000', '1000+'];
+
+export const GOAL_TYPES: GoalType[] = ['revenue', 'deals_count', 'leads_created', 'tasks_completed', 'calls_made', 'custom'];
+export const GOAL_PERIODS: GoalPeriod[] = ['weekly', 'monthly', 'quarterly', 'yearly'];
+
+export const GOAL_TYPE_LABELS: Record<GoalType, string> = {
+  revenue: 'Revenue',
+  deals_count: 'Deals Count',
+  leads_created: 'Leads Created',
+  tasks_completed: 'Tasks Completed',
+  calls_made: 'Calls Made',
+  custom: 'Custom',
+};
+
+export const GOAL_TYPE_ICONS: Record<GoalType, string> = {
+  revenue: 'currency-dollar',
+  deals_count: 'columns-3',
+  leads_created: 'users',
+  tasks_completed: 'checkbox',
+  calls_made: 'phone',
+  custom: 'flag',
+};
+
+export const GOAL_PERIOD_LABELS: Record<GoalPeriod, string> = {
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+  quarterly: 'Quarterly',
+  yearly: 'Yearly',
+};
 
 export const ACTIVITY_TYPES: ActivityType[] = [
   'created',
@@ -72,10 +101,13 @@ export const NAV_ITEMS = [
   { label: 'Tasks', href: '/tasks', icon: 'checkbox' },
   { label: 'Meetings', href: '/meetings', icon: 'calendar' },
   { label: 'Quotes', href: '/quotes', icon: 'file-invoice' },
+  { label: 'Goals', href: '/goals', icon: 'flag' },
+  { label: 'Campaigns', href: '/campaigns', icon: 'mail-forward' },
   { label: 'Analytics', href: '/analytics', icon: 'chart-bar' },
   { label: 'Automation', href: '/settings/automation', icon: 'zap' },
   { label: 'Team', href: '/settings/team', icon: 'users-group' },
   { label: 'Data Quality', href: '/settings/data-quality', icon: 'filter' },
+  { label: 'API Keys', href: '/settings/api-keys', icon: 'api-key' },
   { label: 'Settings', href: '/settings', icon: 'settings' },
 ] as const;
 

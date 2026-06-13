@@ -29,6 +29,7 @@ import { formatDate, getInitials, formatCurrency } from '@/lib/formatters';
 import { useCallLogs } from '@/hooks/useCallLogs';
 import { CallLogList } from '@/components/communication/CallLogList';
 import { NotesList } from '@/components/communication/NotesList';
+import { FileAttachmentList } from '@/components/common/FileAttachmentList';
 import {
   IconArrowLeft,
   IconMail,
@@ -43,6 +44,7 @@ import {
   IconTags,
   IconAlertCircle,
   IconLoader2,
+  IconPaperclip,
 } from '@tabler/icons-react';
 
 interface ContactDetailProps {
@@ -326,6 +328,10 @@ export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="files">
+            <IconPaperclip className="size-4" />
+            Files
+          </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -547,6 +553,21 @@ export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
             onRefresh={refreshEmails}
             toAddress={contact?.email}
           />
+        </TabsContent>
+
+        {/* Files Tab */}
+        <TabsContent value="files">
+          <Card>
+            <CardHeader>
+              <CardTitle className="inline-flex items-center gap-2 text-base">
+                <IconPaperclip className="size-4" />
+                Files
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FileAttachmentList relatedToType="contact" relatedToId={contactId} />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Notes Tab */}
