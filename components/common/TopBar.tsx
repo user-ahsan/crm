@@ -14,6 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 import { USERS } from '@/lib/constants';
 import { useThemeStore } from '@/store/theme';
+import { useTeamContext } from '@/context/TeamContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -44,6 +45,7 @@ export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notif
   const { theme, toggleTheme } = useThemeStore();
   const isDark = theme === 'dark';
   const currentUser = USERS[0] ?? { initials: '?', name: 'User' };
+  const { team } = useTeamContext();
 
   return (
     <header
@@ -96,6 +98,15 @@ export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notif
           <span>K</span>
         </kbd>
       </button>
+
+      {/* ── Team Name Indicator ──────────────────────────── */}
+      {team && (
+        <div className="hidden shrink-0 items-center gap-1.5 rounded-md border bg-muted/30 px-2.5 py-1 sm:flex">
+          <span className="text-xs font-medium text-muted-foreground">
+            [{team.name}]
+          </span>
+        </div>
+      )}
 
       {/* ── Right: Actions ───────────────────────────────── */}
       <div className="flex items-center gap-1">

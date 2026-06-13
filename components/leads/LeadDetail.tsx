@@ -21,7 +21,7 @@ import { leadService } from '@/services/lead.service';
 import { taskService } from '@/services/task.service';
 import { meetingService } from '@/services/meeting.service';
 import { activityService } from '@/services/activity.service';
-import { STATUS_COLORS, PRIORITY_COLORS } from '@/lib/constants';
+import { STATUS_COLORS, PRIORITY_COLORS, USERS } from '@/lib/constants';
 import { formatCurrency, formatDate, formatDateTime, formatRelativeTime, getInitials, formatDuration } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {
@@ -316,6 +316,28 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                <IconUserCircle className="size-3.5" />
+                Assigned To
+              </div>
+              {lead.assignedTo ? (
+                <div className="flex items-center gap-2">
+                  <Avatar size="sm">
+                    <AvatarFallback className="text-[10px]">
+                      {getInitials(
+                        USERS.find((u) => u.id === lead.assignedTo)?.name ?? '?'
+                      )}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-medium text-foreground">
+                    {USERS.find((u) => u.id === lead.assignedTo)?.name ?? '—'}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-sm font-medium text-foreground">—</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 <IconCurrencyDollar className="size-3.5" />
                 Estimated Value
               </div>
@@ -333,6 +355,11 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
               <p className="text-sm font-medium text-foreground">
                 {formatDate(lead.createdAt)}
               </p>
+              {lead.createdBy && (
+                <p className="text-xs text-muted-foreground">
+                  by {USERS.find((u) => u.id === lead.createdBy)?.name ?? 'Unknown'}
+                </p>
+              )}
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -342,6 +369,11 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
               <p className="text-sm font-medium text-foreground">
                 {formatRelativeTime(lead.updatedAt)}
               </p>
+              {lead.updatedBy && (
+                <p className="text-xs text-muted-foreground">
+                  by {USERS.find((u) => u.id === lead.updatedBy)?.name ?? 'Unknown'}
+                </p>
+              )}
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -514,17 +546,80 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
                 Notes
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {/* Existing notes displayed as timeline */}
               {lead.notes ? (
-                <div className="whitespace-pre-wrap rounded-lg bg-muted/50 p-4 text-sm text-foreground">
-                  {lead.notes}
+                <div className="relative space-y-0 pl-8">
+                  {/* Timeline line */}
+                  <div className="absolute bottom-0 left-[15px] top-0 w-px bg-border" />
+                  <div className="relative flex gap-3 pb-4">
+                    <div className="relative z-10 -ml-8 flex shrink-0">
+                      <Avatar size="sm" className="size-8">
+                        <AvatarFallback className="text-[10px]">
+                          {getInitials(
+                            USERS.find((u) => u.id === (lead.createdBy ?? lead.assignedTo))?.name ??
+                              '?'
+                          )}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-foreground">
+                          {USERS.find((u) => u.id === (lead.createdBy ?? lead.assignedTo))?.name ??
+                            'Unknown'}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatRelativeTime(lead.createdAt)}
+                        </span>
+                      </div>
+                      <p className="whitespace-pre-wrap rounded-lg bg-muted/50 p-3 text-sm text-foreground">
+                        {lead.notes}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="flex flex-col items-center justify-center py-8 text-center">
                   <IconNote className="mb-2 size-8 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">No notes added yet.</p>
                 </div>
               )}
+
+              {/* Add note input */}
+              <div className="border-t pt-4">
+                <label className="mb-2 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Add a Note
+                </label>
+                <div className="flex items-start gap-3">
+                  <Avatar size="sm" className="size-8 shrink-0">
+                    <AvatarFallback className="text-[10px]">
+                      {getInitials(
+                        USERS.find((u) => u.id === (lead.assignedTo ?? 'user-1'))?.name ?? 'U'
+                      )}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 space-y-2">
+                    <textarea
+                      className="w-full rounded-lg border bg-background p-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                      rows={3}
+                      placeholder="Write a note... (simulated — no backend persistence)"
+                      disabled
+                    />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">
+                        Adding notes as{' '}
+                        <span className="font-medium text-foreground">
+                          {USERS[0]?.name ?? 'User'}
+                        </span>
+                      </span>
+                      <Button size="sm" disabled>
+                        Add Note
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -697,6 +792,14 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
                     <div className="flex-1 space-y-1 pt-1">
                       <p className="text-sm text-foreground">{activity.description}</p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        {activity.userId && (
+                          <>
+                            <span className="font-medium text-foreground/70">
+                              {USERS.find((u) => u.id === activity.userId)?.name ?? 'Unknown'}
+                            </span>
+                            <span>•</span>
+                          </>
+                        )}
                         <span>{formatRelativeTime(activity.timestamp)}</span>
                         {activity.metadata && (
                           <>

@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { AppShell } from '@/components/common/AppShell';
 import { Toaster } from '@/components/ui/sonner';
+import { TeamProvider } from '@/context/TeamContext';
 import { useThemeStore } from '@/store';
 
 /* ── Routes that should NOT render the AppShell ──────────── */
@@ -46,11 +47,13 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     );
   }
 
-  /* ── All other routes: wrapped in AppShell ───────────── */
+  /* ── All other routes: wrapped in TeamProvider + AppShell ───── */
   return (
-    <AppShell>
-      {children}
-      <Toaster />
-    </AppShell>
+    <TeamProvider>
+      <AppShell>
+        {children}
+        <Toaster />
+      </AppShell>
+    </TeamProvider>
   );
 }

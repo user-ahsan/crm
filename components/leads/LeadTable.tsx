@@ -14,8 +14,9 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { STATUS_COLORS, PRIORITY_COLORS } from '@/lib/constants';
-import { formatCurrency, formatDate } from '@/lib/formatters';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { STATUS_COLORS, PRIORITY_COLORS, USERS } from '@/lib/constants';
+import { formatCurrency, formatDate, getInitials } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {
   IconEdit,
@@ -103,6 +104,7 @@ export function LeadTable({ leads, onEdit, onDelete }: LeadTableProps) {
             <TableHead>Company</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Priority</TableHead>
+            <TableHead>Assigned To</TableHead>
             <TableHead>
               <span className="inline-flex items-center gap-1">
                 <IconCurrencyDollar className="size-3.5" />
@@ -172,6 +174,24 @@ export function LeadTable({ leads, onEdit, onDelete }: LeadTableProps) {
                   >
                     {lead.priority.charAt(0).toUpperCase() + lead.priority.slice(1)}
                   </span>
+                </TableCell>
+                <TableCell>
+                  {lead.assignedTo ? (
+                    <div className="flex items-center gap-2">
+                      <Avatar size="sm">
+                        <AvatarFallback className="text-[10px]">
+                          {getInitials(
+                            USERS.find((u) => u.id === lead.assignedTo)?.name ?? '?'
+                          )}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm text-muted-foreground truncate max-w-[100px]">
+                        {USERS.find((u) => u.id === lead.assignedTo)?.name ?? '—'}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground/50">—</span>
+                  )}
                 </TableCell>
                 <TableCell className="font-medium tabular-nums">
                   {lead.estimatedValue > 0

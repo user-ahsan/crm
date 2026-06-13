@@ -14,6 +14,8 @@ export interface Lead {
   status: LeadStatus;
   priority: LeadPriority;
   assignedTo?: string;
+  createdBy?: string;
+  updatedBy?: string;
   estimatedValue: number;
   tags: string[];
   notes?: string;

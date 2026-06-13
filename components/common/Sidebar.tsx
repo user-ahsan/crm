@@ -19,6 +19,8 @@ import { cn } from '@/lib/utils';
 import { NAV_ITEMS, USERS } from '@/lib/constants';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { useTeamContext } from '@/context/TeamContext';
+import { RoleBadge } from '@/components/teams/RoleBadge';
 import {
   Tooltip,
   TooltipContent,
@@ -66,6 +68,7 @@ export function Sidebar({
   );
 
   const currentUser = USERS[0] ?? { initials: '?', name: 'Unknown' };
+  const { role } = useTeamContext();
 
   /* ── Render ──────────────────────────────────────────── */
   return (
@@ -193,7 +196,13 @@ export function Sidebar({
               <p className="truncate text-sm font-medium">
                 {currentUser.name}
               </p>
-              <p className="truncate text-xs text-muted-foreground">Admin</p>
+              <div className="mt-0.5">
+                {role ? (
+                  <RoleBadge role={role} size="sm" />
+                ) : (
+                  <p className="truncate text-xs text-muted-foreground">No team</p>
+                )}
+              </div>
             </div>
 
             {onToggleCollapse && (

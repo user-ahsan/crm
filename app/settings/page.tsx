@@ -20,7 +20,10 @@ import {
   IconBell,
   IconUserCircle,
   IconDeviceFloppy,
+  IconBuilding,
+  IconArrowRight,
 } from '@tabler/icons-react';
+import Link from 'next/link';
 
 export default function SettingsPage() {
   const { theme, toggleTheme } = useThemeStore();
@@ -256,6 +259,37 @@ export default function SettingsPage() {
               <IconDeviceFloppy size={16} className="mr-1.5" />
               Save Changes
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* Team Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <IconBuilding size={20} className="text-muted-foreground" />
+            <CardTitle>Team</CardTitle>
+          </div>
+          <CardDescription>
+            Manage your team members, roles, and collaboration settings.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">Team Management</p>
+              <p className="text-xs text-muted-foreground">
+                Invite members, assign roles, and configure team permissions.
+              </p>
+            </div>
+            <Link href="/settings/team">
+              <Button variant="outline" size="sm">
+                Team Settings
+                <IconArrowRight size={16} className="ml-1.5" />
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>

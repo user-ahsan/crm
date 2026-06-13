@@ -22,7 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useLeads } from '@/hooks/useLeads';
-import { LEAD_SOURCES, LEAD_PRIORITIES, STATUS_COLORS, PRIORITY_COLORS } from '@/lib/constants';
+import { LEAD_SOURCES, LEAD_PRIORITIES, STATUS_COLORS, PRIORITY_COLORS, USERS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { validateLeadForm } from '@/lib/validators';
 import { IconX, IconPlus, IconLoader2 } from '@tabler/icons-react';
@@ -312,6 +312,39 @@ export function LeadCreateForm({ open, onOpenChange, onSuccess, editLead }: Lead
                 <p className="text-xs text-destructive">{errors.source}</p>
               )}
             </div>
+          </div>
+
+          {/* Assigned To */}
+          <div className="grid gap-2">
+            <Label htmlFor="assignedTo">Assigned To</Label>
+            <Select
+              value={formData.assignedTo ?? ''}
+              onValueChange={(value: string | null) => {
+                if (value === 'unassigned') {
+                  updateField('assignedTo', undefined);
+                } else if (value) {
+                  updateField('assignedTo', value);
+                }
+              }}
+              disabled={submitting}
+            >
+              <SelectTrigger id="assignedTo">
+                <SelectValue placeholder="Select a team member" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {USERS.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className={`inline-block size-2 rounded-full ${user.color}`}
+                      />
+                      {user.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

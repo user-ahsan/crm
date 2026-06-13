@@ -17,6 +17,7 @@ export interface Activity {
   entityId: string;
   type: ActivityType;
   description: string;
+  userId?: string;
   metadata?: Record<string, unknown>;
   timestamp: string;
 }
