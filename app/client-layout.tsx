@@ -37,23 +37,20 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     pathname === ONBOARDING_ROUTE ||
     pathname.startsWith(`${ONBOARDING_ROUTE}/`);
 
-  /* ── Auth, landing & onboarding pages: standalone (no AppShell) ──── */
-  if (isAuthRoute || isLandingPage || isOnboarding) {
-    return (
-      <>
-        {children}
-        <Toaster />
-      </>
-    );
-  }
-
-  /* ── All other routes: wrapped in TeamProvider + AppShell ───── */
+  /* ── TeamProvider wraps ALL routes (auth + app) so PermissionGuard works everywhere ───── */
   return (
     <TeamProvider>
-      <AppShell>
-        {children}
-        <Toaster />
-      </AppShell>
+      {isAuthRoute || isLandingPage || isOnboarding ? (
+        <>
+          {children}
+          <Toaster />
+        </>
+      ) : (
+        <AppShell>
+          {children}
+          <Toaster />
+        </AppShell>
+      )}
     </TeamProvider>
   );
 }

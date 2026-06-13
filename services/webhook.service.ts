@@ -18,7 +18,7 @@
  * ─────────────────────────────────────────────────────────────────────
  */
 
-import type { WebhookEvent } from '@/app/api/webhook/n8n/route';
+import type { WebhookEvent } from '@/types/webhook.types';
 
 // ── Types ─────────────────────────────────────────────────────────────
 

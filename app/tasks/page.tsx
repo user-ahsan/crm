@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { IconPlus, IconChecklist } from '@tabler/icons-react';
 import { ExportDropdown } from '@/components/common/ExportDropdown';
 import { ImportDialog } from '@/components/common/ImportDialog';
+import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { useCsvExport } from '@/hooks/useCsvExport';
 
 export default function TasksPage() {
@@ -71,13 +72,17 @@ export default function TasksPage() {
               onExport={exportEntity}
               isExporting={isExporting}
             />
-            <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
-              Import
-            </Button>
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
-              <IconPlus size={16} />
-              New Task
-            </Button>
+            <PermissionGuard action="create" entity="task">
+              <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+                Import
+              </Button>
+            </PermissionGuard>
+            <PermissionGuard action="create" entity="task">
+              <Button size="sm" onClick={() => setCreateOpen(true)}>
+                <IconPlus size={16} />
+                New Task
+              </Button>
+            </PermissionGuard>
           </div>
         </PageHeader>
         <EmptyState
@@ -93,13 +98,6 @@ export default function TasksPage() {
           open={createOpen}
           onOpenChange={setCreateOpen}
           onSuccess={handleCreateSuccess}
-        />
-        <ImportDialog
-          open={importDialogOpen}
-          onOpenChange={setImportDialogOpen}
-          entityType="tasks"
-          entityLabel="Tasks"
-          onImportComplete={refresh}
         />
       </div>
     );
@@ -121,13 +119,17 @@ export default function TasksPage() {
             onExport={exportEntity}
             isExporting={isExporting}
           />
-          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
-            Import
-          </Button>
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <IconPlus size={16} />
-            New Task
-          </Button>
+          <PermissionGuard action="create" entity="task">
+            <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+              Import
+            </Button>
+          </PermissionGuard>
+          <PermissionGuard action="create" entity="task">
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <IconPlus size={16} />
+              New Task
+            </Button>
+          </PermissionGuard>
         </div>
       </PageHeader>
 

@@ -1,23 +1,10 @@
 /**
  * Base Supabase service with helpers for all entity services.
- * Provides configuration check, pagination, error formatting, and DB row mapping.
+ * Provides configuration check, error formatting, and DB row mapping.
  */
 import { activities } from '@/data/activities';
 import type { ActivityType } from '@/types/activity.types';
 import { generateId } from '@/lib/formatters';
-
-export interface PaginationParams {
-  page?: number;
-  pageSize?: number;
-}
-
-export interface PaginatedResult<T> {
-  data: T[];
-  count: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
 
 export function isSupabaseConfigured(): boolean {
   return !!(
@@ -40,31 +27,6 @@ export function formatSupabaseError(error: unknown): string {
     return String((error as { message: unknown }).message);
   }
   return 'An unknown database error occurred';
-}
-
-export function buildPagination(
-  page: number = 1,
-  pageSize: number = 50,
-): { from: number; to: number } {
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-  return { from, to };
-}
-
-export function paginateResult<T>(
-  data: T[],
-  page: number = 1,
-  pageSize: number = 50,
-  totalCount?: number,
-): PaginatedResult<T> {
-  const count = totalCount ?? data.length;
-  return {
-    data,
-    count,
-    page,
-    pageSize,
-    totalPages: Math.ceil(count / pageSize),
-  };
 }
 
 // ─── Activity Helpers (used by all services) ────────────────────────

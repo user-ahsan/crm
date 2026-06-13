@@ -28,6 +28,7 @@ import {
 import { PageHeader } from '@/components/common/PageHeader';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
+import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { StatCard } from '@/components/common/StatCard';
 import {
@@ -177,289 +178,281 @@ export default function AnalyticsPage() {
     }));
   }, [monthly]);
 
-  /* ── Loading State ────────────────────────────────────── */
-  if (pageState === 'loading') {
-    return (
-      <div className="space-y-6">
-        <div className="space-y-1">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-4 w-64" />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader className="pb-2">
-                <Skeleton className="h-4 w-20" />
+  return (
+    <PermissionGuard action="read" entity="analytics" fallback={<EmptyState title="Access Denied" description="You don't have permission to view analytics." />}>
+      {/* ── Loading State ────────────────────────────────────── */}
+      {pageState === 'loading' ? (
+        <div className="space-y-6">
+          <div className="space-y-1">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-4 w-20" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-16" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-5 w-36" />
               </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-16" />
+              <CardContent className="space-y-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="space-y-1.5">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ))}
               </CardContent>
             </Card>
-          ))}
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-5 w-32" />
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="space-y-1.5">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-full" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
         </div>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-5 w-36" />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="space-y-1.5">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-8 w-full" />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-5 w-32" />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="space-y-1.5">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 w-full" />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+      ) : /* ── Error State ──────────────────────────────────── */
+      pageState === 'error' ? (
+        <ErrorState
+          title="Failed to load analytics"
+          message={error ?? 'An unexpected error occurred while loading analytics data.'}
+          onRetry={handleRetry}
+        />
+      ) : /* ── Empty State ──────────────────────────────────── */
+      pageState === 'empty' ? (
+        <div className="space-y-6">
+          <PageHeader
+            title="Analytics"
+            description="Gain insights into your sales performance and pipeline metrics."
+          />
+          <EmptyState
+            icon={<IconChartBar size={48} stroke={1.5} />}
+            title="No analytics data"
+            description="Add leads and manage your pipeline to see detailed analytics and performance metrics."
+            action={{
+              label: 'Go to Leads',
+              onClick: () => {
+                window.location.href = '/leads';
+              },
+            }}
+          />
         </div>
-      </div>
-    );
-  }
+      ) : (
+        /* ── Ready State ──────────────────────────────────── */
+        <div className="space-y-6">
+          <PageHeader
+            title="Analytics"
+            description="Comprehensive insights into your sales pipeline and performance."
+          />
 
-  /* ── Error State ──────────────────────────────────────── */
-  if (pageState === 'error') {
-    return (
-      <ErrorState
-        title="Failed to load analytics"
-        message={error ?? 'An unexpected error occurred while loading analytics data.'}
-        onRetry={handleRetry}
-      />
-    );
-  }
-
-  /* ── Empty State ──────────────────────────────────────── */
-  if (pageState === 'empty') {
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          title="Analytics"
-          description="Gain insights into your sales performance and pipeline metrics."
-        />
-        <EmptyState
-          icon={<IconChartBar size={48} stroke={1.5} />}
-          title="No analytics data"
-          description="Add leads and manage your pipeline to see detailed analytics and performance metrics."
-          action={{
-            label: 'Go to Leads',
-            onClick: () => {
-              window.location.href = '/leads';
-            },
-          }}
-        />
-      </div>
-    );
-  }
-
-  /* ── Ready State ──────────────────────────────────────── */
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Analytics"
-        description="Comprehensive insights into your sales pipeline and performance."
-      />
-
-      {/* Summary KPI row */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Total Leads"
-          value={kpis.totalLeads}
-          icon={<IconUsers size={20} />}
-          description="All time"
-        />
-        <StatCard
-          label="Active Deals"
-          value={kpis.activeDeals}
-          icon={<IconTrendingUp size={20} />}
-          description="In pipeline"
-        />
-        <StatCard
-          label="Won Deals"
-          value={kpis.wonDeals}
-          icon={<IconCheck size={20} />}
-          description={`${formatCurrency(kpis.revenueEstimate)} revenue`}
-        />
-        <StatCard
-          label="Pipeline Value"
-          value={formatCurrency(kpis.pipelineValue)}
-          icon={<IconCurrencyDollar size={20} />}
-          description="Total estimated"
-        />
-      </div>
-
-      {/* Pipeline Funnel */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <IconTrendingUp size={20} className="text-muted-foreground" />
-            Pipeline Funnel
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {funnel.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No pipeline data available.
-            </p>
-          ) : (
-            <div className="space-y-6">
-              {/* Funnel bars by count */}
-              <div className="space-y-3">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Leads by Stage
-                </p>
-                {funnel.map((stage) => (
-                  <div key={stage.name} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{stage.name}</span>
-                      <span className="text-muted-foreground">{stage.count} leads</span>
-                    </div>
-                    <FunnelBar
-                      value={stage.count}
-                      maxValue={maxFunnelCount}
-                      label={`${stage.count}`}
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {/* Separator */}
-              <div className="border-t" />
-
-              {/* Funnel bars by value */}
-              <div className="space-y-3">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Value by Stage
-                </p>
-                {funnel.map((stage) => (
-                  <div key={stage.name} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{stage.name}</span>
-                      <span className="text-muted-foreground">
-                        {formatCurrency(stage.value)}
-                      </span>
-                    </div>
-                    <FunnelBar
-                      value={stage.value}
-                      maxValue={maxFunnelValue}
-                      label={formatCurrency(stage.value)}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Lead Sources + Status Distribution */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Lead Sources */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <IconSourceCode size={20} className="text-muted-foreground" />
-              Lead Sources
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {sources.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No source data available.
-              </p>
-            ) : (
-              <div className="space-y-5">
-                {sources.map((source) => (
-                  <div key={source.source} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium capitalize">{source.label}</span>
-                      <span className="text-muted-foreground">
-                        {source.count} ({source.percentage}%)
-                      </span>
-                    </div>
-                    <Progress value={source.percentage}>
-                      <ProgressTrack>
-                        <ProgressIndicator />
-                      </ProgressTrack>
-                    </Progress>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Status Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <IconStatusChange size={20} className="text-muted-foreground" />
-              Status Distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {statusDistribution.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No status data available.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {statusDistribution.map((item) => (
-                  <div key={item.status} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-sm">
-                      <StatusBadge status={item.status} />
-                      <span className="text-muted-foreground">
-                        {item.count} ({item.percentage}%)
-                      </span>
-                    </div>
-                    <Progress value={item.percentage}>
-                      <ProgressTrack>
-                        <ProgressIndicator />
-                      </ProgressTrack>
-                    </Progress>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Monthly Trends */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <IconCalendarMonth size={20} className="text-muted-foreground" />
-            Monthly Trends
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {monthlyChartData.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No monthly data available yet.
-            </p>
-          ) : (
-            <BarChart
-              data={monthlyChartData}
-              bars={[
-                { key: 'leads', label: 'Leads', color: 'var(--color-primary)' },
-                { key: 'won', label: 'Won', color: '#22c55e' },
-              ]}
+          {/* Summary KPI row */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Total Leads"
+              value={kpis.totalLeads}
+              icon={<IconUsers size={20} />}
+              description="All time"
             />
-          )}
-        </CardContent>
-      </Card>
-    </div>
+            <StatCard
+              label="Active Deals"
+              value={kpis.activeDeals}
+              icon={<IconTrendingUp size={20} />}
+              description="In pipeline"
+            />
+            <StatCard
+              label="Won Deals"
+              value={kpis.wonDeals}
+              icon={<IconCheck size={20} />}
+              description={`${formatCurrency(kpis.revenueEstimate)} revenue`}
+            />
+            <StatCard
+              label="Pipeline Value"
+              value={formatCurrency(kpis.pipelineValue)}
+              icon={<IconCurrencyDollar size={20} />}
+              description="Total estimated"
+            />
+          </div>
+
+          {/* Pipeline Funnel */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <IconTrendingUp size={20} className="text-muted-foreground" />
+                Pipeline Funnel
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {funnel.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  No pipeline data available.
+                </p>
+              ) : (
+                <div className="space-y-6">
+                  {/* Funnel bars by count */}
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Leads by Stage
+                    </p>
+                    {funnel.map((stage) => (
+                      <div key={stage.name} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">{stage.name}</span>
+                          <span className="text-muted-foreground">{stage.count} leads</span>
+                        </div>
+                        <FunnelBar
+                          value={stage.count}
+                          maxValue={maxFunnelCount}
+                          label={`${stage.count}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Separator */}
+                  <div className="border-t" />
+
+                  {/* Funnel bars by value */}
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Value by Stage
+                    </p>
+                    {funnel.map((stage) => (
+                      <div key={stage.name} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">{stage.name}</span>
+                          <span className="text-muted-foreground">
+                            {formatCurrency(stage.value)}
+                          </span>
+                        </div>
+                        <FunnelBar
+                          value={stage.value}
+                          maxValue={maxFunnelValue}
+                          label={formatCurrency(stage.value)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Lead Sources + Status Distribution */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Lead Sources */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <IconSourceCode size={20} className="text-muted-foreground" />
+                  Lead Sources
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {sources.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    No source data available.
+                  </p>
+                ) : (
+                  <div className="space-y-5">
+                    {sources.map((source) => (
+                      <div key={source.source} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium capitalize">{source.label}</span>
+                          <span className="text-muted-foreground">
+                            {source.count} ({source.percentage}%)
+                          </span>
+                        </div>
+                        <Progress value={source.percentage}>
+                          <ProgressTrack>
+                            <ProgressIndicator />
+                          </ProgressTrack>
+                        </Progress>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Status Distribution */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <IconStatusChange size={20} className="text-muted-foreground" />
+                  Status Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {statusDistribution.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    No status data available.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {statusDistribution.map((item) => (
+                      <div key={item.status} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-sm">
+                          <StatusBadge status={item.status} />
+                          <span className="text-muted-foreground">
+                            {item.count} ({item.percentage}%)
+                          </span>
+                        </div>
+                        <Progress value={item.percentage}>
+                          <ProgressTrack>
+                            <ProgressIndicator />
+                          </ProgressTrack>
+                        </Progress>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Monthly Trends */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <IconCalendarMonth size={20} className="text-muted-foreground" />
+                Monthly Trends
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {monthlyChartData.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  No monthly data available yet.
+                </p>
+              ) : (
+                <BarChart
+                  data={monthlyChartData}
+                  bars={[
+                    { key: 'leads', label: 'Leads', color: 'var(--color-primary)' },
+                    { key: 'won', label: 'Won', color: '#22c55e' },
+                  ]}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </PermissionGuard>
   );
 }

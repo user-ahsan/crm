@@ -80,6 +80,19 @@ const ENTITY_COLUMNS: Record<string, ColumnSpec[]> = {
   ],
 };
 
+/**
+ * Validates that all required columns for the given entity type are present in the CSV headers.
+ * Returns an error message if columns are missing, or null if valid.
+ */
+function validateRequiredColumns(entityType: string, headers: string[]): string | null {
+  const required = ENTITY_COLUMNS[entityType]?.filter(c => c.required).map(c => c.name) ?? [];
+  const missing = required.filter(r => !headers.some(h => h.trim().toLowerCase() === r.toLowerCase()));
+  if (missing.length > 0) {
+    return `Missing required columns: ${missing.join(', ')}`;
+  }
+  return null;
+}
+
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 interface ParsedCSV {
@@ -107,57 +120,65 @@ interface ImportDialogProps {
 // ─── Simple CSV Parser ──────────────────────────────────────────────────────
 
 /**
- * Parses a CSV string into headers and rows, handling quoted fields.
+ * Parses a CSV string into headers and rows, handling multi-line quoted fields (RFC 4180).
  */
 function parseCSV(content: string): ParsedCSV {
-  const lines = content
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    .split('\n')
-    .filter((line) => line.trim().length > 0);
+  const lines: string[] = [];
+  let current = '';
+  let inQuotes = false;
 
-  if (lines.length === 0) {
-    return { headers: [], rows: [], totalRows: 0 };
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+    const next = content[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === '\n' && !inQuotes) {
+      if (current.trim().length > 0) {
+        lines.push(current);
+      }
+      current = '';
+    } else if (char === '\r' && !inQuotes) {
+      // skip CR, handle CRLF
+    } else {
+      current += char;
+    }
   }
+  if (current.trim().length > 0) {
+    lines.push(current);
+  }
+
+  if (lines.length === 0) return { headers: [], rows: [], totalRows: 0 };
 
   const parseLine = (line: string): string[] => {
     const fields: string[] = [];
-    let current = '';
-    let inQuotes = false;
-
+    let field = '';
+    let inQ = false;
     for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      const next = line[i + 1];
-
-      if (inQuotes) {
-        if (char === '"' && next === '"') {
-          current += '"';
-          i++; // skip escaped quote
-        } else if (char === '"') {
-          inQuotes = false;
-        } else {
-          current += char;
-        }
+      const ch = line[i];
+      const nx = line[i + 1];
+      if (ch === '"') {
+        if (inQ && nx === '"') { field += '"'; i++; }
+        else { inQ = !inQ; }
+      } else if (ch === ',' && !inQ) {
+        fields.push(field);
+        field = '';
       } else {
-        if (char === '"') {
-          inQuotes = true;
-        } else if (char === ',') {
-          fields.push(current.trim());
-          current = '';
-        } else {
-          current += char;
-        }
+        field += ch;
       }
     }
-    fields.push(current.trim());
+    fields.push(field);
     return fields;
   };
 
   const headers = parseLine(lines[0]);
   const rows = lines.slice(1).map(parseLine);
-  const totalRows = rows.length;
-
-  return { headers, rows, totalRows };
+  return { headers, rows, totalRows: rows.length };
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -212,6 +233,11 @@ export function ImportDialog({
       return;
     }
 
+    if (selectedFile.size > 5 * 1024 * 1024) {
+      setError('File is too large. Maximum size is 5MB.');
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target?.result as string;
@@ -226,6 +252,13 @@ export function ImportDialog({
           setError('Unable to parse CSV — no headers found.');
           return;
         }
+
+        const colError = validateRequiredColumns(entityType, parsedData.headers);
+        if (colError) {
+          setError(colError);
+          return;
+        }
+
         setFile(selectedFile);
         setParsed(parsedData);
       } catch {

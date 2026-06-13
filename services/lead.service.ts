@@ -223,24 +223,4 @@ export const leadService = {
     return stats;
   },
 
-  async getDashboardKPIs(): Promise<{
-    totalLeads: number;
-    activeDeals: number;
-    wonDeals: number;
-    revenueEstimate: number;
-    pipelineValue: number;
-  }> {
-    const allLeads = await this.getAll();
-    const totalLeads = allLeads.length;
-    const activeDeals = allLeads.filter((l) => !['won', 'lost'].includes(l.status)).length;
-    const wonDeals = allLeads.filter((l) => l.status === 'won').length;
-    const revenueEstimate = allLeads
-      .filter((l) => l.status === 'won')
-      .reduce((sum, l) => sum + l.estimatedValue, 0);
-    const pipelineValue = allLeads
-      .filter((l) => !['won', 'lost'].includes(l.status))
-      .reduce((sum, l) => sum + l.estimatedValue, 0);
-
-    return { totalLeads, activeDeals, wonDeals, revenueEstimate, pipelineValue };
-  },
 };

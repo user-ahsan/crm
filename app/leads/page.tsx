@@ -23,6 +23,7 @@ import {
 import { LEAD_STATUSES, LEAD_SOURCES, LEAD_PRIORITIES } from '@/lib/constants';
 import { ExportDropdown } from '@/components/common/ExportDropdown';
 import { ImportDialog } from '@/components/common/ImportDialog';
+import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { useCsvExport } from '@/hooks/useCsvExport';
 
 const ALL_STATUS = '__all_statuses';
@@ -143,13 +144,17 @@ export default function LeadsPage() {
             onExport={exportEntity}
             isExporting={isExporting}
           />
-          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
-            Import
-          </Button>
-          <Button onClick={handleCreateNew}>
-            <IconPlus className="mr-2 size-4" />
-            New Lead
-          </Button>
+          <PermissionGuard action="create" entity="lead">
+            <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+              Import
+            </Button>
+          </PermissionGuard>
+          <PermissionGuard action="create" entity="lead">
+            <Button onClick={handleCreateNew}>
+              <IconPlus className="mr-2 size-4" />
+              New Lead
+            </Button>
+          </PermissionGuard>
         </div>
       </PageHeader>
 

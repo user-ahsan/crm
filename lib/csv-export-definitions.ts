@@ -20,6 +20,7 @@ export interface ExportColumn {
 // ─── Leads ───────────────────────────────────────────────────────────────────
 
 export const LEAD_EXPORT_COLUMNS: ExportColumn[] = [
+  { key: 'id', label: 'ID' },
   { key: 'fullName', label: 'Full Name' },
   { key: 'email', label: 'Email' },
   { key: 'phone', label: 'Phone' },
@@ -53,11 +54,24 @@ export const LEAD_EXPORT_COLUMNS: ExportColumn[] = [
       }
     },
   },
+  {
+    key: 'updatedAt',
+    label: 'Updated Date',
+    format: (v) => {
+      if (!v) return '';
+      try {
+        return new Date(v as string).toLocaleString();
+      } catch {
+        return String(v);
+      }
+    },
+  },
 ];
 
 // ─── Contacts ────────────────────────────────────────────────────────────────
 
 export const CONTACT_EXPORT_COLUMNS: ExportColumn[] = [
+  { key: 'id', label: 'ID' },
   { key: 'name', label: 'Name' },
   { key: 'email', label: 'Email' },
   { key: 'phone', label: 'Phone' },
@@ -82,11 +96,24 @@ export const CONTACT_EXPORT_COLUMNS: ExportColumn[] = [
       }
     },
   },
+  {
+    key: 'updatedAt',
+    label: 'Updated Date',
+    format: (v) => {
+      if (!v) return '';
+      try {
+        return new Date(v as string).toLocaleString();
+      } catch {
+        return String(v);
+      }
+    },
+  },
 ];
 
 // ─── Companies ───────────────────────────────────────────────────────────────
 
 export const COMPANY_EXPORT_COLUMNS: ExportColumn[] = [
+  { key: 'id', label: 'ID' },
   { key: 'name', label: 'Name' },
   { key: 'industry', label: 'Industry' },
   { key: 'size', label: 'Company Size' },
@@ -109,11 +136,24 @@ export const COMPANY_EXPORT_COLUMNS: ExportColumn[] = [
       }
     },
   },
+  {
+    key: 'updatedAt',
+    label: 'Updated Date',
+    format: (v) => {
+      if (!v) return '';
+      try {
+        return new Date(v as string).toLocaleString();
+      } catch {
+        return String(v);
+      }
+    },
+  },
 ];
 
 // ─── Tasks ───────────────────────────────────────────────────────────────────
 
 export const TASK_EXPORT_COLUMNS: ExportColumn[] = [
+  { key: 'id', label: 'ID' },
   { key: 'title', label: 'Title' },
   { key: 'description', label: 'Description' },
   {
@@ -145,11 +185,24 @@ export const TASK_EXPORT_COLUMNS: ExportColumn[] = [
       }
     },
   },
+  {
+    key: 'updatedAt',
+    label: 'Updated Date',
+    format: (v) => {
+      if (!v) return '';
+      try {
+        return new Date(v as string).toLocaleString();
+      } catch {
+        return String(v);
+      }
+    },
+  },
 ];
 
 // ─── Meetings ────────────────────────────────────────────────────────────────
 
 export const MEETING_EXPORT_COLUMNS: ExportColumn[] = [
+  { key: 'id', label: 'ID' },
   { key: 'title', label: 'Title' },
   {
     key: 'dateTime',
@@ -185,6 +238,18 @@ export const MEETING_EXPORT_COLUMNS: ExportColumn[] = [
       if (!v) return '';
       try {
         return new Date(v as string).toLocaleDateString('en-US');
+      } catch {
+        return String(v);
+      }
+    },
+  },
+  {
+    key: 'updatedAt',
+    label: 'Updated Date',
+    format: (v) => {
+      if (!v) return '';
+      try {
+        return new Date(v as string).toLocaleString();
       } catch {
         return String(v);
       }

@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ExportDropdown } from '@/components/common/ExportDropdown';
 import { ImportDialog } from '@/components/common/ImportDialog';
+import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { useCsvExport } from '@/hooks/useCsvExport';
 
 export default function ContactsPage() {
@@ -123,13 +124,17 @@ export default function ContactsPage() {
             onExport={exportEntity}
             isExporting={isExporting}
           />
-          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
-            Import
-          </Button>
-          <Button onClick={handleCreateNew}>
-            <IconPlus className="mr-2 size-4" />
-            New Contact
-          </Button>
+          <PermissionGuard action="create" entity="contact">
+            <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+              Import
+            </Button>
+          </PermissionGuard>
+          <PermissionGuard action="create" entity="contact">
+            <Button onClick={handleCreateNew}>
+              <IconPlus className="mr-2 size-4" />
+              New Contact
+            </Button>
+          </PermissionGuard>
         </div>
       </PageHeader>
 

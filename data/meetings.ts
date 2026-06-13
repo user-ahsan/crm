@@ -40,7 +40,7 @@ export const meetings: Meeting[] = [
     type: 'online',
     notes: 'Review HIPAA compliance features and security certifications.',
     outcome: 'Completed - All requirements met',
-    createdAt: '2026-06-20T08:00:00Z',
+    createdAt: '2026-06-08T08:00:00Z',
     updatedAt: '2026-06-10T12:00:00Z',
   },
   {

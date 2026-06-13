@@ -14,6 +14,7 @@ import { IconPlus, IconCalendarEvent } from '@tabler/icons-react';
 import type { Meeting } from '@/types/meeting.types';
 import { ExportDropdown } from '@/components/common/ExportDropdown';
 import { ImportDialog } from '@/components/common/ImportDialog';
+import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { useCsvExport } from '@/hooks/useCsvExport';
 
 export default function MeetingsPage() {
@@ -76,13 +77,17 @@ export default function MeetingsPage() {
               onExport={exportEntity}
               isExporting={isExporting}
             />
-            <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
-              Import
-            </Button>
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
-              <IconPlus size={16} />
-              Schedule Meeting
-            </Button>
+            <PermissionGuard action="create" entity="meeting">
+              <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+                Import
+              </Button>
+            </PermissionGuard>
+            <PermissionGuard action="create" entity="meeting">
+              <Button size="sm" onClick={() => setCreateOpen(true)}>
+                <IconPlus size={16} />
+                Schedule Meeting
+              </Button>
+            </PermissionGuard>
           </div>
         </PageHeader>
         <EmptyState
@@ -98,13 +103,6 @@ export default function MeetingsPage() {
           open={createOpen}
           onOpenChange={setCreateOpen}
           onSuccess={handleCreateSuccess}
-        />
-        <ImportDialog
-          open={importDialogOpen}
-          onOpenChange={setImportDialogOpen}
-          entityType="meetings"
-          entityLabel="Meetings"
-          onImportComplete={refresh}
         />
       </div>
     );
@@ -126,13 +124,17 @@ export default function MeetingsPage() {
             onExport={exportEntity}
             isExporting={isExporting}
           />
-          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
-            Import
-          </Button>
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <IconPlus size={16} />
-            Schedule Meeting
-          </Button>
+          <PermissionGuard action="create" entity="meeting">
+            <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+              Import
+            </Button>
+          </PermissionGuard>
+          <PermissionGuard action="create" entity="meeting">
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <IconPlus size={16} />
+              Schedule Meeting
+            </Button>
+          </PermissionGuard>
         </div>
       </PageHeader>
 

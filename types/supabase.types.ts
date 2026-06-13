@@ -47,6 +47,21 @@ export interface Database {
         Insert: ActivityInsert;
         Update: ActivityUpdate;
       };
+      teams: {
+        Row: TeamRow;
+        Insert: TeamInsert;
+        Update: TeamUpdate;
+      };
+      team_members: {
+        Row: TeamMemberRow;
+        Insert: TeamMemberInsert;
+        Update: TeamMemberUpdate;
+      };
+      team_invitations: {
+        Row: TeamInvitationRow;
+        Insert: TeamInvitationInsert;
+        Update: TeamInvitationUpdate;
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -357,3 +372,90 @@ export type DbCompany = CompanyRow;
 export type DbTask = TaskRow;
 export type DbMeeting = MeetingRow;
 export type DbActivity = ActivityRow;
+
+// ──────────────────────────────────────────────
+// Team types
+// ──────────────────────────────────────────────
+
+export interface TeamRow {
+  id: string;
+  name: string;
+  description: string | null;
+  created_by: string;
+  invite_code: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TeamInsert {
+  id?: string;
+  name: string;
+  description?: string | null;
+  created_by: string;
+  invite_code?: string;
+}
+
+export interface TeamUpdate {
+  id?: string;
+  name?: string;
+  description?: string | null;
+  created_by?: string;
+  invite_code?: string;
+}
+
+export interface TeamMemberRow {
+  id: string;
+  team_id: string;
+  user_id: string;
+  role: string;
+  joined_at: string;
+}
+
+export interface TeamMemberInsert {
+  id?: string;
+  team_id: string;
+  user_id: string;
+  role: string;
+}
+
+export interface TeamMemberUpdate {
+  id?: string;
+  team_id?: string;
+  user_id?: string;
+  role?: string;
+}
+
+export interface TeamInvitationRow {
+  id: string;
+  team_id: string;
+  email: string;
+  role: string;
+  invited_by: string;
+  status: string;
+  expires_at: string;
+  created_at: string;
+}
+
+export interface TeamInvitationInsert {
+  id?: string;
+  team_id: string;
+  email: string;
+  role: string;
+  invited_by: string;
+  status?: string;
+  expires_at?: string;
+}
+
+export interface TeamInvitationUpdate {
+  id?: string;
+  team_id?: string;
+  email?: string;
+  role?: string;
+  invited_by?: string;
+  status?: string;
+  expires_at?: string;
+}
+
+export type DbTeam = TeamRow;
+export type DbTeamMember = TeamMemberRow;
+export type DbTeamInvitation = TeamInvitationRow;

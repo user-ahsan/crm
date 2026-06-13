@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { Activity, ActivityType } from '@/types/activity.types';
 import { activityService } from '@/services/activity.service';
 
@@ -21,6 +21,8 @@ export function useActivities() {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
 
   const getByEntity = useCallback(async (entityType: string, entityId: string) => {
     try {

@@ -6,6 +6,7 @@ import { KanbanBoard } from '@/components/pipeline/KanbanBoard';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
+import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { usePipeline } from '@/hooks/usePipeline';
 import { IconRefresh, IconColumns } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
@@ -30,97 +31,89 @@ export default function PipelinePage() {
     return wonStage?.totalValue ?? 0;
   }, [pipeline]);
 
-  // Global loading state — initial data fetch
-  if (loading && leads.length === 0) {
-    return (
-      <div className="flex flex-col gap-6 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
-            <div className="mt-1 h-4 w-64 animate-pulse rounded-md bg-muted" />
-          </div>
-          <div className="h-9 w-24 animate-pulse rounded-lg bg-muted" />
-        </div>
-        <LoadingSkeleton type="card" count={3} />
-      </div>
-    );
-  }
-
-  // Error state
-  if (error && leads.length === 0) {
-    return (
-      <div className="flex flex-col gap-6 p-6">
-        <PageHeader title="Sales Pipeline" />
-        <ErrorState
-          title="Failed to load pipeline"
-          message={error}
-          onRetry={refresh}
-        />
-      </div>
-    );
-  }
-
-  // Empty state — no leads at all
-  if (!loading && leads.length === 0) {
-    return (
-      <div className="flex flex-col gap-6 p-6">
-        <PageHeader title="Sales Pipeline">
-          <Button variant="outline" size="sm" onClick={refresh} aria-label="Refresh pipeline">
-            <IconRefresh size={16} />
-            Refresh
-          </Button>
-        </PageHeader>
-        <EmptyState
-          icon={<IconColumns size={48} stroke={1.5} />}
-          title="No leads in pipeline"
-          description="Add leads to see your sales pipeline with drag-and-drop Kanban columns"
-          action={
-            pipeline.length === 0
-              ? { label: 'Refresh', onClick: refresh }
-              : undefined
-          }
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {/* Page header with stats summary */}
-      <PageHeader
-        title="Sales Pipeline"
-        description={
-          loading
-            ? undefined
-            : `${totalLeads} lead${totalLeads !== 1 ? 's' : ''} · ${formatCurrency(totalValue)} total value`
-        }
-      >
-        <Button variant="outline" size="sm" onClick={refresh} disabled={loading} aria-label="Refresh pipeline">
-          <IconRefresh size={16} className={loading ? 'animate-spin' : ''} />
-          Refresh
-        </Button>
-      </PageHeader>
-
-      {/* Stats summary cards */}
-      {!loading && (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatCard label="Total Leads" value={totalLeads} />
-          <StatCard label="Total Value" value={formatCurrency(totalValue)} variant="primary" />
-          <StatCard label="Won Value" value={formatCurrency(wonValue)} variant="success" />
-          <StatCard
-            label="Win Rate"
-            value={
-              totalLeads > 0
-                ? `${Math.round(((pipeline.find((s) => s.key === 'won')?.count ?? 0) / totalLeads) * 100)}%`
-                : '0%'
+    <PermissionGuard action="read" entity="lead" fallback={<EmptyState title="Access Denied" description="You don't have permission to view the pipeline." />}>
+      {/* Global loading state — initial data fetch */}
+      {loading && leads.length === 0 ? (
+        <div className="flex flex-col gap-6 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
+              <div className="mt-1 h-4 w-64 animate-pulse rounded-md bg-muted" />
+            </div>
+            <div className="h-9 w-24 animate-pulse rounded-lg bg-muted" />
+          </div>
+          <LoadingSkeleton type="card" count={3} />
+        </div>
+      ) : // Error state
+      error && leads.length === 0 ? (
+        <div className="flex flex-col gap-6 p-6">
+          <PageHeader title="Sales Pipeline" />
+          <ErrorState
+            title="Failed to load pipeline"
+            message={error}
+            onRetry={refresh}
+          />
+        </div>
+      ) : // Empty state — no leads at all
+      !loading && leads.length === 0 ? (
+        <div className="flex flex-col gap-6 p-6">
+          <PageHeader title="Sales Pipeline">
+            <Button variant="outline" size="sm" onClick={refresh} aria-label="Refresh pipeline">
+              <IconRefresh size={16} />
+              Refresh
+            </Button>
+          </PageHeader>
+          <EmptyState
+            icon={<IconColumns size={48} stroke={1.5} />}
+            title="No leads in pipeline"
+            description="Add leads to see your sales pipeline with drag-and-drop Kanban columns"
+            action={
+              pipeline.length === 0
+                ? { label: 'Refresh', onClick: refresh }
+                : undefined
             }
           />
         </div>
-      )}
+      ) : (
+        <div className="flex flex-col gap-6 p-6">
+          {/* Page header with stats summary */}
+          <PageHeader
+            title="Sales Pipeline"
+            description={
+              loading
+                ? undefined
+                : `${totalLeads} lead${totalLeads !== 1 ? 's' : ''} · ${formatCurrency(totalValue)} total value`
+            }
+          >
+            <Button variant="outline" size="sm" onClick={refresh} disabled={loading} aria-label="Refresh pipeline">
+              <IconRefresh size={16} className={loading ? 'animate-spin' : ''} />
+              Refresh
+            </Button>
+          </PageHeader>
 
-      {/* Kanban board */}
-      <KanbanBoard />
-    </div>
+          {/* Stats summary cards */}
+          {!loading && (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <StatCard label="Total Leads" value={totalLeads} />
+              <StatCard label="Total Value" value={formatCurrency(totalValue)} variant="primary" />
+              <StatCard label="Won Value" value={formatCurrency(wonValue)} variant="success" />
+              <StatCard
+                label="Win Rate"
+                value={
+                  totalLeads > 0
+                    ? `${Math.round(((pipeline.find((s) => s.key === 'won')?.count ?? 0) / totalLeads) * 100)}%`
+                    : '0%'
+                }
+              />
+            </div>
+          )}
+
+          {/* Kanban board */}
+          <KanbanBoard />
+        </div>
+      )}
+    </PermissionGuard>
   );
 }
 
