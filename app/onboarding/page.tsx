@@ -23,6 +23,8 @@ import {
   IconArrowLeft,
   IconCheck,
   IconCircleCheck,
+  IconCopy,
+  IconUsersGroup,
 } from '@tabler/icons-react';
 
 /* ── Types ─────────────────────────────────────────────────── */
@@ -33,10 +35,20 @@ interface OnboardingData {
   industry: string;
   companySize: string;
   goals: string[];
+  inviteCode: string;
 }
 
 /* ── Constants ─────────────────────────────────────────────── */
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
+
+function generateInviteCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
 
 const GOAL_OPTIONS = [
   { value: 'track-leads', label: 'Track leads' },
@@ -73,6 +85,7 @@ const INITIAL_FORM_DATA: OnboardingData = {
   industry: '',
   companySize: '',
   goals: [],
+  inviteCode: '',
 };
 
 /* ── Validation ────────────────────────────────────────────── */
@@ -101,6 +114,7 @@ export default function OnboardingPage() {
   const [formData, setFormData] = useState<OnboardingData>(INITIAL_FORM_DATA);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   /* ── Pre-fill from signup data ─────────────────────────── */
   useEffect(() => {
@@ -119,6 +133,8 @@ export default function OnboardingPage() {
           setFormData((prev) => ({ ...prev, companyName: parsed.name }));
         }
       }
+      // Generate invite code once on mount
+      setFormData((prev) => ({ ...prev, inviteCode: generateInviteCode() }));
     } catch {
       /* Silently ignore — sessionStorage may be empty or corrupted */
     }
@@ -156,6 +172,7 @@ export default function OnboardingPage() {
   const canGoNext = useMemo(() => {
     if (currentStep === 0) return true;
     if (currentStep === TOTAL_STEPS - 1) return false;
+    if (currentStep === 4) return true; // invite step — auto-generated, always valid
     return error === null;
   }, [currentStep, error]);
 
@@ -425,6 +442,93 @@ export default function OnboardingPage() {
     </Card>
   );
 
+  /* ── Render: Invite Team Step ─────────────────────────────── */
+  const renderInviteStep = () => {
+    const inviteLink = `https://nexuscrm.app/join?code=${formData.inviteCode}`;
+
+    const handleCopy = async () => {
+      try {
+        await navigator.clipboard.writeText(inviteLink);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        // Fallback: select text manually
+        const input = document.getElementById('invite-link-input') as HTMLInputElement;
+        if (input) { input.select(); }
+      }
+    };
+
+    return (
+      <Card size="sm">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/10">
+            <IconUsersGroup size={28} className="text-primary" stroke={1.5} />
+          </div>
+          <CardTitle>Invite Your Team</CardTitle>
+          <CardDescription>
+            Share this invite link or code with your team members so they can join
+            your workspace. You can always invite more people later from Settings.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Invite Code */}
+          <div className="text-center">
+            <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+              TEAM INVITE CODE
+            </p>
+            <div className="inline-flex items-center gap-2 rounded-xl bg-muted/60 px-5 py-3">
+              <span className="font-mono text-2xl font-bold tracking-[0.25em] text-foreground">
+                {formData.inviteCode}
+              </span>
+            </div>
+          </div>
+
+          {/* Invite Link */}
+          <div className="space-y-1.5">
+            <Label htmlFor="invite-link-input">Invite link</Label>
+            <div className="flex gap-2">
+              <Input
+                id="invite-link-input"
+                value={inviteLink}
+                readOnly
+                className="flex-1 font-mono text-xs"
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopy}
+                className="shrink-0 gap-1.5"
+              >
+                {copied ? (
+                  <>
+                    <IconCircleCheck size={14} className="text-green-500" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <IconCopy size={14} />
+                    Copy
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Tips */}
+          <div className="rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">
+            <p className="mb-1 font-medium text-foreground">💡 Tips</p>
+            <ul className="ml-4 list-disc space-y-0.5">
+              <li>Share the invite link via email, Slack, or any messaging tool</li>
+              <li>You can change team roles later in Settings → Team</li>
+              <li>Invitations expire after 7 days for security</li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   /* ── Render: Complete Step ───────────────────────────────── */
   const renderCompleteStep = () => (
     <div className="flex flex-col items-center text-center">
@@ -522,10 +626,11 @@ export default function OnboardingPage() {
         {currentStep === 1 && renderProfileStep()}
         {currentStep === 2 && renderCompanyStep()}
         {currentStep === 3 && renderGoalsStep()}
-        {currentStep === 4 && renderCompleteStep()}
+        {currentStep === 4 && renderInviteStep()}
+        {currentStep === 5 && renderCompleteStep()}
       </div>
 
-      {/* Navigation Buttons (not shown on step 4) */}
+      {/* Navigation Buttons (not shown on complete step) */}
       {currentStep < TOTAL_STEPS - 1 && (
         <div className="mt-8 flex items-center justify-between">
           <Button
