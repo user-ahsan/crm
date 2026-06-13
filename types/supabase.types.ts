@@ -11,6 +11,7 @@ import type { MeetingType } from '@/types/meeting.types';
 import type { ActivityType } from '@/types/activity.types';
 import type { AutomationTriggerEvent, AutomationCondition, AutomationAction } from '@/types/automation.types';
 import type { CallDirection, CallResult } from '@/types/communication.types';
+import type { QuoteStatus } from '@/types/quote.types';
 
 // ──────────────────────────────────────────────
 // Database public schema definition
@@ -93,6 +94,36 @@ export interface Database {
         Row: NoteRow;
         Insert: NoteInsert;
         Update: NoteUpdate;
+      };
+      lead_scores: {
+        Row: LeadScoreRow;
+        Insert: LeadScoreInsert;
+        Update: LeadScoreUpdate;
+      };
+      deal_stages: {
+        Row: DealStageRow;
+        Insert: DealStageInsert;
+        Update: DealStageUpdate;
+      };
+      deals: {
+        Row: DealRow;
+        Insert: DealInsert;
+        Update: DealUpdate;
+      };
+      quotes: {
+        Row: QuoteRow;
+        Insert: QuoteInsert;
+        Update: QuoteUpdate;
+      };
+      quote_items: {
+        Row: QuoteItemRow;
+        Insert: QuoteItemInsert;
+        Update: QuoteItemUpdate;
+      };
+      forecasts: {
+        Row: ForecastRow;
+        Insert: ForecastInsert;
+        Update: ForecastUpdate;
       };
     };
     Views: Record<string, never>;
@@ -665,6 +696,37 @@ export interface NoteUpdate {
 
 export type DbNote = NoteRow;
 
+// ── Forecast types ──────────────────────────────────────
+
+export interface ForecastRow {
+  id: string;
+  year: number;
+  month: number;
+  target: number;
+  actual: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ForecastInsert {
+  id?: string;
+  year: number;
+  month: number;
+  target?: number;
+  actual?: number;
+  created_by: string;
+}
+
+export interface ForecastUpdate {
+  id?: string;
+  year?: number;
+  month?: number;
+  target?: number;
+  actual?: number;
+  created_by?: string;
+}
+
 // ── Automation Rule types ──────────────────────────────
 
 export interface AutomationRuleRow {
@@ -707,3 +769,205 @@ export type DbAutomationRule = AutomationRuleRow;
 export type DbTeam = TeamRow;
 export type DbTeamMember = TeamMemberRow;
 export type DbTeamInvitation = TeamInvitationRow;
+
+// ── Deal Stage types ──────────────────────────────────────
+
+export interface DealStageRow {
+  id: string;
+  name: string;
+  color: string;
+  probability: number;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface DealStageInsert {
+  id?: string;
+  name: string;
+  color?: string;
+  probability?: number;
+  sort_order?: number;
+}
+
+export interface DealStageUpdate {
+  id?: string;
+  name?: string;
+  color?: string;
+  probability?: number;
+  sort_order?: number;
+}
+
+export type DbDealStage = DealStageRow;
+
+// ── Lead Score types ──────────────────────────────────────
+
+export interface LeadScoreRow {
+  id: string;
+  lead_id: string;
+  score: number;
+  factors: Record<string, number>;
+  updated_at: string;
+}
+
+export interface LeadScoreInsert {
+  id?: string;
+  lead_id: string;
+  score: number;
+  factors?: Record<string, number>;
+}
+
+export interface LeadScoreUpdate {
+  id?: string;
+  lead_id?: string;
+  score?: number;
+  factors?: Record<string, number>;
+  updated_at?: string;
+}
+
+export type DbLeadScore = LeadScoreRow;
+
+// ── Deal types ────────────────────────────────────────────
+
+export interface DealRow {
+  id: string;
+  title: string;
+  description: string;
+  value: number;
+  currency: string;
+  stage_id: string | null;
+  lead_id: string | null;
+  contact_id: string | null;
+  company_id: string | null;
+  assigned_to: string | null;
+  close_date: string | null;
+  win_loss_reason: string;
+  tags: string[];
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DealInsert {
+  id?: string;
+  title: string;
+  description?: string;
+  value?: number;
+  currency?: string;
+  stage_id?: string | null;
+  lead_id?: string | null;
+  contact_id?: string | null;
+  company_id?: string | null;
+  assigned_to?: string | null;
+  close_date?: string | null;
+  win_loss_reason?: string;
+  tags?: string[];
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DealUpdate {
+  id?: string;
+  title?: string;
+  description?: string;
+  value?: number;
+  currency?: string;
+  stage_id?: string | null;
+  lead_id?: string | null;
+  contact_id?: string | null;
+  company_id?: string | null;
+  assigned_to?: string | null;
+  close_date?: string | null;
+  win_loss_reason?: string;
+  tags?: string[];
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type DbDeal = DealRow;
+export type DbForecast = ForecastRow;
+
+// ── Quote types ─────────────────────────────────────────────
+
+export interface QuoteRow {
+  id: string;
+  title: string;
+  deal_id: string | null;
+  lead_id: string | null;
+  contact_id: string | null;
+  company_id: string | null;
+  status: QuoteStatus;
+  subtotal: number;
+  discount: number;
+  total: number;
+  notes: string;
+  valid_until: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QuoteInsert {
+  id?: string;
+  title: string;
+  deal_id?: string | null;
+  lead_id?: string | null;
+  contact_id?: string | null;
+  company_id?: string | null;
+  status?: QuoteStatus;
+  subtotal?: number;
+  discount?: number;
+  total?: number;
+  notes?: string;
+  valid_until?: string | null;
+  created_by: string;
+}
+
+export interface QuoteUpdate {
+  id?: string;
+  title?: string;
+  deal_id?: string | null;
+  lead_id?: string | null;
+  contact_id?: string | null;
+  company_id?: string | null;
+  status?: QuoteStatus;
+  subtotal?: number;
+  discount?: number;
+  total?: number;
+  notes?: string;
+  valid_until?: string | null;
+}
+
+export interface QuoteItemRow {
+  id: string;
+  quote_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+  sort_order: number;
+}
+
+export interface QuoteItemInsert {
+  id?: string;
+  quote_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+  sort_order?: number;
+}
+
+export interface QuoteItemUpdate {
+  id?: string;
+  quote_id?: string;
+  description?: string;
+  quantity?: number;
+  unit_price?: number;
+  total?: number;
+  sort_order?: number;
+}
+
+export type DbQuote = QuoteRow;
+export type DbQuoteItem = QuoteItemRow;

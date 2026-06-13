@@ -14,6 +14,7 @@ import { LeadCreateForm } from '@/components/leads/LeadCreateForm';
 import { TagBadge } from '@/components/common/TagBadge';
 import { useLeads } from '@/hooks/useLeads';
 import { useTags } from '@/hooks/useTags';
+import { useAllScores } from '@/hooks/useLeadScoring';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ const ALL_PRIORITY = '__all_priorities';
 function LeadsPageContent() {
   const { leads, loading, error, refresh, getFiltered, deleteLead } = useLeads();
   const { tags, loading: tagsLoading } = useTags();
+  const { scoresMap, loading: scoresLoading, batchUpdate: batchUpdateScores } = useAllScores();
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -51,6 +53,7 @@ function LeadsPageContent() {
   const [sourceFilter, setSourceFilter] = useState<string>(searchParams.get('source') ?? ALL_SOURCE);
   const [priorityFilter, setPriorityFilter] = useState<string>(searchParams.get('priority') ?? ALL_PRIORITY);
   const [tagFilter, setTagFilter] = useState<string>(searchParams.get('tag') ?? '');
+  const [minScoreFilter, setMinScoreFilter] = useState<string>(searchParams.get('minScore') ?? '');
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
@@ -79,8 +82,13 @@ function LeadsPageContent() {
     } else {
       params.delete('tag');
     }
+    if (minScoreFilter) {
+      params.set('minScore', minScoreFilter);
+    } else {
+      params.delete('minScore');
+    }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [debouncedSearch, statusFilter, sourceFilter, priorityFilter, tagFilter, pathname, router, searchParams]);
+  }, [debouncedSearch, statusFilter, sourceFilter, priorityFilter, tagFilter, minScoreFilter, pathname, router, searchParams]);
 
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -105,10 +113,19 @@ function LeadsPageContent() {
     if (tagFilter) {
       result = result.filter((l) => l.tags.includes(tagFilter));
     }
+    if (minScoreFilter) {
+      const minScore = parseInt(minScoreFilter, 10);
+      if (!isNaN(minScore)) {
+        result = result.filter((l) => {
+          const s = scoresMap.get(l.id);
+          return s && s.score >= minScore;
+        });
+      }
+    }
     return result;
-  }, [getFiltered, filters, tagFilter]);
+  }, [getFiltered, filters, tagFilter, minScoreFilter, scoresMap]);
 
-  const hasActiveFilters = search || statusFilter !== ALL_STATUS || sourceFilter !== ALL_SOURCE || priorityFilter !== ALL_PRIORITY || !!tagFilter;
+  const hasActiveFilters = search || statusFilter !== ALL_STATUS || sourceFilter !== ALL_SOURCE || priorityFilter !== ALL_PRIORITY || !!tagFilter || !!minScoreFilter;
 
   const handleEdit = useCallback(
     (id: string) => {
@@ -302,6 +319,16 @@ function LeadsPageContent() {
             ))}
           </SelectContent>
         </Select>
+        <Input
+          placeholder="Min score"
+          value={minScoreFilter}
+          onChange={(e) => setMinScoreFilter(e.target.value.replace(/\D/g, '').slice(0, 3))}
+          className="sm:w-28"
+          type="number"
+          min={0}
+          max={100}
+          aria-label="Minimum score filter"
+        />
       </div>
 
       {/* Empty State */}
@@ -339,6 +366,7 @@ function LeadsPageContent() {
           onDelete={handleDelete}
           selectedIds={selectedLeadIds}
           onSelectionChange={setSelectedLeadIds}
+          scores={scoresMap}
         />
       )}
 

@@ -1,19 +1,24 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { KanbanBoard } from '@/components/pipeline/KanbanBoard';
+import { DealKanbanBoard } from '@/components/deals/DealKanbanBoard';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { usePipeline } from '@/hooks/usePipeline';
-import { IconRefresh, IconColumns } from '@tabler/icons-react';
+import { useDeals } from '@/hooks/useDeals';
+import { IconRefresh, IconColumns, IconCurrencyDollar } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { formatCurrency } from '@/lib/formatters';
 
 export default function PipelinePage() {
-  const { pipeline, leads, loading, error, refresh, getStageStats } = usePipeline();
+  const [activeTab, setActiveTab] = useState('leads');
+  const { pipeline, leads, loading: leadsLoading, error: leadsError, refresh: refreshLeads, getStageStats } = usePipeline();
+  const { deals, stages, loading: dealsLoading, error: dealsError, refresh: refreshDeals } = useDeals();
 
   const totalValue = useMemo(() => {
     if (!pipeline || pipeline.length === 0) return 0;
@@ -31,10 +36,21 @@ export default function PipelinePage() {
     return wonStage?.totalValue ?? 0;
   }, [pipeline]);
 
+  const dealTotalValue = useMemo(() => {
+    return deals.reduce((sum, d) => sum + d.value, 0);
+  }, [deals]);
+
+  const loading = activeTab === 'leads' ? leadsLoading : dealsLoading;
+  const error = activeTab === 'leads' ? leadsError : dealsError;
+  const refresh = activeTab === 'leads' ? refreshLeads : refreshDeals;
+
+  const empty = activeTab === 'leads'
+    ? !loading && leads.length === 0
+    : !loading && deals.length === 0;
+
   return (
     <PermissionGuard action="read" entity="lead" fallback={<EmptyState title="Access Denied" description="You don't have permission to view the pipeline." />}>
-      {/* Global loading state — initial data fetch */}
-      {loading && leads.length === 0 ? (
+      {loading && (activeTab === 'leads' ? leads.length === 0 : deals.length === 0) ? (
         <div className="flex flex-col gap-6 p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -45,8 +61,7 @@ export default function PipelinePage() {
           </div>
           <LoadingSkeleton type="card" count={3} />
         </div>
-      ) : // Error state
-      error && leads.length === 0 ? (
+      ) : error && (activeTab === 'leads' ? leads.length === 0 : deals.length === 0) ? (
         <div className="flex flex-col gap-6 p-6">
           <PageHeader title="Sales Pipeline" />
           <ErrorState
@@ -55,8 +70,7 @@ export default function PipelinePage() {
             onRetry={refresh}
           />
         </div>
-      ) : // Empty state — no leads at all
-      !loading && leads.length === 0 ? (
+      ) : empty ? (
         <div className="flex flex-col gap-6 p-6">
           <PageHeader title="Sales Pipeline">
             <Button variant="outline" size="sm" onClick={refresh} aria-label="Refresh pipeline">
@@ -64,26 +78,35 @@ export default function PipelinePage() {
               Refresh
             </Button>
           </PageHeader>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList>
+              <TabsTrigger value="leads">
+                <IconColumns size={16} />
+                Leads Pipeline
+              </TabsTrigger>
+              <TabsTrigger value="deals">
+                <IconCurrencyDollar size={16} />
+                Deals Pipeline
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
           <EmptyState
-            icon={<IconColumns size={48} stroke={1.5} />}
-            title="No leads in pipeline"
-            description="Add leads to see your sales pipeline with drag-and-drop Kanban columns"
-            action={
-              pipeline.length === 0
-                ? { label: 'Refresh', onClick: refresh }
-                : undefined
-            }
+            icon={activeTab === 'leads' ? <IconColumns size={48} stroke={1.5} /> : <IconCurrencyDollar size={48} stroke={1.5} />}
+            title={activeTab === 'leads' ? 'No leads in pipeline' : 'No deals in pipeline'}
+            description={activeTab === 'leads' ? 'Add leads to see your sales pipeline with drag-and-drop Kanban columns' : 'Add deals to see your deal revenue pipeline'}
+            action={{ label: 'Refresh', onClick: refresh }}
           />
         </div>
       ) : (
         <div className="flex flex-col gap-6 p-6">
-          {/* Page header with stats summary */}
           <PageHeader
             title="Sales Pipeline"
             description={
               loading
                 ? undefined
-                : `${totalLeads} lead${totalLeads !== 1 ? 's' : ''} · ${formatCurrency(totalValue)} total value`
+                : activeTab === 'leads'
+                  ? `${totalLeads} lead${totalLeads !== 1 ? 's' : ''} · ${formatCurrency(totalValue)} total value`
+                  : `${deals.length} deal${deals.length !== 1 ? 's' : ''} · ${formatCurrency(dealTotalValue)} total value`
             }
           >
             <Button variant="outline" size="sm" onClick={refresh} disabled={loading} aria-label="Refresh pipeline">
@@ -92,32 +115,62 @@ export default function PipelinePage() {
             </Button>
           </PageHeader>
 
-          {/* Stats summary cards */}
-          {!loading && (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <StatCard label="Total Leads" value={totalLeads} />
-              <StatCard label="Total Value" value={formatCurrency(totalValue)} variant="primary" />
-              <StatCard label="Won Value" value={formatCurrency(wonValue)} variant="success" />
-              <StatCard
-                label="Win Rate"
-                value={
-                  totalLeads > 0
-                    ? `${Math.round(((pipeline.find((s) => s.key === 'won')?.count ?? 0) / totalLeads) * 100)}%`
-                    : '0%'
-                }
-              />
-            </div>
-          )}
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList>
+              <TabsTrigger value="leads">
+                <IconColumns size={16} />
+                Leads Pipeline
+              </TabsTrigger>
+              <TabsTrigger value="deals">
+                <IconCurrencyDollar size={16} />
+                Deals Pipeline
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Kanban board */}
-          <KanbanBoard />
+            <TabsContent value="leads" className="pt-4">
+              {!leadsLoading && (
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-4">
+                  <StatCard label="Total Leads" value={totalLeads} />
+                  <StatCard label="Total Value" value={formatCurrency(totalValue)} variant="primary" />
+                  <StatCard label="Won Value" value={formatCurrency(wonValue)} variant="success" />
+                  <StatCard
+                    label="Win Rate"
+                    value={
+                      totalLeads > 0
+                        ? `${Math.round(((pipeline.find((s) => s.key === 'won')?.count ?? 0) / totalLeads) * 100)}%`
+                        : '0%'
+                    }
+                  />
+                </div>
+              )}
+              <KanbanBoard />
+            </TabsContent>
+
+            <TabsContent value="deals" className="pt-4">
+              {!dealsLoading && (
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-4">
+                  <StatCard label="Total Deals" value={deals.length} />
+                  <StatCard label="Total Value" value={formatCurrency(dealTotalValue)} variant="primary" />
+                  <StatCard
+                    label="Avg Deal Size"
+                    value={deals.length > 0 ? formatCurrency(Math.round(dealTotalValue / deals.length)) : formatCurrency(0)}
+                    variant="primary"
+                  />
+                  <StatCard
+                    label="Stages"
+                    value={stages.length}
+                  />
+                </div>
+              )}
+              <DealKanbanBoard />
+            </TabsContent>
+          </Tabs>
         </div>
       )}
     </PermissionGuard>
   );
 }
 
-/** Inline stat card used for the pipeline stats summary */
 function StatCard({
   label,
   value,

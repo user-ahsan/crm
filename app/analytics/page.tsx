@@ -31,6 +31,8 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { StatCard } from '@/components/common/StatCard';
+import { useForecasts } from '@/hooks/useForecasts';
+import Link from 'next/link';
 import {
   IconUsers,
   IconTrendingUp,
@@ -40,6 +42,7 @@ import {
   IconSourceCode,
   IconCalendarMonth,
   IconStatusChange,
+  IconTarget,
 } from '@tabler/icons-react';
 
 type PageState = 'loading' | 'error' | 'empty' | 'ready';
@@ -110,6 +113,71 @@ function BarChart({
         ))}
       </div>
     </div>
+  );
+}
+
+/* ── Forecast Widget Card ──────────────────────────────── */
+function ForecastCard() {
+  const now = new Date();
+  const qStart = Math.floor((now.getMonth()) / 3) * 3 + 1;
+  const { summary, loading } = useForecasts(now.getFullYear());
+  const quarterMonths = [qStart, qStart + 1, qStart + 2];
+  const qForecasts = summary?.months.filter((m) => quarterMonths.includes(m.month)) ?? [];
+  const qTarget = qForecasts.reduce((s, f) => s + f.target, 0);
+  const qActual = qForecasts.reduce((s, f) => s + f.actual, 0);
+  const qAchievement = qTarget > 0 ? Math.round((qActual / qTarget) * 100) : 0;
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-5 w-32" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-4 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <IconTarget size={20} className="text-muted-foreground" />
+          Current Quarter Forecast
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">
+            Q{quarterMonths[0] === 1 ? 1 : quarterMonths[0] === 4 ? 2 : quarterMonths[0] === 7 ? 3 : 4} Target
+          </span>
+          <span className="font-medium">{formatCurrency(qTarget)}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Actual</span>
+          <span className="font-medium">{formatCurrency(qActual)}</span>
+        </div>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Achievement</span>
+            <span className="font-medium">{qAchievement}%</span>
+          </div>
+          <Progress value={qAchievement}>
+            <ProgressTrack>
+              <ProgressIndicator />
+            </ProgressTrack>
+          </Progress>
+        </div>
+        <Link
+          href="/settings/forecasts"
+          className="mt-2 inline-flex items-center text-sm font-medium text-primary hover:underline"
+        >
+          View full forecast &rarr;
+        </Link>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -426,6 +494,9 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Forecast Widget */}
+          <ForecastCard />
 
           {/* Monthly Trends */}
           <Card>

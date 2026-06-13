@@ -1,6 +1,7 @@
 import type { Lead, LeadFilters } from '@/types/lead.types';
+import type { LeadScore } from '@/types/lead-scoring.types';
 
-export function applyLeadFilters(leads: Lead[], filters: LeadFilters): Lead[] {
+export function applyLeadFilters(leads: Lead[], filters: LeadFilters, scores?: Map<string, LeadScore>): Lead[] {
   return leads.filter((lead) => {
     if (filters.search) {
       const s = filters.search.toLowerCase();
@@ -15,6 +16,10 @@ export function applyLeadFilters(leads: Lead[], filters: LeadFilters): Lead[] {
     if (filters.source && lead.source !== filters.source) return false;
     if (filters.priority && lead.priority !== filters.priority) return false;
     if (filters.assignedTo && lead.assignedTo !== filters.assignedTo) return false;
+    if (filters.minScore && scores) {
+      const score = scores.get(lead.id);
+      if (!score || score.score < filters.minScore) return false;
+    }
     return true;
   });
 }

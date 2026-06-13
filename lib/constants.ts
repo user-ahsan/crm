@@ -3,6 +3,8 @@ import type { TaskPriority, TaskStatus } from '@/types/task.types';
 import type { MeetingType } from '@/types/meeting.types';
 import type { CompanySize } from '@/types/company.types';
 import type { ActivityType } from '@/types/activity.types';
+export const QUOTE_STATUSES = ['draft', 'sent', 'accepted', 'rejected'] as const;
+
 
 export const LEAD_STATUSES: LeadStatus[] = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'];
 export const LEAD_SOURCES: LeadSource[] = ['manual', 'website', 'referral', 'ads', 'social'];
@@ -65,9 +67,11 @@ export const NAV_ITEMS = [
   { label: 'Leads', href: '/leads', icon: 'users' },
   { label: 'Contacts', href: '/contacts', icon: 'address-book' },
   { label: 'Companies', href: '/companies', icon: 'building' },
+  { label: 'Deals', href: '/deals', icon: 'currency-dollar' },
   { label: 'Pipeline', href: '/pipeline', icon: 'columns-3' },
   { label: 'Tasks', href: '/tasks', icon: 'checkbox' },
   { label: 'Meetings', href: '/meetings', icon: 'calendar' },
+  { label: 'Quotes', href: '/quotes', icon: 'file-invoice' },
   { label: 'Analytics', href: '/analytics', icon: 'chart-bar' },
   { label: 'Automation', href: '/settings/automation', icon: 'zap' },
   { label: 'Team', href: '/settings/team', icon: 'users-group' },

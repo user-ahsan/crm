@@ -64,6 +64,33 @@ export function validateTaskForm(data: Partial<TaskFormData>): ValidationResult 
   return { isValid: Object.keys(errors).length === 0, errors };
 }
 
+export function validateQuoteForm(data: { title: string; items: { description: string; quantity: number; unitPrice: number }[]; discount?: number }): ValidationResult {
+  const errors: Record<string, string> = {};
+  if (!data.title || data.title.trim().length === 0) {
+    errors.title = 'Title is required';
+  }
+  if (!data.items || data.items.length === 0) {
+    errors.items = 'At least one line item is required';
+  }
+  if (data.items) {
+    for (let i = 0; i < data.items.length; i++) {
+      if (!data.items[i].description.trim()) {
+        errors[`items.${i}.description`] = 'Item description is required';
+      }
+      if (data.items[i].quantity <= 0) {
+        errors[`items.${i}.quantity`] = 'Quantity must be greater than 0';
+      }
+      if (data.items[i].unitPrice < 0) {
+        errors[`items.${i}.unitPrice`] = 'Unit price cannot be negative';
+      }
+    }
+  }
+  if (data.discount !== undefined && data.discount < 0) {
+    errors.discount = 'Discount cannot be negative';
+  }
+  return { isValid: Object.keys(errors).length === 0, errors };
+}
+
 export function validateMeetingForm(data: Partial<MeetingFormData>): ValidationResult {
   const errors: Record<string, string> = {};
   if (!data.title || data.title.trim().length === 0) {

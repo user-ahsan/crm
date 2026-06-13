@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Lead } from '@/types/lead.types';
+import type { LeadScore } from '@/types/lead-scoring.types';
 import {
   Table,
   TableBody,
@@ -18,6 +19,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { STATUS_COLORS, PRIORITY_COLORS, USERS } from '@/lib/constants';
 import { formatCurrency, formatDate, getInitials } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import { LeadScoreBadge } from '@/components/leads/LeadScoreBadge';
 import {
   IconEdit,
   IconTrash,
@@ -34,9 +36,10 @@ interface LeadTableProps {
   onDelete: (id: string) => void;
   selectedIds?: Set<string>;
   onSelectionChange?: (ids: Set<string>) => void;
+  scores?: Map<string, LeadScore>;
 }
 
-export function LeadTable({ leads, onEdit, onDelete, selectedIds: externalSelectedIds, onSelectionChange }: LeadTableProps) {
+export function LeadTable({ leads, onEdit, onDelete, selectedIds: externalSelectedIds, onSelectionChange, scores }: LeadTableProps) {
   const router = useRouter();
   const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
   const selectedIds = externalSelectedIds ?? internalSelectedIds;
@@ -116,6 +119,7 @@ export function LeadTable({ leads, onEdit, onDelete, selectedIds: externalSelect
             <TableHead>Company</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Priority</TableHead>
+            <TableHead>Score</TableHead>
             <TableHead>Assigned To</TableHead>
             <TableHead>
               <span className="inline-flex items-center gap-1">
@@ -186,6 +190,13 @@ export function LeadTable({ leads, onEdit, onDelete, selectedIds: externalSelect
                   >
                     {lead.priority.charAt(0).toUpperCase() + lead.priority.slice(1)}
                   </span>
+                </TableCell>
+                <TableCell>
+                  {scores?.has(lead.id) ? (
+                    <LeadScoreBadge score={scores.get(lead.id)!.score} size="sm" />
+                  ) : (
+                    <span className="text-muted-foreground/50">—</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   {lead.assignedTo ? (

@@ -45,4 +45,5 @@ export interface LeadFilters {
   source?: LeadSource | '';
   priority?: LeadPriority | '';
   assignedTo?: string;
+  minScore?: number;
 }

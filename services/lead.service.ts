@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/client';
 import type { Lead, LeadFormData, LeadFilters } from '@/types/lead.types';
-import type { DbLead } from '@/types/supabase.types';
+import type { DbLead, DbLeadScore } from '@/types/supabase.types';
+import type { LeadScore } from '@/types/lead-scoring.types';
 import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
@@ -26,6 +27,16 @@ let _client: Awaited<ReturnType<typeof createClient>> | null = null;
 async function getClient() {
   if (!_client) _client = await createClient();
   return _client;
+}
+
+function mapScoreRow(row: DbLeadScore): LeadScore {
+  return {
+    id: row.id,
+    leadId: row.lead_id,
+    score: row.score,
+    factors: row.factors,
+    updatedAt: row.updated_at,
+  };
 }
 
 function mapRowToLead(row: DbLead): Lead {
@@ -293,6 +304,72 @@ export const leadService = {
       if (!survivor) throw new Error('Survivor lead not found after merge');
       activityService.log('lead', survivorId, 'updated', `Lead merged: merged ${mergeIds.length} duplicates`);
       return survivor;
+    } catch (e) {
+      throw new Error(formatSupabaseError(e));
+    }
+  },
+
+  async calculateScore(leadId: string): Promise<{ score: number; factors: Record<string, number> }> {
+    const lead = await this.getById(leadId);
+    if (!lead) throw new Error('Lead not found');
+    const factors: Record<string, number> = {};
+    let total = 0;
+    if (lead.email) { factors.email_present = 20; total += 20; }
+    if (lead.phone) { factors.phone_present = 15; total += 15; }
+    if (lead.companyName) { factors.company_present = 10; total += 10; }
+    if (lead.source === 'referral' || lead.source === 'website') { factors.source_quality = 15; total += 15; }
+    const tagBonus = (lead.tags?.length ?? 0) * 5;
+    if (tagBonus > 0) { factors.tags_count = tagBonus; total += tagBonus; }
+    if (lead.status === 'lost') { factors.lost_penalty = -10; total -= 10; }
+    return { score: Math.max(0, Math.min(100, total)), factors };
+  },
+
+  async getScore(leadId: string): Promise<LeadScore | undefined> {
+    try {
+      const supabase = await getClient();
+      const { data, error } = await supabase
+        .from('lead_scores')
+        .select('*')
+        .eq('lead_id', leadId)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data ? mapScoreRow(data) : undefined;
+    } catch (e) {
+      throw new Error(formatSupabaseError(e));
+    }
+  },
+
+  async updateScore(leadId: string): Promise<LeadScore> {
+    const { score, factors } = await this.calculateScore(leadId);
+    try {
+      const supabase = await getClient();
+      const { data, error } = await supabase
+        .from('lead_scores')
+        .upsert({ lead_id: leadId, score, factors }, { onConflict: 'lead_id' })
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return mapScoreRow(data);
+    } catch (e) {
+      throw new Error(formatSupabaseError(e));
+    }
+  },
+
+  async batchUpdateScores(): Promise<number> {
+    try {
+      const supabase = await getClient();
+      const { data: leads } = await supabase.from('leads').select('id');
+      if (!leads) return 0;
+      let updated = 0;
+      for (const lead of leads) {
+        try {
+          await this.updateScore(lead.id);
+          updated++;
+        } catch {
+          // skip failed
+        }
+      }
+      return updated;
     } catch (e) {
       throw new Error(formatSupabaseError(e));
     }

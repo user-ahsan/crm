@@ -16,6 +16,8 @@ import {
   IconUsersGroup,
   IconBolt,
   IconChevronLeft,
+  IconFileInvoice,
+  IconCurrencyDollar,
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { NAV_ITEMS } from '@/lib/constants';
@@ -36,6 +38,7 @@ const iconMap = {
   users: IconUsers,
   'address-book': IconAddressBook,
   building: IconBuilding,
+  'currency-dollar': IconCurrencyDollar,
   'columns-3': IconColumns3,
   checkbox: IconCheckbox,
   calendar: IconCalendar,
@@ -43,6 +46,7 @@ const iconMap = {
   settings: IconSettings,
   'users-group': IconUsersGroup,
   zap: IconBolt,
+  'file-invoice': IconFileInvoice,
 } as const;
 
 type IconKey = keyof typeof iconMap;

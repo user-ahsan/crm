@@ -5,6 +5,7 @@ import type { Lead } from '@/types/lead.types';
 import type { Task } from '@/types/task.types';
 import type { Meeting } from '@/types/meeting.types';
 import type { Activity } from '@/types/activity.types';
+import type { LeadScore } from '@/types/lead-scoring.types';
 import { useEmail } from '@/hooks/useEmail';
 import { EmailHistory } from '@/components/communication/EmailHistory';
 import {
@@ -22,8 +23,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { TagBadge } from '@/components/common/TagBadge';
 import { TagInput } from '@/components/common/TagInput';
+import { LeadScoreBadge } from '@/components/leads/LeadScoreBadge';
 import { useLeads } from '@/hooks/useLeads';
+import { useLeadScore } from '@/hooks/useLeadScoring';
 import { useTags } from '@/hooks/useTags';
+import { SCORING_FACTORS } from '@/types/lead-scoring.types';
 import { tagService } from '@/services/tag.service';
 import type { Tag } from '@/types/tag.types';
 import { useTasks } from '@/hooks/useTasks';
@@ -54,6 +58,7 @@ import {
   IconMessage,
   IconFileDescription,
   IconNote,
+  IconRefresh,
 } from '@tabler/icons-react';
 
 interface LeadDetailProps {
@@ -68,6 +73,7 @@ type LoadState<T> =
 
 export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
   const { getById: getLeadById } = useLeads();
+  const { score: leadScoreData, loading: scoreLoading, recalculate: recalculateScore, refresh: refreshScore } = useLeadScore(leadId);
   const { getByEntity: getTasksByEntity } = useTasks();
   const { getByEntity: getMeetingsByEntity } = useMeetings();
   const { getByEntity: getActivitiesByEntity } = useActivities();
@@ -457,6 +463,56 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Lead Score Card */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-4">
+              {scoreLoading ? (
+                <Skeleton className="size-10 rounded-full" />
+              ) : (
+                <LeadScoreBadge score={leadScoreData?.score ?? 0} size="lg" showLabel />
+              )}
+              <div>
+                <p className="text-sm font-medium text-foreground">Lead Score</p>
+                <p className="text-xs text-muted-foreground">
+                  {scoreLoading
+                    ? 'Calculating...'
+                    : leadScoreData
+                      ? `Updated ${new Date(leadScoreData.updatedAt).toLocaleDateString()}`
+                      : 'Not yet scored'}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => recalculateScore()}
+              disabled={scoreLoading}
+            >
+              <IconRefresh className={cn('size-4', scoreLoading && 'animate-spin')} />
+              Recalculate
+            </Button>
+          </div>
+          {leadScoreData && (
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {SCORING_FACTORS.map((factor) => {
+                const value = leadScoreData.factors[factor.key] ?? 0;
+                if (value === 0) return null;
+                return (
+                  <div key={factor.key} className="flex items-center justify-between rounded-md border px-3 py-2">
+                    <span className="text-xs text-muted-foreground">{factor.label}</span>
+                    <span className={cn('text-xs font-semibold tabular-nums', value > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
+                      {value > 0 ? `+${value}` : value}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 
