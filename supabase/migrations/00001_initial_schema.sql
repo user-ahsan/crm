@@ -24,7 +24,34 @@ begin
 end;
 $$;
 
--- 2. LEADS TABLE
+-- 2. TEAM MEMBERSHIP HELPERS (security definer — bypass RLS to avoid recursion)
+create or replace function public.is_team_member(team_id_input uuid)
+returns boolean
+language sql
+security definer
+set search_path = ''
+stable
+as $$
+  select exists (
+    select 1 from public.team_members
+    where team_id = team_id_input and user_id = auth.uid()::text
+  );
+$$;
+
+create or replace function public.is_team_admin(team_id_input uuid)
+returns boolean
+language sql
+security definer
+set search_path = ''
+stable
+as $$
+  select exists (
+    select 1 from public.team_members
+    where team_id = team_id_input and user_id = auth.uid()::text and role = 'admin'
+  );
+$$;
+
+-- 3. LEADS TABLE
 create table if not exists public.leads (
   id              uuid         primary key default gen_random_uuid(),
   full_name       text         not null,
@@ -253,7 +280,7 @@ create policy "Enable all for authenticated users" on public.activities for all 
 -- Teams
 drop policy if exists "Users can view teams they belong to" on public.teams;
 create policy "Users can view teams they belong to" on public.teams for select to authenticated using (
-  id in (select team_id from public.team_members where user_id = auth.uid()::text)
+  is_team_member(id)
   or created_by::text = auth.uid()::text
 );
 drop policy if exists "Authenticated users can create teams" on public.teams;
@@ -264,31 +291,31 @@ create policy "Team admins can update their team" on public.teams for update to 
 -- Team Members
 drop policy if exists "Team members can view team roster" on public.team_members;
 create policy "Team members can view team roster" on public.team_members for select to authenticated using (
-  team_id in (select team_id from public.team_members where user_id = auth.uid()::text)
+  is_team_member(team_id)
 );
 drop policy if exists "Users can add themselves as members" on public.team_members;
 create policy "Users can add themselves as members" on public.team_members for insert to authenticated with check (user_id = auth.uid()::text);
 drop policy if exists "Team admins can add members" on public.team_members;
 create policy "Team admins can add members" on public.team_members for insert to authenticated with check (
-  exists (select 1 from public.team_members where team_id = team_members.team_id and user_id = auth.uid()::text and role = 'admin')
+  is_team_admin(team_id)
 );
 drop policy if exists "Team admins can update members" on public.team_members;
 create policy "Team admins can update members" on public.team_members for update to authenticated using (
-  exists (select 1 from public.team_members where team_id = team_members.team_id and user_id = auth.uid()::text and role = 'admin')
+  is_team_admin(team_id)
 );
 drop policy if exists "Team admins can delete members" on public.team_members;
 create policy "Team admins can delete members" on public.team_members for delete to authenticated using (
-  exists (select 1 from public.team_members where team_id = team_members.team_id and user_id = auth.uid()::text and role = 'admin')
+  is_team_admin(team_id)
 );
 
 -- Team Invitations
 drop policy if exists "Members can view invitations" on public.team_invitations;
 create policy "Members can view invitations" on public.team_invitations for select to authenticated using (
-  team_id in (select team_id from public.team_members where user_id = auth.uid()::text)
+  is_team_member(team_id)
 );
 drop policy if exists "Admins can manage invitations" on public.team_invitations;
 create policy "Admins can manage invitations" on public.team_invitations for all to authenticated using (
-  exists (select 1 from public.team_members where team_id = team_invitations.team_id and user_id = auth.uid()::text and role = 'admin')
+  is_team_admin(team_id)
 );
 
 -- ─────────────────────────────────────────────────────────────
