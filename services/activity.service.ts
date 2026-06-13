@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { Activity, ActivityType } from '@/types/activity.types';
 import type { DbActivity } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
+import { triggerWebhook } from './webhook.service';
 
 function mapRowToActivity(row: DbActivity): Activity {
   return {
@@ -16,17 +17,18 @@ function mapRowToActivity(row: DbActivity): Activity {
 }
 
 export const activityService = {
-  async getAll(): Promise<Activity[]> {
+  async getAll(page = 1, pageSize = 50): Promise<Activity[]> {
     try {
       const supabase = await createClient();
       const { data, error } = await supabase
         .from('activities')
         .select('*')
-        .order('timestamp', { ascending: false });
+        .order('timestamp', { ascending: false })
+        .range((page - 1) * pageSize, page * pageSize - 1);
       if (error) throw new Error(error.message);
-      return (data as DbActivity[] | null)?.map(mapRowToActivity) ?? [];
+      return data?.map(mapRowToActivity) ?? [];
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : 'Failed to fetch activities');
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -40,9 +42,9 @@ export const activityService = {
         .eq('entity_id', entityId)
         .order('timestamp', { ascending: false });
       if (error) throw new Error(error.message);
-      return (data as DbActivity[] | null)?.map(mapRowToActivity) ?? [];
+      return data?.map(mapRowToActivity) ?? [];
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to fetch activities for ${entityType}/${entityId}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -55,9 +57,9 @@ export const activityService = {
         .eq('type', type)
         .order('timestamp', { ascending: false });
       if (error) throw new Error(error.message);
-      return (data as DbActivity[] | null)?.map(mapRowToActivity) ?? [];
+      return data?.map(mapRowToActivity) ?? [];
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to fetch activities of type ${type}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -66,7 +68,7 @@ export const activityService = {
       const all = await this.getAll();
       return all.slice(0, limit);
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : 'Failed to fetch recent activities');
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -94,9 +96,17 @@ export const activityService = {
         .select()
         .single();
       if (error) throw new Error(error.message);
-      return mapRowToActivity(inserted as DbActivity);
+      const activity = mapRowToActivity(inserted);
+      triggerWebhook('activity.created', {
+        id: activity.id,
+        entityType: activity.entityType,
+        entityId: activity.entityId,
+        type: activity.type,
+        description: activity.description,
+      });
+      return activity;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : 'Failed to log activity');
+      throw new Error(formatSupabaseError(e));
     }
   },
 };

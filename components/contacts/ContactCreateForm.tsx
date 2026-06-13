@@ -37,6 +37,7 @@ interface ContactCreateFormProps {
 interface FormErrors {
   name?: string;
   email?: string;
+  phone?: string;
 }
 
 const defaultFormData: ContactFormData = {
@@ -222,8 +223,12 @@ export function ContactCreateForm({ open, onOpenChange, onSuccess, editContact }
                 placeholder="+1 (555) 123-4567"
                 value={formData.phone}
                 onChange={(e) => updateField('phone', e.target.value)}
+                aria-invalid={!!errors.phone}
                 disabled={submitting}
               />
+              {errors.phone && (
+                <p className="text-xs text-destructive">{errors.phone}</p>
+              )}
             </div>
           </div>
 

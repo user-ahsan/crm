@@ -21,11 +21,19 @@ export interface ClientLayoutProps {
 /* ── Component ────────────────────────────────────────────── */
 export default function ClientLayout({ children }: ClientLayoutProps) {
   const pathname = usePathname();
-  const { theme, setTheme } = useThemeStore();
+  const { theme } = useThemeStore();
 
-  /* Hydrate theme class on <html> from persisted store */
+  /*
+    ── Theme class guard ──────────────────────────────────────
+    The blocking <script> in layout.tsx already applies the 'dark' class
+    synchronously before first paint. This useEffect is a safety net for
+    any edge case where the store theme differs from the DOM class (e.g.
+    the user changes theme in another tab). We toggle the class directly
+    rather than calling setTheme() to avoid an unnecessary zustand state
+    update that could trigger a re-render cascade.
+  */
   useEffect(() => {
-    setTheme(theme);
+    document.documentElement.classList.toggle('dark', theme === 'dark');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import type { Lead } from '@/types/lead.types';
 import type { Task } from '@/types/task.types';
 import type { Meeting } from '@/types/meeting.types';
-import { leadService } from '@/services/lead.service';
-import { taskService } from '@/services/task.service';
-import { meetingService } from '@/services/meeting.service';
+import { useLeads } from '@/hooks/useLeads';
+import { useTasks } from '@/hooks/useTasks';
+import { useMeetings } from '@/hooks/useMeetings';
 import {
   computeDashboardKPIs,
   computePipelineFunnel,
@@ -100,43 +100,25 @@ function SimpleBarChart({
 
 /* ── Dashboard Page ─────────────────────────────────────── */
 export default function DashboardPage() {
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [pageState, setPageState] = useState<PageState>('loading');
-  const [error, setError] = useState<string | null>(null);
+  const { leads, loading: leadsLoading, error: leadsError, refresh: refreshLeads } = useLeads();
+  const { tasks, loading: tasksLoading, error: tasksError, refresh: refreshTasks } = useTasks();
+  const { meetings, loading: meetingsLoading, error: meetingsError, refresh: refreshMeetings } = useMeetings();
   const { team, loading: teamLoading } = useTeamContext();
 
-  const loadData = useCallback(async () => {
-    setPageState('loading');
-    setError(null);
-    try {
-      const [l, t, m] = await Promise.all([
-        leadService.getAll(),
-        taskService.getAll(),
-        meetingService.getAll(),
-      ]);
-      setLeads(l);
-      setTasks(t);
-      setMeetings(m);
-      if (l.length === 0 && t.length === 0 && m.length === 0) {
-        setPageState('empty');
-      } else {
-        setPageState('ready');
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load dashboard data');
-      setPageState('error');
-    }
-  }, []);
+  const pageState = useMemo<PageState>(() => {
+    if (leadsLoading || tasksLoading || meetingsLoading) return 'loading';
+    if (leadsError || tasksError || meetingsError) return 'error';
+    if (leads.length === 0 && tasks.length === 0 && meetings.length === 0) return 'empty';
+    return 'ready';
+  }, [leadsLoading, tasksLoading, meetingsLoading, leadsError, tasksError, meetingsError, leads, tasks, meetings]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const error = leadsError ?? tasksError ?? meetingsError;
 
   const handleRetry = useCallback(() => {
-    loadData();
-  }, [loadData]);
+    refreshLeads();
+    refreshTasks();
+    refreshMeetings();
+  }, [refreshLeads, refreshTasks, refreshMeetings]);
 
   /* Memoised computations */
   const kpis = useMemo(() => computeDashboardKPIs(leads, tasks, meetings), [leads, tasks, meetings]);

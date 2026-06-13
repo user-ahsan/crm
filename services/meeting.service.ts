@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/client';
 import type { Meeting, MeetingFormData } from '@/types/meeting.types';
 import type { DbMeeting } from '@/types/supabase.types';
-import { formatSupabaseError, addLocalActivity } from './supabase.service';
+import { formatSupabaseError } from './supabase.service';
+import { activityService } from './activity.service';
+import { triggerWebhook } from './webhook.service';
 
 function mapRowToMeeting(row: DbMeeting): Meeting {
   return {
@@ -35,17 +37,18 @@ function mapMeetingToDb(meeting: Partial<MeetingFormData & { outcome: string }>)
 }
 
 export const meetingService = {
-  async getAll(): Promise<Meeting[]> {
+  async getAll(page = 1, pageSize = 50): Promise<Meeting[]> {
     try {
       const supabase = await createClient();
       const { data, error } = await supabase
         .from('meetings')
         .select('*')
-        .order('date_time', { ascending: false });
+        .order('date_time', { ascending: false })
+        .range((page - 1) * pageSize, page * pageSize - 1);
       if (error) throw new Error(error.message);
-      return (data as DbMeeting[] | null)?.map(mapRowToMeeting) ?? [];
+      return data?.map(mapRowToMeeting) ?? [];
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : 'Failed to fetch meetings');
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -61,13 +64,13 @@ export const meetingService = {
         if (error.code === 'PGRST116') return undefined;
         throw new Error(error.message);
       }
-      return data ? mapRowToMeeting(data as DbMeeting) : undefined;
+      return data ? mapRowToMeeting(data) : undefined;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to fetch meeting ${id}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 
-  async getByEntity(entityType: string, entityId: string): Promise<Meeting[]> {
+  async getByEntity(entityType: string, entityId: string, page = 1, pageSize = 50): Promise<Meeting[]> {
     try {
       const supabase = await createClient();
       const { data, error } = await supabase
@@ -75,15 +78,16 @@ export const meetingService = {
         .select('*')
         .eq('related_to_type', entityType)
         .eq('related_to_id', entityId)
-        .order('date_time', { ascending: false });
+        .order('date_time', { ascending: false })
+        .range((page - 1) * pageSize, page * pageSize - 1);
       if (error) throw new Error(error.message);
-      return (data as DbMeeting[] | null)?.map(mapRowToMeeting) ?? [];
+      return data?.map(mapRowToMeeting) ?? [];
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to fetch meetings for ${entityType}/${entityId}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 
-  async getByDateRange(start: string, end: string): Promise<Meeting[]> {
+  async getByDateRange(start: string, end: string, page = 1, pageSize = 50): Promise<Meeting[]> {
     try {
       const supabase = await createClient();
       const { data, error } = await supabase
@@ -91,11 +95,12 @@ export const meetingService = {
         .select('*')
         .gte('date_time', start)
         .lte('date_time', end)
-        .order('date_time', { ascending: true });
+        .order('date_time', { ascending: true })
+        .range((page - 1) * pageSize, page * pageSize - 1);
       if (error) throw new Error(error.message);
-      return (data as DbMeeting[] | null)?.map(mapRowToMeeting) ?? [];
+      return data?.map(mapRowToMeeting) ?? [];
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : 'Failed to fetch meetings by date range');
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -110,9 +115,9 @@ export const meetingService = {
         .order('date_time', { ascending: true })
         .limit(limit);
       if (error) throw new Error(error.message);
-      return (data as DbMeeting[] | null)?.map(mapRowToMeeting) ?? [];
+      return data?.map(mapRowToMeeting) ?? [];
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : 'Failed to fetch upcoming meetings');
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -131,16 +136,23 @@ export const meetingService = {
         .select()
         .single();
       if (error) throw new Error(error.message);
-      const meeting = mapRowToMeeting(inserted as DbMeeting);
-      addLocalActivity('meeting', meeting.id, 'meeting_scheduled', `Meeting scheduled: ${meeting.title}`, {
+      const meeting = mapRowToMeeting(inserted);
+      activityService.log('meeting', meeting.id, 'meeting_scheduled', `Meeting scheduled: ${meeting.title}`, {
         date: meeting.dateTime,
       });
       if (meeting.relatedToType && meeting.relatedToId) {
-        addLocalActivity(meeting.relatedToType, meeting.relatedToId, 'meeting_scheduled', `Meeting scheduled: ${meeting.title}`);
+        activityService.log(meeting.relatedToType, meeting.relatedToId, 'meeting_scheduled', `Meeting scheduled: ${meeting.title}`);
       }
+      triggerWebhook('meeting.created', {
+        id: meeting.id,
+        title: meeting.title,
+        dateTime: meeting.dateTime,
+        relatedToType: meeting.relatedToType,
+        relatedToId: meeting.relatedToId,
+      });
       return meeting;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : 'Failed to create meeting');
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -159,20 +171,25 @@ export const meetingService = {
         if (error.code === 'PGRST116') return undefined;
         throw new Error(error.message);
       }
-      return mapRowToMeeting(updated as DbMeeting);
+      const meeting = mapRowToMeeting(updated);
+      triggerWebhook('meeting.updated', { id, ...data });
+      return meeting;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to update meeting ${id}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 
   async delete(id: string): Promise<boolean> {
     try {
       const supabase = await createClient();
+      await supabase.from('activities').delete().eq('entity_id', id);
       const { error } = await supabase.from('meetings').delete().eq('id', id);
       if (error) throw new Error(error.message);
+      activityService.log('meeting', id, 'deleted', `Meeting deleted`);
+      triggerWebhook('meeting.deleted', { id });
       return true;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to delete meeting ${id}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 };

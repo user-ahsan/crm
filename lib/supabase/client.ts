@@ -1,7 +1,6 @@
 /**
- * Creates a Supabase client via dynamic import.
- * Using dynamic import so this file doesn't break when @supabase/ssr is not installed.
- * Throws a descriptive error if environment variables are missing.
+ * Creates a Supabase browser client for use in client components.
+ * Uses static import from @supabase/ssr for cookie-based session management.
  */
 export async function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

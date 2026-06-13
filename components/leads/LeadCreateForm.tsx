@@ -38,6 +38,7 @@ interface LeadCreateFormProps {
 interface FormErrors {
   fullName?: string;
   email?: string;
+  phone?: string;
   estimatedValue?: string;
   source?: string;
   status?: string;
@@ -243,8 +244,12 @@ export function LeadCreateForm({ open, onOpenChange, onSuccess, editLead }: Lead
                 placeholder="+1 (555) 123-4567"
                 value={formData.phone}
                 onChange={(e) => updateField('phone', e.target.value)}
+                aria-invalid={!!errors.phone}
                 disabled={submitting}
               />
+              {errors.phone && (
+                <p className="text-xs text-destructive">{errors.phone}</p>
+              )}
             </div>
           </div>
 

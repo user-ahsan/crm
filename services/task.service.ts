@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/client';
 import type { Task, TaskFormData, TaskStatus } from '@/types/task.types';
 import type { DbTask } from '@/types/supabase.types';
-import { formatSupabaseError, addLocalActivity } from './supabase.service';
+import { formatSupabaseError } from './supabase.service';
+import { activityService } from './activity.service';
+import { triggerWebhook } from './webhook.service';
 
 function mapRowToTask(row: DbTask): Task {
   return {
@@ -33,28 +35,37 @@ function mapTaskToDb(task: Partial<TaskFormData & { status: TaskStatus }>): Reco
 }
 
 export const taskService = {
-  async getAll(): Promise<Task[]> {
-    const all = await this.getAllRaw();
-    return [...all];
+  async getAll(page = 1, pageSize = 50): Promise<Task[]> {
+    return this.getAllRaw(page, pageSize);
   },
 
-  /** Internal: get all tasks and update overdue status */
-  async getAllRaw(): Promise<Task[]> {
+  async getAllRaw(page = 1, pageSize = 50): Promise<Task[]> {
     try {
       const supabase = await createClient();
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range((page - 1) * pageSize, page * pageSize - 1);
       if (error) throw new Error(error.message);
-      const tasks = (data as DbTask[] | null)?.map(mapRowToTask) ?? [];
-      return this.applyOverdue(tasks);
+      const tasks = data?.map(mapRowToTask) ?? [];
+      const now = new Date();
+      const updatedTasks = await Promise.all(tasks.map(async (task) => {
+        if (task.dueDate && task.status === 'pending') {
+          const dueDate = new Date(task.dueDate);
+          if (dueDate < now) {
+            await this.update(task.id, { status: 'overdue' });
+            return { ...task, status: 'overdue' as TaskStatus };
+          }
+        }
+        return task;
+      }));
+      return updatedTasks;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : 'Failed to fetch tasks');
+      throw new Error(formatSupabaseError(e));
     }
   },
 
-  /** Apply overdue status to a list of tasks in memory */
   applyOverdue(tasks: Task[]): Task[] {
     const now = new Date();
     return tasks.map((task) => {
@@ -81,15 +92,21 @@ export const taskService = {
         throw new Error(error.message);
       }
       if (!data) return undefined;
-      const task = mapRowToTask(data as DbTask);
-      const overdue = this.applyOverdue([task]);
-      return overdue[0];
+      const task = mapRowToTask(data);
+      if (task.dueDate && task.status === 'pending') {
+        const dueDate = new Date(task.dueDate);
+        if (dueDate < new Date()) {
+          await this.update(id, { status: 'overdue' });
+          return { ...task, status: 'overdue' as TaskStatus };
+        }
+      }
+      return task;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to fetch task ${id}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 
-  async getByEntity(entityType: string, entityId: string): Promise<Task[]> {
+  async getByEntity(entityType: string, entityId: string, page = 1, pageSize = 50): Promise<Task[]> {
     try {
       const supabase = await createClient();
       const { data, error } = await supabase
@@ -97,28 +114,30 @@ export const taskService = {
         .select('*')
         .eq('related_to_type', entityType)
         .eq('related_to_id', entityId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range((page - 1) * pageSize, page * pageSize - 1);
       if (error) throw new Error(error.message);
-      const tasks = (data as DbTask[] | null)?.map(mapRowToTask) ?? [];
+      const tasks = data?.map(mapRowToTask) ?? [];
       return this.applyOverdue(tasks);
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to fetch tasks for ${entityType}/${entityId}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 
-  async getByAssignedTo(userId: string): Promise<Task[]> {
+  async getByAssignedTo(userId: string, page = 1, pageSize = 50): Promise<Task[]> {
     try {
       const supabase = await createClient();
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
         .eq('assigned_to', userId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range((page - 1) * pageSize, page * pageSize - 1);
       if (error) throw new Error(error.message);
-      const tasks = (data as DbTask[] | null)?.map(mapRowToTask) ?? [];
+      const tasks = data?.map(mapRowToTask) ?? [];
       return this.applyOverdue(tasks);
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to fetch tasks for user ${userId}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -138,13 +157,20 @@ export const taskService = {
         .select()
         .single();
       if (error) throw new Error(error.message);
-      const task = mapRowToTask(inserted as DbTask);
-      addLocalActivity('task', task.id, 'task_created', `Task created: ${task.title}`, {
+      const task = mapRowToTask(inserted);
+      activityService.log('task', task.id, 'task_created', `Task created: ${task.title}`, {
         priority: task.priority,
+      });
+      triggerWebhook('task.created', {
+        id: task.id,
+        title: task.title,
+        priority: task.priority,
+        relatedToType: task.relatedToType,
+        relatedToId: task.relatedToId,
       });
       return task;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : 'Failed to create task');
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -163,13 +189,14 @@ export const taskService = {
         if (error.code === 'PGRST116') return undefined;
         throw new Error(error.message);
       }
-      const task = mapRowToTask(updated as DbTask);
+      const task = mapRowToTask(updated);
       if (data.status === 'completed') {
-        addLocalActivity('task', id, 'task_completed', `Task completed: ${task.title}`);
+        activityService.log('task', id, 'task_completed', `Task completed: ${task.title}`);
       }
+      triggerWebhook('task.updated', { id, ...data });
       return task;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to update task ${id}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -180,7 +207,7 @@ export const taskService = {
       const newStatus: TaskStatus = task.status === 'completed' ? 'pending' : 'completed';
       return this.update(id, { status: newStatus });
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to toggle task status ${id}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -189,9 +216,11 @@ export const taskService = {
       const supabase = await createClient();
       const { error } = await supabase.from('tasks').delete().eq('id', id);
       if (error) throw new Error(error.message);
+      activityService.log('task', id, 'deleted', `Task deleted`);
+      triggerWebhook('task.deleted', { id });
       return true;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to delete task ${id}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 };

@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/client';
 import type { Company, CompanyFormData } from '@/types/company.types';
 import type { DbCompany } from '@/types/supabase.types';
-import { formatSupabaseError, addLocalActivity } from './supabase.service';
+import { formatSupabaseError } from './supabase.service';
+import { activityService } from './activity.service';
+import { triggerWebhook } from './webhook.service';
 
 function mapRowToCompany(row: DbCompany): Company {
   return {
@@ -31,17 +33,18 @@ function mapCompanyToDb(company: Partial<CompanyFormData>): Record<string, unkno
 }
 
 export const companyService = {
-  async getAll(): Promise<Company[]> {
+  async getAll(page = 1, pageSize = 50): Promise<Company[]> {
     try {
       const supabase = await createClient();
       const { data, error } = await supabase
         .from('companies')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range((page - 1) * pageSize, page * pageSize - 1);
       if (error) throw new Error(error.message);
-      return (data as DbCompany[] | null)?.map(mapRowToCompany) ?? [];
+      return data?.map(mapRowToCompany) ?? [];
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : 'Failed to fetch companies');
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -57,13 +60,13 @@ export const companyService = {
         if (error.code === 'PGRST116') return undefined;
         throw new Error(error.message);
       }
-      return data ? mapRowToCompany(data as DbCompany) : undefined;
+      return data ? mapRowToCompany(data) : undefined;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to fetch company ${id}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 
-  async search(query: string): Promise<Company[]> {
+  async search(query: string, page = 1, pageSize = 50): Promise<Company[]> {
     try {
       const supabase = await createClient();
       const s = query.toLowerCase();
@@ -71,11 +74,12 @@ export const companyService = {
         .from('companies')
         .select('*')
         .or(`name.ilike.%${s}%,industry.ilike.%${s}%,location.ilike.%${s}%`)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range((page - 1) * pageSize, page * pageSize - 1);
       if (error) throw new Error(error.message);
-      return (data as DbCompany[] | null)?.map(mapRowToCompany) ?? [];
+      return data?.map(mapRowToCompany) ?? [];
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : 'Failed to search companies');
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -96,11 +100,17 @@ export const companyService = {
         .select()
         .single();
       if (error) throw new Error(error.message);
-      const company = mapRowToCompany(inserted as DbCompany);
-      addLocalActivity('company', company.id, 'created', `Company created: ${company.name}`);
+      const company = mapRowToCompany(inserted);
+      activityService.log('company', company.id, 'created', `Company created: ${company.name}`);
+      triggerWebhook('company.created', {
+        id: company.id,
+        name: company.name,
+        industry: company.industry,
+        revenue: company.revenue,
+      });
       return company;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : 'Failed to create company');
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -119,23 +129,28 @@ export const companyService = {
         if (error.code === 'PGRST116') return undefined;
         throw new Error(error.message);
       }
-      const company = mapRowToCompany(updated as DbCompany);
-      addLocalActivity('company', id, 'updated', `Company updated: ${company.name}`);
+      const company = mapRowToCompany(updated);
+      activityService.log('company', id, 'updated', `Company updated: ${company.name}`);
+      triggerWebhook('company.updated', { id, ...data });
       return company;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to update company ${id}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 
   async delete(id: string): Promise<boolean> {
     try {
       const supabase = await createClient();
+      await supabase.from('tasks').delete().eq('related_to_id', id);
+      await supabase.from('meetings').delete().eq('related_to_id', id);
+      await supabase.from('activities').delete().eq('entity_id', id);
       const { error } = await supabase.from('companies').delete().eq('id', id);
       if (error) throw new Error(error.message);
-      addLocalActivity('company', id, 'deleted', `Company deleted`);
+      activityService.log('company', id, 'deleted', `Company deleted`);
+      triggerWebhook('company.deleted', { id });
       return true;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to delete company ${id}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -144,7 +159,7 @@ export const companyService = {
       const all = await this.getAll();
       return all.reduce((sum, c) => sum + c.revenue, 0);
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : 'Failed to calculate revenue estimate');
+      throw new Error(formatSupabaseError(e));
     }
   },
 };

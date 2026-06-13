@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { IconEdit, IconArrowLeft } from '@tabler/icons-react';
 import type { Lead } from '@/types/lead.types';
-import { leadService } from '@/services/lead.service';
+import { useLeads } from '@/hooks/useLeads';
 import { LeadDetail } from '@/components/leads/LeadDetail';
 import { LeadCreateForm } from '@/components/leads/LeadCreateForm';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
@@ -21,11 +21,13 @@ export default function LeadDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  const { getById: getLeadById } = useLeads();
+
   const loadLead = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const found = await leadService.getById(leadId);
+      const found = await getLeadById(leadId);
       if (found) {
         setLead(found);
       } else {

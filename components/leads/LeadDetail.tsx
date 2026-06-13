@@ -17,10 +17,10 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { leadService } from '@/services/lead.service';
-import { taskService } from '@/services/task.service';
-import { meetingService } from '@/services/meeting.service';
-import { activityService } from '@/services/activity.service';
+import { useLeads } from '@/hooks/useLeads';
+import { useTasks } from '@/hooks/useTasks';
+import { useMeetings } from '@/hooks/useMeetings';
+import { useActivities } from '@/hooks/useActivities';
 import { STATUS_COLORS, PRIORITY_COLORS, USERS } from '@/lib/constants';
 import { formatCurrency, formatDate, formatDateTime, formatRelativeTime, getInitials, formatDuration } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -56,6 +56,11 @@ type LoadState<T> =
   | { status: 'success'; data: T };
 
 export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
+  const { getById: getLeadById } = useLeads();
+  const { getByEntity: getTasksByEntity } = useTasks();
+  const { getByEntity: getMeetingsByEntity } = useMeetings();
+  const { getByEntity: getActivitiesByEntity } = useActivities();
+
   const [leadState, setLeadState] = useState<LoadState<Lead>>({ status: 'loading' });
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -72,7 +77,7 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
   useEffect(() => {
     let cancelled = false;
     setLeadState({ status: 'loading' });
-    leadService.getById(leadId).then((lead) => {
+    getLeadById(leadId).then((lead) => {
       if (cancelled) return;
       if (lead) {
         setLeadState({ status: 'success', data: lead });
@@ -97,7 +102,7 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
 
     if (activeTab === 'tasks' || activeTab === 'overview') {
       setTasksLoading(true);
-      taskService.getByEntity('lead', lead.id).then((relatedTasks) => {
+      getTasksByEntity('lead', lead.id).then((relatedTasks) => {
         if (!cancelled) setTasks(relatedTasks);
       }).catch(() => {
         if (!cancelled) setTasks([]);
@@ -108,7 +113,7 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
 
     if (activeTab === 'meetings' || activeTab === 'overview') {
       setMeetingsLoading(true);
-      meetingService.getByEntity('lead', lead.id).then((relatedMeetings) => {
+      getMeetingsByEntity('lead', lead.id).then((relatedMeetings) => {
         if (!cancelled) setMeetings(relatedMeetings);
       }).catch(() => {
         if (!cancelled) setMeetings([]);
@@ -119,7 +124,7 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
 
     if (activeTab === 'activity' || activeTab === 'overview') {
       setActivitiesLoading(true);
-      activityService.getByEntity('lead', lead.id).then((relatedActivities) => {
+      getActivitiesByEntity('lead', lead.id).then((relatedActivities) => {
         if (!cancelled) setActivities(relatedActivities);
       }).catch(() => {
         if (!cancelled) setActivities([]);

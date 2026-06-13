@@ -41,6 +41,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={cn(
         'h-full',
         'antialiased',
@@ -51,6 +52,21 @@ export default function RootLayout({
         interHeading.variable,
       )}
     >
+      <head>
+        {/*
+          ── FOUC Prevention (Theme Hydration Fix) ──────────────
+          This blocking inline script reads the persisted theme from zustand's
+          localStorage key *synchronously* during HTML parsing — before React
+          hydrates or any JS bundles execute. This eliminates the white flash
+          (FOUC) that dark-mode users experience when the theme class is applied
+          too late via useEffect.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var e=JSON.parse(localStorage.getItem('nexuscrm-theme'));if(e&&e.state&&'dark'===e.state.theme)document.documentElement.classList.add('dark')}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         <ClientLayout>{children}</ClientLayout>
       </body>

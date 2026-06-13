@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/client';
 import type { Lead, LeadFormData, LeadFilters } from '@/types/lead.types';
 import type { DbLead } from '@/types/supabase.types';
-import { formatSupabaseError, addLocalActivity } from './supabase.service';
+import { formatSupabaseError } from './supabase.service';
+import { activityService } from './activity.service';
+import { triggerWebhook } from './webhook.service';
 
 function mapRowToLead(row: DbLead): Lead {
   return {
@@ -43,17 +45,18 @@ function mapLeadToDb(lead: Partial<LeadFormData>): Record<string, unknown> {
 }
 
 export const leadService = {
-  async getAll(): Promise<Lead[]> {
+  async getAll(page = 1, pageSize = 50): Promise<Lead[]> {
     try {
       const supabase = await createClient();
       const { data, error } = await supabase
         .from('leads')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range((page - 1) * pageSize, page * pageSize - 1);
       if (error) throw new Error(error.message);
-      return (data as DbLead[] | null)?.map(mapRowToLead) ?? [];
+      return data?.map(mapRowToLead) ?? [];
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : 'Failed to fetch leads');
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -69,13 +72,13 @@ export const leadService = {
         if (error.code === 'PGRST116') return undefined;
         throw new Error(error.message);
       }
-      return data ? mapRowToLead(data as DbLead) : undefined;
+      return data ? mapRowToLead(data) : undefined;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to fetch lead ${id}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 
-  async getFiltered(filters: LeadFilters): Promise<Lead[]> {
+  async getFiltered(filters: LeadFilters, page = 1, pageSize = 50): Promise<Lead[]> {
     try {
       const supabase = await createClient();
       let query = supabase.from('leads').select('*');
@@ -89,12 +92,12 @@ export const leadService = {
       if (filters.source) query = query.eq('source', filters.source);
       if (filters.priority) query = query.eq('priority', filters.priority);
       if (filters.assignedTo) query = query.eq('assigned_to', filters.assignedTo);
-      query = query.order('created_at', { ascending: false });
+      query = query.order('created_at', { ascending: false }).range((page - 1) * pageSize, page * pageSize - 1);
       const { data, error } = await query;
       if (error) throw new Error(error.message);
-      return (data as DbLead[] | null)?.map(mapRowToLead) ?? [];
+      return data?.map(mapRowToLead) ?? [];
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : 'Failed to filter leads');
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -113,14 +116,22 @@ export const leadService = {
         .select()
         .single();
       if (error) throw new Error(error.message);
-      const lead = mapRowToLead(inserted as DbLead);
-      addLocalActivity('lead', lead.id, 'created', `Lead created: ${lead.fullName}${lead.companyName ? ` from ${lead.companyName}` : ''}`, {
+      const lead = mapRowToLead(inserted);
+      activityService.log('lead', lead.id, 'created', `Lead created: ${lead.fullName}${lead.companyName ? ` from ${lead.companyName}` : ''}`, {
         source: lead.source,
         value: lead.estimatedValue,
       });
+      triggerWebhook('lead.created', {
+        id: lead.id,
+        fullName: lead.fullName,
+        email: lead.email,
+        source: lead.source,
+        status: lead.status,
+        estimatedValue: lead.estimatedValue,
+      });
       return lead;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : 'Failed to create lead');
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -139,28 +150,33 @@ export const leadService = {
         if (error.code === 'PGRST116') return undefined;
         throw new Error(error.message);
       }
-      const lead = mapRowToLead(updated as DbLead);
+      const lead = mapRowToLead(updated);
       if (data.status) {
-        addLocalActivity('lead', id, 'status_changed', `Status changed to ${data.status}`, {
+        activityService.log('lead', id, 'status_changed', `Status changed to ${data.status}`, {
           to: data.status,
         });
       }
-      addLocalActivity('lead', id, 'updated', `Lead updated: ${lead.fullName}`);
+      activityService.log('lead', id, 'updated', `Lead updated: ${lead.fullName}`);
+      triggerWebhook('lead.updated', { id, ...data });
       return lead;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to update lead ${id}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 
   async delete(id: string): Promise<boolean> {
     try {
       const supabase = await createClient();
+      await supabase.from('tasks').delete().eq('related_to_id', id);
+      await supabase.from('meetings').delete().eq('related_to_id', id);
+      await supabase.from('activities').delete().eq('entity_id', id);
       const { error } = await supabase.from('leads').delete().eq('id', id);
       if (error) throw new Error(error.message);
-      addLocalActivity('lead', id, 'deleted', `Lead deleted`);
+      activityService.log('lead', id, 'deleted', `Lead deleted`);
+      triggerWebhook('lead.deleted', { id });
       return true;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : `Failed to delete lead ${id}`);
+      throw new Error(formatSupabaseError(e));
     }
   },
 
@@ -187,7 +203,7 @@ export const leadService = {
       }
       return stats;
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : 'Failed to get pipeline stats');
+      throw new Error(formatSupabaseError(e));
     }
   },
 };
