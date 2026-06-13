@@ -1,8 +1,7 @@
-import { companies as mockCompanies } from '@/data/companies';
+import { createClient } from '@/lib/supabase/client';
 import type { Company, CompanyFormData } from '@/types/company.types';
 import type { DbCompany } from '@/types/supabase.types';
-import { generateId } from '@/lib/formatters';
-import { isSupabaseConfigured, getSupabaseClient as getSupabaseClientAsync, formatSupabaseError, addLocalActivity } from './supabase.service';
+import { formatSupabaseError, addLocalActivity } from './supabase.service';
 
 function mapRowToCompany(row: DbCompany): Company {
   return {
@@ -33,21 +32,22 @@ function mapCompanyToDb(company: Partial<CompanyFormData>): Record<string, unkno
 
 export const companyService = {
   async getAll(): Promise<Company[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('companies')
         .select('*')
         .order('created_at', { ascending: false });
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return (data as DbCompany[] | null)?.map(mapRowToCompany) ?? [];
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to fetch companies');
     }
-    return [...mockCompanies];
   },
 
   async getById(id: string): Promise<Company | undefined> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('companies')
         .select('*')
@@ -55,41 +55,36 @@ export const companyService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(formatSupabaseError(error));
+        throw new Error(error.message);
       }
       return data ? mapRowToCompany(data as DbCompany) : undefined;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to fetch company ${id}`);
     }
-    return mockCompanies.find((c) => c.id === id);
   },
 
   async search(query: string): Promise<Company[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const s = query.toLowerCase();
       const { data, error } = await supabase
         .from('companies')
         .select('*')
         .or(`name.ilike.%${s}%,industry.ilike.%${s}%,location.ilike.%${s}%`)
         .order('created_at', { ascending: false });
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return (data as DbCompany[] | null)?.map(mapRowToCompany) ?? [];
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to search companies');
     }
-    const s = query.toLowerCase();
-    return mockCompanies.filter(
-      (c) =>
-        c.name.toLowerCase().includes(s) ||
-        c.industry?.toLowerCase().includes(s) ||
-        c.location?.toLowerCase().includes(s),
-    );
   },
 
   async create(data: CompanyFormData): Promise<Company> {
     const now = new Date().toISOString();
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const dbRow = {
         ...mapCompanyToDb(data),
-        id: crypto.randomUUID(),
         contact_ids: [],
         lead_ids: [],
         created_at: now,
@@ -100,26 +95,19 @@ export const companyService = {
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(formatSupabaseError(error));
-      return mapRowToCompany(inserted as DbCompany);
+      if (error) throw new Error(error.message);
+      const company = mapRowToCompany(inserted as DbCompany);
+      addLocalActivity('company', company.id, 'created', `Company created: ${company.name}`);
+      return company;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to create company');
     }
-    const newCompany: Company = {
-      ...data,
-      id: `company-${generateId().slice(0, 8)}`,
-      contactIds: [],
-      leadIds: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    mockCompanies.unshift(newCompany);
-    addLocalActivity('company', newCompany.id, 'created', `Company created: ${newCompany.name}`);
-    return newCompany;
   },
 
   async update(id: string, data: Partial<CompanyFormData>): Promise<Company | undefined> {
     const now = new Date().toISOString();
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const dbData = { ...mapCompanyToDb(data), updated_at: now };
       const { data: updated, error } = await supabase
         .from('companies')
@@ -129,42 +117,34 @@ export const companyService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(formatSupabaseError(error));
+        throw new Error(error.message);
       }
-      return mapRowToCompany(updated as DbCompany);
+      const company = mapRowToCompany(updated as DbCompany);
+      addLocalActivity('company', id, 'updated', `Company updated: ${company.name}`);
+      return company;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to update company ${id}`);
     }
-    const index = mockCompanies.findIndex((c) => c.id === id);
-    if (index === -1) return undefined;
-    const updated = {
-      ...mockCompanies[index],
-      ...data,
-      updatedAt: now,
-    };
-    mockCompanies[index] = updated;
-    addLocalActivity('company', id, 'updated', `Company updated: ${updated.name}`);
-    return updated;
   },
 
   async delete(id: string): Promise<boolean> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { error } = await supabase.from('companies').delete().eq('id', id);
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
+      addLocalActivity('company', id, 'deleted', `Company deleted`);
       return true;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to delete company ${id}`);
     }
-    const index = mockCompanies.findIndex((c) => c.id === id);
-    if (index === -1) return false;
-    const deleted = mockCompanies[index];
-    mockCompanies.splice(index, 1);
-    addLocalActivity('company', id, 'deleted', `Company deleted: ${deleted.name}`);
-    return true;
   },
 
   async getRevenueEstimate(): Promise<number> {
-    if (isSupabaseConfigured()) {
+    try {
       const all = await this.getAll();
       return all.reduce((sum, c) => sum + c.revenue, 0);
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to calculate revenue estimate');
     }
-    return mockCompanies.reduce((sum, c) => sum + c.revenue, 0);
   },
 };

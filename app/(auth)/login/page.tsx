@@ -4,12 +4,12 @@ import { useState, useCallback, type FormEvent, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { createClient } from '@/lib/supabase/client';
 import { IconNetwork, IconEye, IconEyeOff } from '@tabler/icons-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { teamMembers } from '@/data/team-members';
 
 /* ── Validation ──────────────────────────────────────────── */
 interface LoginFormData {
@@ -71,7 +71,7 @@ export default function LoginPage() {
     [errors, submitError],
   );
 
-  /* ── Submit handler (simulated auth) ────────────────── */
+  /* ── Submit handler (real Supabase auth) ───────────── */
   const handleSubmit = useCallback(
     async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault();
@@ -84,33 +84,34 @@ export default function LoginPage() {
         return;
       }
 
-      /* 2. Simulate network request */
+      /* 2. Authenticate via Supabase */
       setIsSubmitting(true);
 
       try {
-        // Simulate auth delay
-        await new Promise((resolve) => setTimeout(resolve, 1200));
+        const supabase = await createClient();
 
-        /* 3. Check team membership */
-        const userTeams = teamMembers.filter((m) => m.userId === formData.email);
-
-        /* 4. Set auto-login cookies */
-        document.cookie = 'sb-access-token=simulated; path=/; max-age=3600';
-        document.cookie = 'sb-refresh-token=simulated; path=/; max-age=3600';
-
-        /* 5. Show success toast */
-        toast.success('Welcome to NexusCRM!', {
-          description: 'You have been signed in successfully.',
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
         });
 
-        /* 6. Redirect based on team membership */
-        if (userTeams.length > 0) {
-          router.push('/dashboard');
-        } else {
-          router.push('/onboarding');
+        if (error) {
+          setSubmitError(error.message);
+          return;
         }
-      } catch {
-        setSubmitError('An unexpected error occurred. Please try again.');
+
+        if (!data.user) {
+          setSubmitError('Invalid credentials. Please try again.');
+          return;
+        }
+
+        /* 3. Show success toast */
+        toast.success('Welcome back!');
+
+        /* 4. Redirect to dashboard */
+        router.push('/dashboard');
+      } catch (e) {
+        setSubmitError(e instanceof Error ? e.message : 'An unexpected error occurred. Please try again.');
       } finally {
         setIsSubmitting(false);
       }

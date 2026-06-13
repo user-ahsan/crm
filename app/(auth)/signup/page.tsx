@@ -4,8 +4,7 @@ import { useState, useCallback, type FormEvent, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { teamService } from '@/services/team.service';
-import { teamMembers } from '@/data/team-members';
+import { createClient } from '@/lib/supabase/client';
 import { IconNetwork, IconEye, IconEyeOff } from '@tabler/icons-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -98,7 +97,7 @@ export default function SignupPage() {
     [errors, submitError],
   );
 
-  /* ── Submit handler (simulated auth) ────────────────── */
+  /* ── Submit handler (real Supabase auth) ──────────── */
   const handleSubmit = useCallback(
     async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault();
@@ -111,66 +110,74 @@ export default function SignupPage() {
         return;
       }
 
-      /* 2. Simulate network request */
+      /* 2. Authenticate via Supabase */
       setIsSubmitting(true);
 
       try {
-        // Simulate auth delay
-        await new Promise((resolve) => setTimeout(resolve, 1200));
+        const supabase = await createClient();
 
-        /* 3. Simulate auto-login (set cookies & session storage) */
-        document.cookie = 'sb-access-token=simulated; path=/; max-age=3600';
-        document.cookie = 'sb-refresh-token=simulated; path=/; max-age=3600';
-
-        /* 4. Auto-create a default team & add user as admin */
-        try {
-          // Use mock data directly (dev mode - no Supabase auth dependency)
-          const { teams } = await import('@/data/teams');
-          const now = new Date().toISOString();
-          const newTeam = {
-            id: `team-${crypto.randomUUID().slice(0, 8)}`,
-            name: `${formData.fullName.split(' ')[0]}'s Team`,
-            description: '',
-            createdBy: formData.email,
-            createdAt: now,
-            updatedAt: now,
-          };
-          teams.unshift(newTeam);
-
-          teamMembers.push({
-            id: `tm-${crypto.randomUUID().slice(0, 8)}`,
-            teamId: newTeam.id,
-            userId: formData.email,
-            role: 'admin',
-            joinedAt: now,
-            user: { name: formData.fullName, email: formData.email },
-          });
-
-          sessionStorage.setItem(
-            'onboarding-team',
-            JSON.stringify({ id: newTeam.id, name: newTeam.name }),
-          );
-        } catch {
-          // Non-critical - onboarding still works
-        }
-
-        sessionStorage.setItem(
-          'onboarding-user',
-          JSON.stringify({
-            fullName: formData.fullName,
-            email: formData.email,
-          }),
-        );
-
-        /* 4. Show onboarding welcome toast */
-        toast.success('Welcome to NexusCRM!', {
-          description: 'Let us help you get started with a quick onboarding.',
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              full_name: formData.fullName,
+            },
+          },
         });
 
-        /* 5. Redirect to onboarding flow */
+        if (authError) {
+          setSubmitError(authError.message);
+          return;
+        }
+
+        if (!authData.user) {
+          setSubmitError('Failed to create account. Please try again.');
+          return;
+        }
+
+        /* 3. Auto-create a team for the new user */
+        try {
+          const { data: teamData, error: teamError } = await supabase
+            .from('teams')
+            .insert({
+              name: `${formData.fullName.split(' ')[0]}'s Team`,
+              description: '',
+              created_by: authData.user.id,
+            })
+            .select()
+            .single();
+
+          if (!teamError && teamData) {
+            // Add user as admin member of the team
+            await supabase.from('team_members').insert({
+              team_id: teamData.id,
+              user_id: authData.user.id,
+              role: 'admin',
+            });
+
+            sessionStorage.setItem('onboarding-team', JSON.stringify({
+              id: teamData.id,
+              name: teamData.name,
+            }));
+          }
+        } catch {
+          // Non-critical - team creation may fail
+        }
+
+        /* 4. Store user info for onboarding */
+        sessionStorage.setItem('onboarding-user', JSON.stringify({
+          fullName: formData.fullName,
+          email: formData.email,
+        }));
+
+        /* 5. Show onboarding welcome toast */
+        toast.success('Account created successfully!');
+
+        /* 6. Redirect to onboarding flow */
         router.push('/onboarding');
-      } catch {
-        setSubmitError('An unexpected error occurred. Please try again.');
+      } catch (e) {
+        setSubmitError(e instanceof Error ? e.message : 'An unexpected error occurred. Please try again.');
       } finally {
         setIsSubmitting(false);
       }

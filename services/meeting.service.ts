@@ -1,8 +1,7 @@
-import { meetings as mockMeetings } from '@/data/meetings';
+import { createClient } from '@/lib/supabase/client';
 import type { Meeting, MeetingFormData } from '@/types/meeting.types';
 import type { DbMeeting } from '@/types/supabase.types';
-import { generateId } from '@/lib/formatters';
-import { isSupabaseConfigured, getSupabaseClient as getSupabaseClientAsync, formatSupabaseError, addLocalActivity } from './supabase.service';
+import { formatSupabaseError, addLocalActivity } from './supabase.service';
 
 function mapRowToMeeting(row: DbMeeting): Meeting {
   return {
@@ -37,21 +36,22 @@ function mapMeetingToDb(meeting: Partial<MeetingFormData & { outcome: string }>)
 
 export const meetingService = {
   async getAll(): Promise<Meeting[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('meetings')
         .select('*')
         .order('date_time', { ascending: false });
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return (data as DbMeeting[] | null)?.map(mapRowToMeeting) ?? [];
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to fetch meetings');
     }
-    return [...mockMeetings];
   },
 
   async getById(id: string): Promise<Meeting | undefined> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('meetings')
         .select('*')
@@ -59,51 +59,49 @@ export const meetingService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(formatSupabaseError(error));
+        throw new Error(error.message);
       }
       return data ? mapRowToMeeting(data as DbMeeting) : undefined;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to fetch meeting ${id}`);
     }
-    return mockMeetings.find((m) => m.id === id);
   },
 
   async getByEntity(entityType: string, entityId: string): Promise<Meeting[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('meetings')
         .select('*')
         .eq('related_to_type', entityType)
         .eq('related_to_id', entityId)
         .order('date_time', { ascending: false });
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return (data as DbMeeting[] | null)?.map(mapRowToMeeting) ?? [];
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to fetch meetings for ${entityType}/${entityId}`);
     }
-    return mockMeetings.filter((m) => m.relatedToType === entityType && m.relatedToId === entityId);
   },
 
   async getByDateRange(start: string, end: string): Promise<Meeting[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('meetings')
         .select('*')
         .gte('date_time', start)
         .lte('date_time', end)
         .order('date_time', { ascending: true });
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return (data as DbMeeting[] | null)?.map(mapRowToMeeting) ?? [];
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to fetch meetings by date range');
     }
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    return mockMeetings.filter((m) => {
-      const meetingDate = new Date(m.dateTime);
-      return meetingDate >= startDate && meetingDate <= endDate;
-    });
   },
 
   async getUpcoming(limit = 5): Promise<Meeting[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const now = new Date().toISOString();
       const { data, error } = await supabase
         .from('meetings')
@@ -111,23 +109,19 @@ export const meetingService = {
         .gte('date_time', now)
         .order('date_time', { ascending: true })
         .limit(limit);
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return (data as DbMeeting[] | null)?.map(mapRowToMeeting) ?? [];
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to fetch upcoming meetings');
     }
-    const now = new Date();
-    const upcoming = mockMeetings
-      .filter((m) => new Date(m.dateTime) >= now)
-      .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
-    return upcoming.slice(0, limit);
   },
 
   async create(data: MeetingFormData): Promise<Meeting> {
     const now = new Date().toISOString();
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const dbRow = {
         ...mapMeetingToDb(data),
-        id: crypto.randomUUID(),
         created_at: now,
         updated_at: now,
       };
@@ -136,7 +130,7 @@ export const meetingService = {
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       const meeting = mapRowToMeeting(inserted as DbMeeting);
       addLocalActivity('meeting', meeting.id, 'meeting_scheduled', `Meeting scheduled: ${meeting.title}`, {
         date: meeting.dateTime,
@@ -145,31 +139,15 @@ export const meetingService = {
         addLocalActivity(meeting.relatedToType, meeting.relatedToId, 'meeting_scheduled', `Meeting scheduled: ${meeting.title}`);
       }
       return meeting;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to create meeting');
     }
-    const newMeeting: Meeting = {
-      ...data,
-      id: `meeting-${generateId().slice(0, 8)}`,
-      participants: data.participants || [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    mockMeetings.unshift(newMeeting);
-
-    addLocalActivity('meeting', newMeeting.id, 'meeting_scheduled', `Meeting scheduled: ${newMeeting.title}`, {
-      date: data.dateTime,
-    });
-
-    if (data.relatedToType && data.relatedToId) {
-      addLocalActivity(data.relatedToType, data.relatedToId, 'meeting_scheduled', `Meeting scheduled: ${newMeeting.title}`);
-    }
-
-    return newMeeting;
   },
 
   async update(id: string, data: Partial<MeetingFormData & { outcome: string }>): Promise<Meeting | undefined> {
     const now = new Date().toISOString();
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const dbData = { ...mapMeetingToDb(data), updated_at: now };
       const { data: updated, error } = await supabase
         .from('meetings')
@@ -179,32 +157,22 @@ export const meetingService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(formatSupabaseError(error));
+        throw new Error(error.message);
       }
       return mapRowToMeeting(updated as DbMeeting);
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to update meeting ${id}`);
     }
-    const index = mockMeetings.findIndex((m) => m.id === id);
-    if (index === -1) return undefined;
-    const updated = {
-      ...mockMeetings[index],
-      ...data,
-      participants: data.participants ?? mockMeetings[index].participants,
-      updatedAt: now,
-    };
-    mockMeetings[index] = updated;
-    return updated;
   },
 
   async delete(id: string): Promise<boolean> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { error } = await supabase.from('meetings').delete().eq('id', id);
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return true;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to delete meeting ${id}`);
     }
-    const index = mockMeetings.findIndex((m) => m.id === id);
-    if (index === -1) return false;
-    mockMeetings.splice(index, 1);
-    return true;
   },
 };

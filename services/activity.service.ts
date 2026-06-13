@@ -1,8 +1,7 @@
-import { activities as mockActivities } from '@/data/activities';
+import { createClient } from '@/lib/supabase/client';
 import type { Activity, ActivityType } from '@/types/activity.types';
 import type { DbActivity } from '@/types/supabase.types';
-import { generateId } from '@/lib/formatters';
-import { isSupabaseConfigured, getSupabaseClient as getSupabaseClientAsync, formatSupabaseError } from './supabase.service';
+import { formatSupabaseError } from './supabase.service';
 
 function mapRowToActivity(row: DbActivity): Activity {
   return {
@@ -18,56 +17,57 @@ function mapRowToActivity(row: DbActivity): Activity {
 
 export const activityService = {
   async getAll(): Promise<Activity[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('activities')
         .select('*')
         .order('timestamp', { ascending: false });
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return (data as DbActivity[] | null)?.map(mapRowToActivity) ?? [];
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to fetch activities');
     }
-    return [...mockActivities].sort(
-      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-    );
   },
 
   async getByEntity(entityType: string, entityId: string): Promise<Activity[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('activities')
         .select('*')
         .eq('entity_type', entityType)
         .eq('entity_id', entityId)
         .order('timestamp', { ascending: false });
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return (data as DbActivity[] | null)?.map(mapRowToActivity) ?? [];
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to fetch activities for ${entityType}/${entityId}`);
     }
-    return mockActivities
-      .filter((a) => a.entityType === entityType && a.entityId === entityId)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   },
 
   async getByType(type: ActivityType): Promise<Activity[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('activities')
         .select('*')
         .eq('type', type)
         .order('timestamp', { ascending: false });
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return (data as DbActivity[] | null)?.map(mapRowToActivity) ?? [];
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to fetch activities of type ${type}`);
     }
-    return mockActivities
-      .filter((a) => a.type === type)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   },
 
   async getRecent(limit = 10): Promise<Activity[]> {
-    const all = await this.getAll();
-    return all.slice(0, limit);
+    try {
+      const all = await this.getAll();
+      return all.slice(0, limit);
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to fetch recent activities');
+    }
   },
 
   async log(
@@ -78,10 +78,9 @@ export const activityService = {
     metadata?: Record<string, unknown>,
   ): Promise<Activity> {
     const timestamp = new Date().toISOString();
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const dbRow = {
-        id: crypto.randomUUID(),
         entity_type: entityType,
         entity_id: entityId,
         type,
@@ -94,19 +93,10 @@ export const activityService = {
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return mapRowToActivity(inserted as DbActivity);
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to log activity');
     }
-    const activity: Activity = {
-      id: `act-${generateId().slice(0, 8)}`,
-      entityType,
-      entityId,
-      type,
-      description,
-      metadata,
-      timestamp,
-    };
-    mockActivities.unshift(activity);
-    return activity;
   },
 };

@@ -1,8 +1,7 @@
-import { contacts as mockContacts } from '@/data/contacts';
+import { createClient } from '@/lib/supabase/client';
 import type { Contact, ContactFormData } from '@/types/contact.types';
 import type { DbContact } from '@/types/supabase.types';
-import { generateId } from '@/lib/formatters';
-import { isSupabaseConfigured, getSupabaseClient as getSupabaseClientAsync, formatSupabaseError, addLocalActivity } from './supabase.service';
+import { formatSupabaseError, addLocalActivity } from './supabase.service';
 
 function mapRowToContact(row: DbContact): Contact {
   return {
@@ -38,21 +37,22 @@ function mapContactToDb(contact: Partial<ContactFormData>): Record<string, unkno
 
 export const contactService = {
   async getAll(): Promise<Contact[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
         .order('created_at', { ascending: false });
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return (data as DbContact[] | null)?.map(mapRowToContact) ?? [];
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to fetch contacts');
     }
-    return [...mockContacts];
   },
 
   async getById(id: string): Promise<Contact | undefined> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
@@ -60,69 +60,66 @@ export const contactService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(formatSupabaseError(error));
+        throw new Error(error.message);
       }
       return data ? mapRowToContact(data as DbContact) : undefined;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to fetch contact ${id}`);
     }
-    return mockContacts.find((c) => c.id === id);
   },
 
   async getByCompanyId(companyId: string): Promise<Contact[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
         .eq('company_id', companyId)
         .order('created_at', { ascending: false });
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return (data as DbContact[] | null)?.map(mapRowToContact) ?? [];
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to fetch contacts for company ${companyId}`);
     }
-    return mockContacts.filter((c) => c.companyId === companyId);
   },
 
   async getByLeadId(leadId: string): Promise<Contact[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
         .contains('lead_ids', [leadId])
         .order('created_at', { ascending: false });
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return (data as DbContact[] | null)?.map(mapRowToContact) ?? [];
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to fetch contacts for lead ${leadId}`);
     }
-    return mockContacts.filter((c) => c.leadIds.includes(leadId));
   },
 
   async search(query: string): Promise<Contact[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const s = query.toLowerCase();
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
         .or(`name.ilike.%${s}%,email.ilike.%${s}%`)
         .order('created_at', { ascending: false });
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return (data as DbContact[] | null)?.map(mapRowToContact) ?? [];
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to search contacts');
     }
-    const s = query.toLowerCase();
-    return mockContacts.filter(
-      (c) =>
-        c.name.toLowerCase().includes(s) ||
-        c.email?.toLowerCase().includes(s) ||
-        c.tags.some((t) => t.toLowerCase().includes(s)),
-    );
   },
 
   async create(data: ContactFormData): Promise<Contact> {
     const now = new Date().toISOString();
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const dbRow = {
         ...mapContactToDb(data),
-        id: crypto.randomUUID(),
         lead_ids: [],
         created_at: now,
         updated_at: now,
@@ -132,27 +129,19 @@ export const contactService = {
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(formatSupabaseError(error));
-      return mapRowToContact(inserted as DbContact);
+      if (error) throw new Error(error.message);
+      const contact = mapRowToContact(inserted as DbContact);
+      addLocalActivity('contact', contact.id, 'created', `Contact created: ${contact.name}`);
+      return contact;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to create contact');
     }
-    const newContact: Contact = {
-      ...data,
-      id: `contact-${generateId().slice(0, 8)}`,
-      leadIds: [],
-      socialLinks: data.socialLinks || [],
-      tags: data.tags || [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    mockContacts.unshift(newContact);
-    addLocalActivity('contact', newContact.id, 'created', `Contact created: ${newContact.name}`);
-    return newContact;
   },
 
   async update(id: string, data: Partial<ContactFormData>): Promise<Contact | undefined> {
     const now = new Date().toISOString();
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const dbData = { ...mapContactToDb(data), updated_at: now };
       const { data: updated, error } = await supabase
         .from('contacts')
@@ -162,42 +151,31 @@ export const contactService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(formatSupabaseError(error));
+        throw new Error(error.message);
       }
-      return mapRowToContact(updated as DbContact);
+      const contact = mapRowToContact(updated as DbContact);
+      addLocalActivity('contact', id, 'updated', `Contact updated: ${contact.name}`);
+      return contact;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to update contact ${id}`);
     }
-    const index = mockContacts.findIndex((c) => c.id === id);
-    if (index === -1) return undefined;
-    const updated = {
-      ...mockContacts[index],
-      ...data,
-      tags: data.tags ?? mockContacts[index].tags,
-      socialLinks: data.socialLinks ?? mockContacts[index].socialLinks,
-      updatedAt: now,
-    };
-    mockContacts[index] = updated;
-    addLocalActivity('contact', id, 'updated', `Contact updated: ${updated.name}`);
-    return updated;
   },
 
   async delete(id: string): Promise<boolean> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { error } = await supabase.from('contacts').delete().eq('id', id);
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
+      addLocalActivity('contact', id, 'deleted', `Contact deleted`);
       return true;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to delete contact ${id}`);
     }
-    const index = mockContacts.findIndex((c) => c.id === id);
-    if (index === -1) return false;
-    const deleted = mockContacts[index];
-    mockContacts.splice(index, 1);
-    addLocalActivity('contact', id, 'deleted', `Contact deleted: ${deleted.name}`);
-    return true;
   },
 
   async linkToLead(contactId: string, leadId: string): Promise<Contact | undefined> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data: contact, error: fetchError } = await supabase
         .from('contacts')
         .select('lead_ids')
@@ -205,7 +183,7 @@ export const contactService = {
         .single();
       if (fetchError) {
         if (fetchError.code === 'PGRST116') return undefined;
-        throw new Error(formatSupabaseError(fetchError));
+        throw new Error(fetchError.message);
       }
       const currentLeadIds: string[] = (contact as { lead_ids: string[] } | null)?.lead_ids ?? [];
       if (currentLeadIds.includes(leadId)) {
@@ -217,15 +195,10 @@ export const contactService = {
         .eq('id', contactId)
         .select()
         .single();
-      if (updateError) throw new Error(formatSupabaseError(updateError));
+      if (updateError) throw new Error(updateError.message);
       return mapRowToContact(updated as DbContact);
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to link contact ${contactId} to lead ${leadId}`);
     }
-    const contact = mockContacts.find((c) => c.id === contactId);
-    if (!contact) return undefined;
-    if (!contact.leadIds.includes(leadId)) {
-      contact.leadIds.push(leadId);
-      contact.updatedAt = new Date().toISOString();
-    }
-    return contact;
   },
 };

@@ -1,8 +1,7 @@
-import { tasks as mockTasks } from '@/data/tasks';
+import { createClient } from '@/lib/supabase/client';
 import type { Task, TaskFormData, TaskStatus } from '@/types/task.types';
 import type { DbTask } from '@/types/supabase.types';
-import { generateId } from '@/lib/formatters';
-import { isSupabaseConfigured, getSupabaseClient as getSupabaseClientAsync, formatSupabaseError, addLocalActivity } from './supabase.service';
+import { formatSupabaseError, addLocalActivity } from './supabase.service';
 
 function mapRowToTask(row: DbTask): Task {
   return {
@@ -41,18 +40,18 @@ export const taskService = {
 
   /** Internal: get all tasks and update overdue status */
   async getAllRaw(): Promise<Task[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
         .order('created_at', { ascending: false });
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       const tasks = (data as DbTask[] | null)?.map(mapRowToTask) ?? [];
       return this.applyOverdue(tasks);
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to fetch tasks');
     }
-    this.updateOverdueStatus();
-    return [...mockTasks];
   },
 
   /** Apply overdue status to a list of tasks in memory */
@@ -70,8 +69,8 @@ export const taskService = {
   },
 
   async getById(id: string): Promise<Task | undefined> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
@@ -79,57 +78,56 @@ export const taskService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(formatSupabaseError(error));
+        throw new Error(error.message);
       }
       if (!data) return undefined;
       const task = mapRowToTask(data as DbTask);
       const overdue = this.applyOverdue([task]);
       return overdue[0];
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to fetch task ${id}`);
     }
-    this.updateOverdueStatus();
-    return mockTasks.find((t) => t.id === id);
   },
 
   async getByEntity(entityType: string, entityId: string): Promise<Task[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
         .eq('related_to_type', entityType)
         .eq('related_to_id', entityId)
         .order('created_at', { ascending: false });
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       const tasks = (data as DbTask[] | null)?.map(mapRowToTask) ?? [];
       return this.applyOverdue(tasks);
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to fetch tasks for ${entityType}/${entityId}`);
     }
-    this.updateOverdueStatus();
-    return mockTasks.filter((t) => t.relatedToType === entityType && t.relatedToId === entityId);
   },
 
   async getByAssignedTo(userId: string): Promise<Task[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
         .eq('assigned_to', userId)
         .order('created_at', { ascending: false });
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       const tasks = (data as DbTask[] | null)?.map(mapRowToTask) ?? [];
       return this.applyOverdue(tasks);
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to fetch tasks for user ${userId}`);
     }
-    this.updateOverdueStatus();
-    return mockTasks.filter((t) => t.assignedTo === userId);
   },
 
   async create(data: TaskFormData): Promise<Task> {
     const now = new Date().toISOString();
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const dbRow = {
         ...mapTaskToDb(data),
-        id: crypto.randomUUID(),
         status: 'pending',
         created_at: now,
         updated_at: now,
@@ -139,31 +137,21 @@ export const taskService = {
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       const task = mapRowToTask(inserted as DbTask);
       addLocalActivity('task', task.id, 'task_created', `Task created: ${task.title}`, {
         priority: task.priority,
       });
       return task;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to create task');
     }
-    const newTask: Task = {
-      ...data,
-      id: `task-${generateId().slice(0, 8)}`,
-      status: 'pending',
-      createdAt: now,
-      updatedAt: now,
-    };
-    mockTasks.unshift(newTask);
-    addLocalActivity('task', newTask.id, 'task_created', `Task created: ${newTask.title}`, {
-      priority: newTask.priority,
-    });
-    return newTask;
   },
 
   async update(id: string, data: Partial<TaskFormData & { status: TaskStatus }>): Promise<Task | undefined> {
     const now = new Date().toISOString();
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const dbData = { ...mapTaskToDb(data), updated_at: now };
       const { data: updated, error } = await supabase
         .from('tasks')
@@ -173,66 +161,37 @@ export const taskService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(formatSupabaseError(error));
+        throw new Error(error.message);
       }
       const task = mapRowToTask(updated as DbTask);
       if (data.status === 'completed') {
         addLocalActivity('task', id, 'task_completed', `Task completed: ${task.title}`);
       }
       return task;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to update task ${id}`);
     }
-    const index = mockTasks.findIndex((t) => t.id === id);
-    if (index === -1) return undefined;
-    const oldStatus = mockTasks[index].status;
-    const updated = {
-      ...mockTasks[index],
-      ...data,
-      updatedAt: now,
-    };
-    mockTasks[index] = updated;
-
-    if (data.status && data.status !== oldStatus && data.status === 'completed') {
-      addLocalActivity('task', id, 'task_completed', `Task completed: ${updated.title}`);
-    }
-    return updated;
   },
 
   async toggleStatus(id: string): Promise<Task | undefined> {
-    if (isSupabaseConfigured()) {
+    try {
       const task = await this.getById(id);
       if (!task) return undefined;
       const newStatus: TaskStatus = task.status === 'completed' ? 'pending' : 'completed';
       return this.update(id, { status: newStatus });
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to toggle task status ${id}`);
     }
-    const task = mockTasks.find((t) => t.id === id);
-    if (!task) return undefined;
-    const newStatus: TaskStatus = task.status === 'completed' ? 'pending' : 'completed';
-    return this.update(id, { status: newStatus });
   },
 
   async delete(id: string): Promise<boolean> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { error } = await supabase.from('tasks').delete().eq('id', id);
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return true;
-    }
-    const index = mockTasks.findIndex((t) => t.id === id);
-    if (index === -1) return false;
-    mockTasks.splice(index, 1);
-    return true;
-  },
-
-  /** Mutates mock tasks in-place to set overdue status */
-  updateOverdueStatus(): void {
-    const now = new Date();
-    for (const task of mockTasks) {
-      if (task.dueDate && task.status === 'pending') {
-        const dueDate = new Date(task.dueDate);
-        if (dueDate < now) {
-          task.status = 'overdue';
-        }
-      }
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to delete task ${id}`);
     }
   },
 };

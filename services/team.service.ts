@@ -1,27 +1,63 @@
-import { teams as mockTeams } from '@/data/teams';
-import { teamMembers as mockTeamMembers } from '@/data/team-members';
-import { teamInvitations as mockTeamInvitations } from '@/data/team-invitations';
+import { createClient } from '@/lib/supabase/client';
 import type { Team, TeamMember, TeamInvitation, TeamFormData, InviteMemberFormData, TeamRole } from '@/types/team.types';
-import { generateId } from '@/lib/formatters';
-import { isSupabaseConfigured, getSupabaseClient as getSupabaseClientAsync, formatSupabaseError } from './supabase.service';
+import type { DbTeam, DbTeamMember, DbTeamInvitation } from '@/types/supabase.types';
+import { formatSupabaseError } from './supabase.service';
+
+function mapRowToTeam(row: DbTeam): Team {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description ?? undefined,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapTeamToDb(team: Partial<TeamFormData>): Record<string, unknown> {
+  const db: Record<string, unknown> = {};
+  if (team.name !== undefined) db.name = team.name;
+  if (team.description !== undefined) db.description = team.description || null;
+  return db;
+}
+
+function mapRowToTeamMember(row: DbTeamMember): TeamMember {
+  return {
+    id: row.id,
+    teamId: row.team_id,
+    userId: row.user_id,
+    role: row.role as TeamRole,
+    joinedAt: row.joined_at,
+  };
+}
+
+function mapRowToTeamInvitation(row: DbTeamInvitation): TeamInvitation {
+  return {
+    id: row.id,
+    teamId: row.team_id,
+    email: row.email,
+    role: row.role as TeamRole,
+    invitedBy: row.invited_by,
+    status: row.status as TeamInvitation['status'],
+    expiresAt: row.expires_at,
+    createdAt: row.created_at,
+  };
+}
 
 export const teamService = {
   async getCurrentTeam(): Promise<Team | null> {
     try {
-      if (isSupabaseConfigured()) {
-        const supabase = await getSupabaseClientAsync();
-        const { data, error } = await supabase
-          .from('teams')
-          .select('*')
-          .limit(1)
-          .single();
-        if (error) {
-          if (error.code === 'PGRST116') return null;
-          throw new Error(formatSupabaseError(error));
-        }
-        return data as Team | null;
+      const supabase = await createClient();
+      const { data, error } = await supabase
+        .from('teams')
+        .select('*')
+        .limit(1)
+        .single();
+      if (error) {
+        if (error.code === 'PGRST116') return null;
+        throw new Error(error.message);
       }
-      return mockTeams[0] ?? null;
+      return data ? mapRowToTeam(data as DbTeam) : null;
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : 'Failed to get current team');
     }
@@ -29,16 +65,13 @@ export const teamService = {
 
   async getMembers(teamId: string): Promise<TeamMember[]> {
     try {
-      if (isSupabaseConfigured()) {
-        const supabase = await getSupabaseClientAsync();
-        const { data, error } = await supabase
-          .from('team_members')
-          .select('*')
-          .eq('team_id', teamId);
-        if (error) throw new Error(formatSupabaseError(error));
-        return (data as TeamMember[] | null) ?? [];
-      }
-      return mockTeamMembers.filter((m) => m.teamId === teamId);
+      const supabase = await createClient();
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('team_id', teamId);
+      if (error) throw new Error(error.message);
+      return (data as DbTeamMember[] | null)?.map(mapRowToTeamMember) ?? [];
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : 'Failed to get team members');
     }
@@ -46,16 +79,13 @@ export const teamService = {
 
   async getInvitations(teamId: string): Promise<TeamInvitation[]> {
     try {
-      if (isSupabaseConfigured()) {
-        const supabase = await getSupabaseClientAsync();
-        const { data, error } = await supabase
-          .from('team_invitations')
-          .select('*')
-          .eq('team_id', teamId);
-        if (error) throw new Error(formatSupabaseError(error));
-        return (data as TeamInvitation[] | null) ?? [];
-      }
-      return mockTeamInvitations.filter((inv) => inv.teamId === teamId);
+      const supabase = await createClient();
+      const { data, error } = await supabase
+        .from('team_invitations')
+        .select('*')
+        .eq('team_id', teamId);
+      if (error) throw new Error(error.message);
+      return (data as DbTeamInvitation[] | null)?.map(mapRowToTeamInvitation) ?? [];
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : 'Failed to get invitations');
     }
@@ -64,33 +94,21 @@ export const teamService = {
   async create(data: TeamFormData): Promise<Team> {
     const now = new Date().toISOString();
     try {
-      if (isSupabaseConfigured()) {
-        const supabase = await getSupabaseClientAsync();
-        const dbRow = {
-          name: data.name,
-          description: data.description ?? null,
-          created_by: '00000000-0000-0000-0000-000000000001',
-          created_at: now,
-          updated_at: now,
-        };
-        const { data: inserted, error } = await supabase
-          .from('teams')
-          .insert(dbRow)
-          .select()
-          .single();
-        if (error) throw new Error(formatSupabaseError(error));
-        return inserted as Team;
-      }
-      const newTeam: Team = {
-        id: `team-${generateId().slice(0, 8)}`,
+      const supabase = await createClient();
+      const dbRow = {
         name: data.name,
-        description: data.description,
-        createdBy: 'user-1',
-        createdAt: now,
-        updatedAt: now,
+        description: data.description ?? null,
+        created_by: crypto.randomUUID(),
+        created_at: now,
+        updated_at: now,
       };
-      mockTeams.unshift(newTeam);
-      return newTeam;
+      const { data: inserted, error } = await supabase
+        .from('teams')
+        .insert(dbRow)
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return mapRowToTeam(inserted as DbTeam);
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : 'Failed to create team');
     }
@@ -99,32 +117,19 @@ export const teamService = {
   async update(id: string, data: Partial<TeamFormData>): Promise<Team | undefined> {
     const now = new Date().toISOString();
     try {
-      if (isSupabaseConfigured()) {
-        const supabase = await getSupabaseClientAsync();
-        const dbData: Record<string, unknown> = { updated_at: now };
-        if (data.name !== undefined) dbData.name = data.name;
-        if (data.description !== undefined) dbData.description = data.description ?? null;
-        const { data: updated, error } = await supabase
-          .from('teams')
-          .update(dbData)
-          .eq('id', id)
-          .select()
-          .single();
-        if (error) {
-          if (error.code === 'PGRST116') return undefined;
-          throw new Error(formatSupabaseError(error));
-        }
-        return updated as Team;
+      const supabase = await createClient();
+      const dbData: Record<string, unknown> = { ...mapTeamToDb(data), updated_at: now };
+      const { data: updated, error } = await supabase
+        .from('teams')
+        .update(dbData)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) {
+        if (error.code === 'PGRST116') return undefined;
+        throw new Error(error.message);
       }
-      const index = mockTeams.findIndex((t) => t.id === id);
-      if (index === -1) return undefined;
-      const updated: Team = {
-        ...mockTeams[index],
-        ...data,
-        updatedAt: now,
-      };
-      mockTeams[index] = updated;
-      return updated;
+      return mapRowToTeam(updated as DbTeam);
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : 'Failed to update team');
     }
@@ -134,49 +139,28 @@ export const teamService = {
     const now = new Date().toISOString();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     try {
-      if (isSupabaseConfigured()) {
-        const supabase = await getSupabaseClientAsync();
-        const dbRow = {
-          team_id: teamId,
-          email: data.email,
-          role: data.role,
-          invited_by: '00000000-0000-0000-0000-000000000001',
-          status: 'pending',
-          expires_at: expiresAt,
-          created_at: now,
-        };
-        const { data: inserted, error } = await supabase
-          .from('team_invitations')
-          .insert(dbRow)
-          .select()
-          .single();
-        if (error) throw new Error(formatSupabaseError(error));
-        return inserted as TeamInvitation;
-      }
-      const existingInvitation = mockTeamInvitations.find(
-        (inv) => inv.teamId === teamId && inv.email === data.email && inv.status === 'pending',
-      );
-      if (existingInvitation) {
-        throw new Error('An invitation has already been sent to this email');
-      }
-      const existingMember = mockTeamMembers.find(
-        (m) => m.teamId === teamId && m.user?.email === data.email,
-      );
-      if (existingMember) {
-        throw new Error('User is already a team member');
-      }
-      const newInvitation: TeamInvitation = {
-        id: `inv-${generateId().slice(0, 8)}`,
-        teamId,
+      const supabase = await createClient();
+      const dbRow = {
+        team_id: teamId,
         email: data.email,
         role: data.role,
-        invitedBy: 'user-1',
+        invited_by: crypto.randomUUID(),
         status: 'pending',
-        expiresAt,
-        createdAt: now,
+        expires_at: expiresAt,
+        created_at: now,
       };
-      mockTeamInvitations.unshift(newInvitation);
-      return newInvitation;
+      const { data: inserted, error } = await supabase
+        .from('team_invitations')
+        .insert(dbRow)
+        .select()
+        .single();
+      if (error) {
+        if (error.message.includes('duplicate') || error.message.includes('unique')) {
+          throw new Error('An invitation has already been sent to this email');
+        }
+        throw new Error(error.message);
+      }
+      return mapRowToTeamInvitation(inserted as DbTeamInvitation);
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : 'Failed to invite member');
     }
@@ -184,18 +168,12 @@ export const teamService = {
 
   async cancelInvitation(invitationId: string): Promise<boolean> {
     try {
-      if (isSupabaseConfigured()) {
-        const supabase = await getSupabaseClientAsync();
-        const { error } = await supabase
-          .from('team_invitations')
-          .delete()
-          .eq('id', invitationId);
-        if (error) throw new Error(formatSupabaseError(error));
-        return true;
-      }
-      const index = mockTeamInvitations.findIndex((inv) => inv.id === invitationId);
-      if (index === -1) return false;
-      mockTeamInvitations.splice(index, 1);
+      const supabase = await createClient();
+      const { error } = await supabase
+        .from('team_invitations')
+        .delete()
+        .eq('id', invitationId);
+      if (error) throw new Error(error.message);
       return true;
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : 'Failed to cancel invitation');
@@ -204,28 +182,18 @@ export const teamService = {
 
   async changeMemberRole(memberId: string, role: TeamRole): Promise<TeamMember | undefined> {
     try {
-      if (isSupabaseConfigured()) {
-        const supabase = await getSupabaseClientAsync();
-        const { data: updated, error } = await supabase
-          .from('team_members')
-          .update({ role })
-          .eq('id', memberId)
-          .select()
-          .single();
-        if (error) {
-          if (error.code === 'PGRST116') return undefined;
-          throw new Error(formatSupabaseError(error));
-        }
-        return updated as TeamMember;
+      const supabase = await createClient();
+      const { data: updated, error } = await supabase
+        .from('team_members')
+        .update({ role })
+        .eq('id', memberId)
+        .select()
+        .single();
+      if (error) {
+        if (error.code === 'PGRST116') return undefined;
+        throw new Error(error.message);
       }
-      const index = mockTeamMembers.findIndex((m) => m.id === memberId);
-      if (index === -1) return undefined;
-      const updated: TeamMember = {
-        ...mockTeamMembers[index],
-        role,
-      };
-      mockTeamMembers[index] = updated;
-      return updated;
+      return mapRowToTeamMember(updated as DbTeamMember);
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : 'Failed to change member role');
     }
@@ -233,25 +201,12 @@ export const teamService = {
 
   async removeMember(memberId: string): Promise<boolean> {
     try {
-      if (isSupabaseConfigured()) {
-        const supabase = await getSupabaseClientAsync();
-        const { error } = await supabase
-          .from('team_members')
-          .delete()
-          .eq('id', memberId);
-        if (error) throw new Error(formatSupabaseError(error));
-        return true;
-      }
-      const index = mockTeamMembers.findIndex((m) => m.id === memberId);
-      if (index === -1) return false;
-      const memberToRemove = mockTeamMembers[index];
-      if (memberToRemove.role === 'admin') {
-        const adminCount = mockTeamMembers.filter((m) => m.role === 'admin').length;
-        if (adminCount <= 1) {
-          throw new Error('Cannot remove the last admin. Promote another member to admin first.');
-        }
-      }
-      mockTeamMembers.splice(index, 1);
+      const supabase = await createClient();
+      const { error } = await supabase
+        .from('team_members')
+        .delete()
+        .eq('id', memberId);
+      if (error) throw new Error(error.message);
       return true;
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : 'Failed to remove member');

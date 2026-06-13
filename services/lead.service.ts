@@ -1,8 +1,7 @@
-import { leads as mockLeads } from '@/data/leads';
+import { createClient } from '@/lib/supabase/client';
 import type { Lead, LeadFormData, LeadFilters } from '@/types/lead.types';
 import type { DbLead } from '@/types/supabase.types';
-import { generateId } from '@/lib/formatters';
-import { isSupabaseConfigured, getSupabaseClient as getSupabaseClientAsync, formatSupabaseError, addLocalActivity } from './supabase.service';
+import { formatSupabaseError, addLocalActivity } from './supabase.service';
 
 function mapRowToLead(row: DbLead): Lead {
   return {
@@ -45,38 +44,40 @@ function mapLeadToDb(lead: Partial<LeadFormData>): Record<string, unknown> {
 
 export const leadService = {
   async getAll(): Promise<Lead[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('leads')
         .select('*')
         .order('created_at', { ascending: false });
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return (data as DbLead[] | null)?.map(mapRowToLead) ?? [];
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to fetch leads');
     }
-    return [...mockLeads];
   },
 
   async getById(id: string): Promise<Lead | undefined> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('leads')
         .select('*')
         .eq('id', id)
         .single();
       if (error) {
-        if (error.code === 'PGRST116') return undefined; // not found
-        throw new Error(formatSupabaseError(error));
+        if (error.code === 'PGRST116') return undefined;
+        throw new Error(error.message);
       }
       return data ? mapRowToLead(data as DbLead) : undefined;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to fetch lead ${id}`);
     }
-    return mockLeads.find((l) => l.id === id);
   },
 
   async getFiltered(filters: LeadFilters): Promise<Lead[]> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       let query = supabase.from('leads').select('*');
       if (filters.search) {
         const s = filters.search.toLowerCase();
@@ -90,35 +91,19 @@ export const leadService = {
       if (filters.assignedTo) query = query.eq('assigned_to', filters.assignedTo);
       query = query.order('created_at', { ascending: false });
       const { data, error } = await query;
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
       return (data as DbLead[] | null)?.map(mapRowToLead) ?? [];
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to filter leads');
     }
-    return mockLeads.filter((lead) => {
-      if (filters.search) {
-        const s = filters.search.toLowerCase();
-        if (
-          !lead.fullName.toLowerCase().includes(s) &&
-          !lead.email?.toLowerCase().includes(s) &&
-          !lead.companyName?.toLowerCase().includes(s)
-        ) {
-          return false;
-        }
-      }
-      if (filters.status && lead.status !== filters.status) return false;
-      if (filters.source && lead.source !== filters.source) return false;
-      if (filters.priority && lead.priority !== filters.priority) return false;
-      if (filters.assignedTo && lead.assignedTo !== filters.assignedTo) return false;
-      return true;
-    });
   },
 
   async create(data: LeadFormData): Promise<Lead> {
     const now = new Date().toISOString();
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const dbRow = {
         ...mapLeadToDb(data),
-        id: crypto.randomUUID(),
         created_at: now,
         updated_at: now,
       };
@@ -127,29 +112,22 @@ export const leadService = {
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(formatSupabaseError(error));
-      return mapRowToLead(inserted as DbLead);
+      if (error) throw new Error(error.message);
+      const lead = mapRowToLead(inserted as DbLead);
+      addLocalActivity('lead', lead.id, 'created', `Lead created: ${lead.fullName}${lead.companyName ? ` from ${lead.companyName}` : ''}`, {
+        source: lead.source,
+        value: lead.estimatedValue,
+      });
+      return lead;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to create lead');
     }
-    const newLead: Lead = {
-      ...data,
-      id: `lead-${generateId().slice(0, 8)}`,
-      tags: data.tags || [],
-      estimatedValue: data.estimatedValue || 0,
-      createdAt: now,
-      updatedAt: now,
-    };
-    mockLeads.unshift(newLead);
-    addLocalActivity('lead', newLead.id, 'created', `Lead created: ${newLead.fullName}${newLead.companyName ? ` from ${newLead.companyName}` : ''}`, {
-      source: newLead.source,
-      value: newLead.estimatedValue,
-    });
-    return newLead;
   },
 
   async update(id: string, data: Partial<LeadFormData>): Promise<Lead | undefined> {
     const now = new Date().toISOString();
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const dbData = { ...mapLeadToDb(data), updated_at: now };
       const { data: updated, error } = await supabase
         .from('leads')
@@ -159,45 +137,31 @@ export const leadService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(formatSupabaseError(error));
+        throw new Error(error.message);
       }
-      return mapRowToLead(updated as DbLead);
+      const lead = mapRowToLead(updated as DbLead);
+      if (data.status) {
+        addLocalActivity('lead', id, 'status_changed', `Status changed to ${data.status}`, {
+          to: data.status,
+        });
+      }
+      addLocalActivity('lead', id, 'updated', `Lead updated: ${lead.fullName}`);
+      return lead;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to update lead ${id}`);
     }
-    const index = mockLeads.findIndex((l) => l.id === id);
-    if (index === -1) return undefined;
-
-    const oldStatus = mockLeads[index].status;
-    const updated = {
-      ...mockLeads[index],
-      ...data,
-      tags: data.tags ?? mockLeads[index].tags,
-      updatedAt: now,
-    };
-    mockLeads[index] = updated;
-
-    if (data.status && data.status !== oldStatus) {
-      addLocalActivity('lead', id, 'status_changed', `Status changed: ${oldStatus} → ${data.status}`, {
-        from: oldStatus,
-        to: data.status,
-      });
-    }
-    addLocalActivity('lead', id, 'updated', `Lead updated: ${updated.fullName}`);
-    return updated;
   },
 
   async delete(id: string): Promise<boolean> {
-    if (isSupabaseConfigured()) {
-      const supabase = await getSupabaseClientAsync();
+    try {
+      const supabase = await createClient();
       const { error } = await supabase.from('leads').delete().eq('id', id);
-      if (error) throw new Error(formatSupabaseError(error));
+      if (error) throw new Error(error.message);
+      addLocalActivity('lead', id, 'deleted', `Lead deleted`);
       return true;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : `Failed to delete lead ${id}`);
     }
-    const index = mockLeads.findIndex((l) => l.id === id);
-    if (index === -1) return false;
-    const deleted = mockLeads[index];
-    mockLeads.splice(index, 1);
-    addLocalActivity('lead', id, 'deleted', `Lead deleted: ${deleted.fullName}`);
-    return true;
   },
 
   async updateStatus(id: string, status: Lead['status']): Promise<Lead | undefined> {
@@ -205,22 +169,25 @@ export const leadService = {
   },
 
   async getPipelineStats(): Promise<Record<Lead['status'], { count: number; value: number }>> {
-    const allLeads = await this.getAll();
-    const stats: Record<string, { count: number; value: number }> = {
-      new: { count: 0, value: 0 },
-      contacted: { count: 0, value: 0 },
-      qualified: { count: 0, value: 0 },
-      proposal: { count: 0, value: 0 },
-      won: { count: 0, value: 0 },
-      lost: { count: 0, value: 0 },
-    };
-    for (const lead of allLeads) {
-      if (stats[lead.status]) {
-        stats[lead.status].count++;
-        stats[lead.status].value += lead.estimatedValue;
+    try {
+      const allLeads = await this.getAll();
+      const stats: Record<string, { count: number; value: number }> = {
+        new: { count: 0, value: 0 },
+        contacted: { count: 0, value: 0 },
+        qualified: { count: 0, value: 0 },
+        proposal: { count: 0, value: 0 },
+        won: { count: 0, value: 0 },
+        lost: { count: 0, value: 0 },
+      };
+      for (const lead of allLeads) {
+        if (stats[lead.status]) {
+          stats[lead.status].count++;
+          stats[lead.status].value += lead.estimatedValue;
+        }
       }
+      return stats;
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to get pipeline stats');
     }
-    return stats;
   },
-
 };
