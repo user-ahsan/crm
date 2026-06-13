@@ -17,11 +17,12 @@ import {
   IconChevronLeft,
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
-import { NAV_ITEMS, USERS } from '@/lib/constants';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { NAV_ITEMS } from '@/lib/constants';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { useTeamContext } from '@/context/TeamContext';
 import { RoleBadge } from '@/components/teams/RoleBadge';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
   Tooltip,
   TooltipContent,
@@ -69,7 +70,7 @@ export function Sidebar({
     [pathname],
   );
 
-  const currentUser = USERS[0] ?? { initials: '?', name: 'Unknown' };
+  const currentUser = useCurrentUser();
   const { role } = useTeamContext();
 
   /* ── Render ──────────────────────────────────────────── */
@@ -176,18 +177,22 @@ export function Sidebar({
                   <button
                     type="button"
                     className="flex items-center justify-center rounded-lg py-2 transition-colors hover:bg-sidebar-accent/50"
-                    aria-label={currentUser.name}
+                    aria-label={currentUser.user?.fullName ?? 'User'}
                   />
                 }
               >
                 <Avatar size="sm">
-                  <AvatarFallback className="text-xs">
-                    {currentUser.initials}
-                  </AvatarFallback>
+                  {currentUser.user?.avatarUrl ? (
+                    <AvatarImage src={currentUser.user.avatarUrl} alt={currentUser.user.fullName} />
+                  ) : (
+                    <AvatarFallback className="text-xs">
+                      {currentUser.user?.initials ?? '?'}
+                    </AvatarFallback>
+                  )}
                 </Avatar>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={8}>
-                {currentUser.name}
+                {currentUser.user?.fullName ?? 'Loading…'}
               </TooltipContent>
             </Tooltip>
 
@@ -205,14 +210,18 @@ export function Sidebar({
         ) : (
           <div className="flex items-center gap-3">
             <Avatar size="sm">
-              <AvatarFallback className="text-xs">
-                {currentUser.initials}
-              </AvatarFallback>
+              {currentUser.user?.avatarUrl ? (
+                <AvatarImage src={currentUser.user.avatarUrl} alt={currentUser.user.fullName} />
+              ) : (
+                <AvatarFallback className="text-xs">
+                  {currentUser.user?.initials ?? '?'}
+                </AvatarFallback>
+              )}
             </Avatar>
 
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">
-                {currentUser.name}
+                {currentUser.user?.fullName ?? 'Loading…'}
               </p>
               <div className="mt-0.5">
                 {role ? (

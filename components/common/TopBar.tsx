@@ -13,12 +13,12 @@ import {
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { USERS } from '@/lib/constants';
 import { useThemeStore } from '@/store/theme';
 import { useTeamContext } from '@/context/TeamContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,7 +45,7 @@ export interface TopBarProps {
 export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notificationCount = 3 }: TopBarProps) {
   const { theme, toggleTheme } = useThemeStore();
   const isDark = theme === 'dark';
-  const currentUser = USERS[0] ?? { initials: '?', name: 'User' };
+  const currentUser = useCurrentUser();
   const { team } = useTeamContext();
   const router = useRouter();
 
@@ -151,12 +151,16 @@ export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notif
             render={
               <Button variant="ghost" className="gap-2 pl-2 pr-2">
                 <Avatar size="sm">
-                  <AvatarFallback className="text-xs">
-                    {currentUser.initials}
-                  </AvatarFallback>
+                  {currentUser.user?.avatarUrl ? (
+                    <AvatarImage src={currentUser.user.avatarUrl} alt={currentUser.user.fullName} />
+                  ) : (
+                    <AvatarFallback className="text-xs">
+                      {currentUser.user?.initials ?? '?'}
+                    </AvatarFallback>
+                  )}
                 </Avatar>
                 <span className="hidden max-w-[100px] truncate text-sm font-medium md:inline">
-                  {currentUser.name}
+                  {currentUser.user?.fullName ?? 'Loading…'}
                 </span>
                 <IconChevronDown className="hidden size-3.5 text-muted-foreground md:block" />
               </Button>
@@ -168,16 +172,20 @@ export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notif
               <DropdownMenuLabel>
                 <div className="flex items-center gap-3">
                   <Avatar size="sm">
-                    <AvatarFallback className="text-xs">
-                      {currentUser.initials}
-                    </AvatarFallback>
+                    {currentUser.user?.avatarUrl ? (
+                      <AvatarImage src={currentUser.user.avatarUrl} alt={currentUser.user.fullName} />
+                    ) : (
+                      <AvatarFallback className="text-xs">
+                        {currentUser.user?.initials ?? '?'}
+                      </AvatarFallback>
+                    )}
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">
-                      {currentUser.name}
+                      {currentUser.user?.fullName ?? 'Loading…'}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
-                      admin@nexuscrm.io
+                      {currentUser.user?.email ?? ''}
                     </p>
                   </div>
                 </div>
