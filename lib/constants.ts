@@ -69,6 +69,7 @@ export const NAV_ITEMS = [
   { label: 'Tasks', href: '/tasks', icon: 'checkbox' },
   { label: 'Meetings', href: '/meetings', icon: 'calendar' },
   { label: 'Analytics', href: '/analytics', icon: 'chart-bar' },
+  { label: 'Team', href: '/settings/team', icon: 'users-group' },
   { label: 'Settings', href: '/settings', icon: 'settings' },
 ] as const;
 

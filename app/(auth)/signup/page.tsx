@@ -124,31 +124,34 @@ export default function SignupPage() {
 
         /* 4. Auto-create a default team & add user as admin */
         try {
-          const newTeam = await teamService.create({
+          // Use mock data directly (dev mode - no Supabase auth dependency)
+          const { teams } = await import('@/data/teams');
+          const now = new Date().toISOString();
+          const newTeam = {
+            id: `team-${crypto.randomUUID().slice(0, 8)}`,
             name: `${formData.fullName.split(' ')[0]}'s Team`,
             description: '',
-          });
+            createdBy: formData.email,
+            createdAt: now,
+            updatedAt: now,
+          };
+          teams.unshift(newTeam);
 
           teamMembers.push({
             id: `tm-${crypto.randomUUID().slice(0, 8)}`,
             teamId: newTeam.id,
             userId: formData.email,
             role: 'admin',
-            joinedAt: new Date().toISOString(),
+            joinedAt: now,
             user: { name: formData.fullName, email: formData.email },
           });
 
           sessionStorage.setItem(
             'onboarding-team',
-            JSON.stringify({
-              id: newTeam.id,
-              name: newTeam.name,
-            }),
+            JSON.stringify({ id: newTeam.id, name: newTeam.name }),
           );
         } catch {
-          // Team creation may fail if Supabase is configured without teams table
-          // This is non-critical - onboarding will still work
-          console.info('Team auto-creation skipped (non-critical)');
+          // Non-critical - onboarding still works
         }
 
         sessionStorage.setItem(

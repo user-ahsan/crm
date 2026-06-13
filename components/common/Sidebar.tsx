@@ -13,6 +13,7 @@ import {
   IconCalendar,
   IconChartBar,
   IconSettings,
+  IconUsersGroup,
   IconChevronLeft,
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
@@ -38,6 +39,7 @@ const iconMap = {
   calendar: IconCalendar,
   'chart-bar': IconChartBar,
   settings: IconSettings,
+  'users-group': IconUsersGroup,
 } as const;
 
 type IconKey = keyof typeof iconMap;
