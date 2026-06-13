@@ -205,16 +205,18 @@ export function TeamMemberList({
                   <TableCell>
                     {isAdmin && canModifyRole ? (
                       <DropdownMenu>
-                        <DropdownMenuTrigger>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={roleChangeLoading === member.id}
-                            className="gap-1"
-                          >
-                            <RoleBadge role={member.role} size="sm" />
-                            <IconChevronDown size={12} />
-                          </Button>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={roleChangeLoading === member.id}
+                              className="gap-1"
+                            />
+                          }
+                        >
+                          <RoleBadge role={member.role} size="sm" />
+                          <IconChevronDown size={12} />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
                           {ROLES.map((role) => (

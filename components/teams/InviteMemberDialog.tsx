@@ -106,11 +106,13 @@ export function InviteMemberDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger>
-        <Button size="sm">
-          <IconUserPlus size={16} className="mr-1.5" />
-          Invite Member
-        </Button>
+      <DialogTrigger
+        render={
+          <Button size="sm" />
+        }
+      >
+        <IconUserPlus size={16} className="mr-1.5" />
+        Invite Member
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
