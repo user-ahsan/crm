@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, type FormEvent, type ChangeEvent } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
@@ -40,8 +39,6 @@ function validateLoginForm(data: LoginFormData): ValidationResult {
 
 /* ── Login Page ──────────────────────────────────────────── */
 export default function LoginPage() {
-  const router = useRouter();
-
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     password: '',
@@ -105,18 +102,23 @@ export default function LoginPage() {
           return;
         }
 
-        /* 3. Show success toast */
+        /* 3. Read redirect param from URL */
+        const params = new URLSearchParams(window.location.search);
+        const redirectTo = params.get('redirect') || '/dashboard';
+
+        /* 4. Show success toast */
         toast.success('Welcome back!');
 
-        /* 4. Redirect to dashboard */
-        router.push('/dashboard');
+        /* 5. Force cookie flush and full-page nav */
+        await supabase.auth.getSession();
+        window.location.href = redirectTo;
       } catch (e) {
         setSubmitError(e instanceof Error ? e.message : 'An unexpected error occurred. Please try again.');
       } finally {
         setIsSubmitting(false);
       }
     },
-    [formData, router],
+    [formData],
   );
 
   /* ── Render ─────────────────────────────────────────── */
