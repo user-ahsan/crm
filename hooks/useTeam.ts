@@ -3,8 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Team, TeamMember, TeamInvitation, TeamFormData, InviteMemberFormData, TeamRole } from '@/types/team.types';
 import { teamService } from '@/services/team.service';
-
-const DEFAULT_TEAM_ID = 'team-001';
+import { createClient } from '@/lib/supabase/client';
 
 export function useTeam() {
   const [team, setTeam] = useState<Team | null>(null);
@@ -12,6 +11,22 @@ export function useTeam() {
   const [invitations, setInvitations] = useState<TeamInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  /* Fetch the current user's ID on mount */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!cancelled) setUserId(user?.id ?? null);
+      } catch {
+        if (!cancelled) setUserId(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -40,14 +55,16 @@ export function useTeam() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const currentMember: TeamMember | null = members.length > 0
-    ? (members.find((m) => m.userId === 'user-1') ?? members[0])
-    : null;
+  /* Derive currentMember from the real user's ID */
+  const currentMember: TeamMember | null =
+    userId && members.length > 0
+      ? members.find((m) => m.userId === userId) ?? null
+      : null;
 
   const updateTeam = useCallback(async (data: TeamFormData) => {
     try {
-      const teamId = team?.id ?? DEFAULT_TEAM_ID;
-      const updated = await teamService.update(teamId, data);
+      if (!team?.id) throw new Error('No team loaded');
+      const updated = await teamService.update(team.id, data);
       if (updated) setTeam(updated);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to update team');
@@ -57,8 +74,8 @@ export function useTeam() {
 
   const inviteMember = useCallback(async (data: InviteMemberFormData) => {
     try {
-      const teamId = team?.id ?? DEFAULT_TEAM_ID;
-      const newInvitation = await teamService.inviteMember(teamId, data);
+      if (!team?.id) throw new Error('No team loaded');
+      const newInvitation = await teamService.inviteMember(team.id, data);
       setInvitations((prev) => [newInvitation, ...prev]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to invite member');
@@ -105,19 +122,25 @@ export function useTeam() {
   const createTeam = useCallback(async (data: TeamFormData) => {
     try {
       const newTeam = await teamService.create(data);
+
+      /* Add the creator as an admin member via real Supabase */
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: newMember } = await supabase
+        .from('team_members')
+        .insert({
+          team_id: newTeam.id,
+          user_id: user.id,
+          role: 'admin',
+        })
+        .select()
+        .single();
+
       setTeam(newTeam);
-      // Add current user as admin member in mock data
-      const { teamMembers } = await import('@/data/team-members');
-      const { generateId } = await import('@/lib/formatters');
-      teamMembers.push({
-        id: `tm-${generateId().slice(0, 8)}`,
-        teamId: newTeam.id,
-        userId: 'user-1', // current user
-        role: 'admin',
-        joinedAt: new Date().toISOString(),
-        user: { name: 'Current User', email: 'user@nexuscrm.com' },
-      });
-      setMembers([...teamMembers.filter(m => m.teamId === newTeam.id)]);
+      setMembers(newMember ? [mapDbToTeamMember(newMember)] : []);
+
       return newTeam;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create team');
@@ -139,5 +162,15 @@ export function useTeam() {
     removeMember,
     createTeam,
     refresh,
+  };
+}
+
+function mapDbToTeamMember(row: Record<string, unknown>): TeamMember {
+  return {
+    id: row.id as string,
+    teamId: row.team_id as string,
+    userId: row.user_id as string,
+    role: row.role as TeamRole,
+    joinedAt: row.joined_at as string,
   };
 }

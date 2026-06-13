@@ -19,7 +19,7 @@ import type {
 } from '@/types/team.types';
 import { teamService } from '@/services/team.service';
 import { hasPermission, canAccessRecord } from '@/modules/teams/teamPermissions';
-import { useAuthStore } from '@/store/auth';
+import { createClient } from '@/lib/supabase/client';
 
 /* ── Context Value Interface ────────────────────────────────── */
 
@@ -55,11 +55,25 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  /* Derive current member from the authenticated user's ID */
-  const user = useAuthStore((state) => state.user);
-  const userId = user?.id ?? '';
-  const currentMember = members.find((m) => m.userId === userId) ?? null;
+  /* Fetch the real user ID from Supabase Auth */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!cancelled) setUserId(user?.id ?? null);
+      } catch {
+        if (!cancelled) setUserId(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  /* Derive current member from the real user's ID */
+  const currentMember = userId ? members.find((m) => m.userId === userId) ?? null : null;
   const role = currentMember?.role ?? null;
 
   /* ── Data Loader ────────────────────────────────────────── */
