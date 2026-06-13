@@ -136,8 +136,22 @@ export function Sidebar({
           if (collapsed) {
             return (
               <Tooltip key={item.href}>
-                <TooltipTrigger>
-                  {linkElement}
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={item.href}
+                      onClick={onNavClick}
+                      className={cn(
+                        'flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                        isActive
+                          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                          : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
+                      )}
+                      aria-current={isActive ? 'page' : undefined}
+                    />
+                  }
+                >
+                  {Icon && <Icon className="size-5 shrink-0" aria-hidden="true" />}
                 </TooltipTrigger>
                 <TooltipContent side="right" sideOffset={8}>
                   {item.label}
@@ -157,18 +171,20 @@ export function Sidebar({
         {collapsed ? (
           <div className="flex flex-col items-center gap-2">
             <Tooltip>
-              <TooltipTrigger>
-                <button
-                  type="button"
-                  className="flex items-center justify-center rounded-lg py-2 transition-colors hover:bg-sidebar-accent/50"
-                  aria-label={currentUser.name}
-                >
-                  <Avatar size="sm">
-                    <AvatarFallback className="text-xs">
-                      {currentUser.initials}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    className="flex items-center justify-center rounded-lg py-2 transition-colors hover:bg-sidebar-accent/50"
+                    aria-label={currentUser.name}
+                  />
+                }
+              >
+                <Avatar size="sm">
+                  <AvatarFallback className="text-xs">
+                    {currentUser.initials}
+                  </AvatarFallback>
+                </Avatar>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={8}>
                 {currentUser.name}

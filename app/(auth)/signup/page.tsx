@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, type FormEvent, type ChangeEvent } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
@@ -18,6 +17,8 @@ interface SignupFormData {
   password: string;
   confirmPassword: string;
 }
+
+type PageState = 'form' | 'confirm_email';
 
 interface ValidationResult {
   isValid: boolean;
@@ -63,8 +64,6 @@ function validateSignupForm(data: SignupFormData): ValidationResult {
 
 /* ── Signup Page ──────────────────────────────────────────── */
 export default function SignupPage() {
-  const router = useRouter();
-
   const [formData, setFormData] = useState<SignupFormData>({
     fullName: '',
     email: '',
@@ -72,6 +71,8 @@ export default function SignupPage() {
     confirmPassword: '',
   });
 
+  const [pageState, setPageState] = useState<PageState>('form');
+  const [registeredEmail, setRegisteredEmail] = useState('');
   const [errors, setErrors] = useState<Partial<Record<keyof SignupFormData, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -166,26 +167,77 @@ export default function SignupPage() {
         }
 
         /* 4. Store user info for onboarding */
-        sessionStorage.setItem('onboarding-user', JSON.stringify({
-          fullName: formData.fullName,
-          email: formData.email,
-        }));
+        const userInfo = { fullName: formData.fullName, email: formData.email };
+        sessionStorage.setItem('onboarding-user', JSON.stringify(userInfo));
 
-        /* 5. Show onboarding welcome toast */
-        toast.success('Account created successfully!');
-
-        /* 6. Redirect to onboarding flow */
-        router.push('/onboarding');
+        /* 5. Check if session exists (auto-login) or email confirmation is needed */
+        if (authData.session) {
+          // Force cookie flush so the middleware sees the session
+          await supabase.auth.getSession();
+          toast.success('Account created successfully!');
+          // Use full-page navigation so middleware can read fresh cookies
+          window.location.href = '/onboarding';
+        } else {
+          // No session → email confirmation required
+          setRegisteredEmail(formData.email);
+          setPageState('confirm_email');
+        }
       } catch (e) {
         setSubmitError(e instanceof Error ? e.message : 'An unexpected error occurred. Please try again.');
       } finally {
         setIsSubmitting(false);
       }
     },
-    [formData, router],
+    [formData],
   );
 
   /* ── Render ─────────────────────────────────────────── */
+  if (pageState === 'confirm_email') {
+    return (
+      <Card className="w-full max-w-md shadow-xl">
+        <CardHeader className="items-center space-y-2 pb-4 text-center">
+          <div className="mb-1 flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/70 shadow-sm">
+            <IconNetwork className="size-6 text-primary-foreground" />
+          </div>
+          <CardTitle className="text-2xl font-bold tracking-tight">
+            Check your email
+          </CardTitle>
+          <CardDescription className="text-sm leading-relaxed">
+            We sent a verification link to<br />
+            <span className="font-medium text-foreground">{registeredEmail}</span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 text-center">
+          <p className="text-sm text-muted-foreground">
+            Click the link in the email to verify your account, then sign in to continue.
+          </p>
+
+          <div className="rounded-xl bg-muted/50 px-4 py-3 text-xs text-muted-foreground">
+            <p>Didn&apos;t receive the email?</p>
+            <ul className="mt-1 list-inside list-disc space-y-0.5 text-left">
+              <li>Check your spam or junk folder</li>
+              <li>Make sure you entered the correct email</li>
+              <li>Try signing up again with the same email</li>
+            </ul>
+          </div>
+
+          <div className="flex flex-col gap-2 pt-2">
+            <Button render={<Link href="/login" />}>
+              Go to Sign In
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPageState('form')}
+            >
+              Use a different email
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="w-full max-w-md shadow-xl">
       <CardHeader className="items-center space-y-1 pb-4 text-center">
