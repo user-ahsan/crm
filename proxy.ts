@@ -22,7 +22,7 @@ const protectedRoutes = [
 const publicRoutes = ['/', '/login'] as const;
 
 /**
- * Next.js middleware that refreshes the Supabase session on every request.
+ * Next.js proxy that refreshes the Supabase session on every request.
  *
  * - Requests to protected routes without a valid session are redirected to /login.
  * - Requests to /login for already-authenticated users are redirected to /dashboard.
@@ -31,11 +31,8 @@ const publicRoutes = ['/', '/login'] as const;
  * @param request - The incoming Next.js request.
  * @returns A NextResponse with any updated session cookies or a redirect.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  // Always refresh the session for every request
-  const response = await updateSession(request);
 
   // Check if the current path is protected
   const isProtectedRoute = protectedRoutes.some((route) =>
@@ -43,7 +40,8 @@ export async function middleware(request: NextRequest) {
   );
 
   // Check if the user has an active session
-  const hasSession = request.cookies.has('sb-access-token') ||
+  const hasSession =
+    request.cookies.has('sb-access-token') ||
     request.cookies.has('sb-refresh-token');
 
   if (isProtectedRoute && !hasSession) {
@@ -58,15 +56,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  return response;
+  // Always refresh the session for every request
+  return updateSession(request);
 }
 
 /**
- * Middleware matcher – run on all routes except static assets and Next.js internals.
+ * Proxy matcher – run on all routes except static assets and Next.js internals.
  */
 export const config = {
   matcher: [
-    // Skip static files, _next, and API routes that don't need auth
+    // Skip static files, _next, and public assets
     '/((?!_next/static|_next/image|favicon.ico|api/public|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
