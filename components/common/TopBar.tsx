@@ -199,10 +199,22 @@ export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notif
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem variant="destructive" onClick={() => {
-              // Clear auth cookies
+            <DropdownMenuItem variant="destructive" onClick={async () => {
+              try {
+                const { createClient } = await import('@/lib/supabase/client');
+                const supabase = await createClient();
+                await supabase.auth.signOut();
+              } catch {
+                // Proceed with local cleanup even if Supabase call fails
+              }
+              // Clear all auth cookies
               document.cookie = 'sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
               document.cookie = 'sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+              document.cookie = 'sb-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+              // Clear any auth-related localStorage
+              localStorage.removeItem('nexuscrm-auth');
+              localStorage.removeItem('sb-access-token');
+              localStorage.removeItem('sb-refresh-token');
               // Redirect to login
               router.push('/login');
             }}>
