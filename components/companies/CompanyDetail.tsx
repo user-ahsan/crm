@@ -11,6 +11,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { TagBadge } from '@/components/common/TagBadge';
+import { TagInput } from '@/components/common/TagInput';
+import { tagService } from '@/services/tag.service';
+import type { Tag } from '@/types/tag.types';
 import { companyService } from '@/services/company.service';
 import { contactService } from '@/services/contact.service';
 import { leadService } from '@/services/lead.service';
@@ -23,6 +28,7 @@ import {
   IconMapPin,
   IconGlobe,
   IconBriefcase,
+  IconTags,
   IconAlertCircle,
   IconLoader2,
 } from '@tabler/icons-react';
@@ -42,6 +48,8 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
+  const [entityTags, setEntityTags] = useState<Tag[]>([]);
+  const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -61,6 +69,8 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
       ]);
       setLinkedContacts(contactResults.filter((c): c is Contact => c !== undefined));
       setLinkedLeads(leadResults.filter((l): l is Lead => l !== undefined));
+
+      tagService.getTagsForEntity('company', companyId).then((tags) => setEntityTags(tags)).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load company details');
     } finally {
@@ -71,6 +81,16 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const handleTagChange = useCallback(async (tags: Tag[]) => {
+    setEntityTags(tags);
+    const tagIds = tags.map((t) => t.id).filter((id) => !id.startsWith('new-'));
+    for (const tag of tags.filter((t) => t.id.startsWith('new-'))) {
+      const created = await tagService.create(tag.name, tag.color);
+      if (created) tagIds.push(created.id);
+    }
+    tagService.setTagsForEntity('company', companyId, tagIds).catch(() => {});
+  }, [companyId]);
 
   const handleBack = useCallback(() => {
     if (onBack) {
@@ -193,6 +213,31 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                   </span>
                   <span className="text-muted-foreground">/yr revenue</span>
                 </span>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-1.5 sm:justify-start">
+                {entityTags.length > 0 ? (
+                  entityTags.map((tag) => (
+                    <TagBadge key={tag.id} name={tag.name} color={tag.color} />
+                  ))
+                ) : (
+                  <span className="text-sm text-muted-foreground/50">No tags</span>
+                )}
+                <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
+                  <PopoverTrigger render={<Button variant="ghost" size="icon-sm" className="size-5" />}>
+                    <IconTags className="size-3" />
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-3" align="start">
+                    <div className="space-y-3">
+                      <p className="text-xs font-medium text-muted-foreground">Edit Tags</p>
+                      <TagInput
+                        selectedTags={entityTags}
+                        onTagsChange={handleTagChange}
+                        entityType="company"
+                        entityId={companyId}
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
           </div>

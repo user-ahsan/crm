@@ -46,6 +46,7 @@ const defaultFormData: CompanyFormData = {
   revenue: 0,
   location: '',
   website: '',
+  tags: [],
 };
 
 export function CompanyCreateForm({ open, onOpenChange, onSuccess, editCompany }: CompanyCreateFormProps) {
@@ -66,6 +67,7 @@ export function CompanyCreateForm({ open, onOpenChange, onSuccess, editCompany }
           revenue: editCompany.revenue,
           location: editCompany.location ?? '',
           website: editCompany.website ?? '',
+          tags: editCompany.tags ?? [],
         });
       } else {
         setFormData(defaultFormData);

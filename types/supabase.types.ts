@@ -9,6 +9,7 @@ import type { CompanySize } from '@/types/company.types';
 import type { TaskPriority, TaskStatus, RelatedEntityType } from '@/types/task.types';
 import type { MeetingType } from '@/types/meeting.types';
 import type { ActivityType } from '@/types/activity.types';
+import type { AutomationTriggerEvent, AutomationCondition, AutomationAction } from '@/types/automation.types';
 
 // ──────────────────────────────────────────────
 // Database public schema definition
@@ -61,6 +62,21 @@ export interface Database {
         Row: TeamInvitationRow;
         Insert: TeamInvitationInsert;
         Update: TeamInvitationUpdate;
+      };
+      automation_rules: {
+        Row: AutomationRuleRow;
+        Insert: AutomationRuleInsert;
+        Update: AutomationRuleUpdate;
+      };
+      tags: {
+        Row: TagRow;
+        Insert: TagInsert;
+        Update: TagUpdate;
+      };
+      taggings: {
+        Row: TaggingRow;
+        Insert: TaggingInsert;
+        Update: TaggingUpdate;
       };
     };
     Views: Record<string, never>;
@@ -135,6 +151,7 @@ export interface CompanyRow {
   website: string | null;
   contact_ids: string[];
   lead_ids: string[];
+  tags: string[];
   created_at: string;
   updated_at: string;
 }
@@ -227,6 +244,7 @@ export interface CompanyInsert {
   website?: string | null;
   contact_ids?: string[];
   lead_ids?: string[];
+  tags?: string[];
   created_at?: string;
   updated_at?: string;
 }
@@ -319,6 +337,7 @@ export interface CompanyUpdate {
   website?: string | null;
   contact_ids?: string[];
   lead_ids?: string[];
+  tags?: string[];
   created_at?: string;
   updated_at?: string;
 }
@@ -455,6 +474,93 @@ export interface TeamInvitationUpdate {
   status?: string;
   expires_at?: string;
 }
+
+// ──────────────────────────────────────────────
+// Tag types
+// ──────────────────────────────────────────────
+
+export interface TagRow {
+  id: string;
+  name: string;
+  color: string;
+  created_at: string;
+}
+
+export interface TagInsert {
+  id?: string;
+  name: string;
+  color?: string;
+}
+
+export interface TagUpdate {
+  id?: string;
+  name?: string;
+  color?: string;
+}
+
+export interface TaggingRow {
+  id: string;
+  tag_id: string;
+  taggable_id: string;
+  taggable_type: string;
+  created_at: string;
+}
+
+export interface TaggingInsert {
+  id?: string;
+  tag_id: string;
+  taggable_id: string;
+  taggable_type: string;
+}
+
+export interface TaggingUpdate {
+  id?: string;
+  tag_id?: string;
+  taggable_id?: string;
+  taggable_type?: string;
+}
+
+export type DbTag = TagRow;
+export type DbTagging = TaggingRow;
+
+// ── Automation Rule types ──────────────────────────────
+
+export interface AutomationRuleRow {
+  id: string;
+  name: string;
+  description: string;
+  trigger_event: AutomationTriggerEvent;
+  conditions: AutomationCondition[];
+  actions: AutomationAction[];
+  enabled: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AutomationRuleInsert {
+  id?: string;
+  name: string;
+  description?: string;
+  trigger_event: AutomationTriggerEvent;
+  conditions?: AutomationCondition[];
+  actions?: AutomationAction[];
+  enabled?: boolean;
+  created_by: string;
+}
+
+export interface AutomationRuleUpdate {
+  id?: string;
+  name?: string;
+  description?: string;
+  trigger_event?: AutomationTriggerEvent;
+  conditions?: AutomationCondition[];
+  actions?: AutomationAction[];
+  enabled?: boolean;
+  created_by?: string;
+}
+
+export type DbAutomationRule = AutomationRuleRow;
 
 export type DbTeam = TeamRow;
 export type DbTeamMember = TeamMemberRow;

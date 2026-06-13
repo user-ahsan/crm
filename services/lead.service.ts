@@ -5,6 +5,23 @@ import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
 
+function normalizePhone(phone: string): string {
+  return phone.replace(/\D/g, '').slice(-10);
+}
+
+function fuzzyNameMatch(a: string, b: string): boolean {
+  const na = a.toLowerCase().trim();
+  const nb = b.toLowerCase().trim();
+  if (na.length < 3 || nb.length < 3) return na === nb;
+  return na.slice(0, 3) === nb.slice(0, 3) && na.slice(-3) === nb.slice(-3);
+}
+
+interface DuplicateGroup {
+  lead: Lead;
+  duplicates: Lead[];
+  score: number;
+}
+
 let _client: Awaited<ReturnType<typeof createClient>> | null = null;
 async function getClient() {
   if (!_client) _client = await createClient();
@@ -199,6 +216,86 @@ export const leadService = {
 
   async updateStatus(id: string, status: Lead['status']): Promise<Lead | undefined> {
     return this.update(id, { status });
+  },
+
+  async findDuplicates(): Promise<DuplicateGroup[]> {
+    try {
+      const all = await this.getAll();
+      const groups: DuplicateGroup[] = [];
+      const visited = new Set<string>();
+
+      for (let i = 0; i < all.length; i++) {
+        if (visited.has(all[i].id)) continue;
+        const a = all[i];
+        const matches: Lead[] = [];
+        let maxScore = 0;
+
+        for (let j = i + 1; j < all.length; j++) {
+          const b = all[j];
+          if (visited.has(b.id)) continue;
+          let score = 0;
+          const reasons: string[] = [];
+
+          if (a.email && b.email && a.email.toLowerCase() === b.email.toLowerCase()) {
+            score += 40;
+            reasons.push('email');
+          }
+          if (a.phone && b.phone) {
+            const npA = normalizePhone(a.phone);
+            const npB = normalizePhone(b.phone);
+            if (npA === npB && npA.length >= 10) {
+              score += 35;
+              reasons.push('phone');
+            }
+          }
+          if (a.fullName && b.fullName && fuzzyNameMatch(a.fullName, b.fullName)) {
+            score += 15;
+            if (!reasons.includes('email') && !reasons.includes('phone')) reasons.push('name');
+          }
+          if (a.companyName && b.companyName && a.companyName.toLowerCase() === b.companyName.toLowerCase()) {
+            score += 10;
+            if (!reasons.includes('email') && !reasons.includes('phone')) reasons.push('company');
+          }
+
+          if (score >= 25) {
+            matches.push(b);
+            if (score > maxScore) maxScore = score;
+          }
+        }
+
+        if (matches.length > 0) {
+          groups.push({ lead: a, duplicates: matches, score: maxScore });
+          for (const m of matches) visited.add(m.id);
+          visited.add(a.id);
+        }
+      }
+
+      return groups.sort((a, b) => b.score - a.score);
+    } catch (e) {
+      throw new Error(formatSupabaseError(e));
+    }
+  },
+
+  async mergeLeads(survivorId: string, mergeIds: string[]): Promise<Lead> {
+    try {
+      const supabase = await getClient();
+
+      await supabase.from('tasks').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'lead');
+      await supabase.from('meetings').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'lead');
+      await supabase.from('activities').update({ entity_id: survivorId }).in('entity_id', mergeIds);
+      await supabase.from('taggings').update({ taggable_id: survivorId }).in('taggable_id', mergeIds).eq('taggable_type', 'lead');
+
+      for (const id of mergeIds) {
+        await this.delete(id);
+      }
+
+      const survivor = await this.getById(survivorId);
+      if (!survivor) throw new Error('Survivor lead not found after merge');
+      activityService.log('lead', survivorId, 'updated', `Lead merged: merged ${mergeIds.length} duplicates`);
+      return survivor;
+    } catch (e) {
+      throw new Error(formatSupabaseError(e));
+    }
   },
 
   async getPipelineStats(): Promise<Record<Lead['status'], { count: number; value: number }>> {

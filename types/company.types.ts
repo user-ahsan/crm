@@ -10,6 +10,7 @@ export interface Company {
   website?: string;
   contactIds: string[];
   leadIds: string[];
+  tags: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -21,4 +22,5 @@ export interface CompanyFormData {
   revenue: number;
   location?: string;
   website?: string;
+  tags?: string[];
 }

@@ -14,6 +14,7 @@ import {
   IconChartBar,
   IconSettings,
   IconUsersGroup,
+  IconBolt,
   IconChevronLeft,
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
@@ -41,6 +42,7 @@ const iconMap = {
   'chart-bar': IconChartBar,
   settings: IconSettings,
   'users-group': IconUsersGroup,
+  zap: IconBolt,
 } as const;
 
 type IconKey = keyof typeof iconMap;

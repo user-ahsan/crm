@@ -30,11 +30,23 @@ interface CompanyTableProps {
   companies: Company[];
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  selectedIds?: Set<string>;
+  onSelectionChange?: (ids: Set<string>) => void;
 }
 
-export function CompanyTable({ companies, onEdit, onDelete }: CompanyTableProps) {
+export function CompanyTable({ companies, onEdit, onDelete, selectedIds: externalSelectedIds, onSelectionChange }: CompanyTableProps) {
   const router = useRouter();
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
+  const selectedIds = externalSelectedIds ?? internalSelectedIds;
+
+  const setSelectedIds = useCallback((ids: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    const next = typeof ids === 'function' ? ids(externalSelectedIds ?? internalSelectedIds) : ids;
+    if (onSelectionChange) {
+      onSelectionChange(next);
+    } else {
+      setInternalSelectedIds(next);
+    }
+  }, [externalSelectedIds, internalSelectedIds, onSelectionChange]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -46,7 +58,7 @@ export function CompanyTable({ companies, onEdit, onDelete }: CompanyTableProps)
       }
       return next;
     });
-  }, []);
+  }, [setSelectedIds]);
 
   const toggleSelectAll = useCallback(() => {
     if (selectedIds.size === companies.length) {
@@ -54,7 +66,7 @@ export function CompanyTable({ companies, onEdit, onDelete }: CompanyTableProps)
     } else {
       setSelectedIds(new Set(companies.map((c) => c.id)));
     }
-  }, [companies, selectedIds.size]);
+  }, [companies, selectedIds.size, setSelectedIds]);
 
   const isAllSelected = companies.length > 0 && selectedIds.size === companies.length;
 

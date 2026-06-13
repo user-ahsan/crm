@@ -5,6 +5,12 @@ import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
 
+interface DuplicateGroup {
+  company: Company;
+  duplicates: Company[];
+  score: number;
+}
+
 let _client: Awaited<ReturnType<typeof createClient>> | null = null;
 async function getClient() {
   if (!_client) _client = await createClient();
@@ -22,6 +28,7 @@ function mapRowToCompany(row: DbCompany): Company {
     website: row.website ?? undefined,
     contactIds: row.contact_ids ?? [],
     leadIds: row.lead_ids ?? [],
+    tags: row.tags ?? [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -35,6 +42,7 @@ function mapCompanyToDb(company: Partial<CompanyFormData>): Record<string, unkno
   if (company.revenue !== undefined) db.revenue = company.revenue;
   if (company.location !== undefined) db.location = company.location || null;
   if (company.website !== undefined) db.website = company.website || null;
+  if (company.tags !== undefined) db.tags = company.tags;
   return db;
 }
 
@@ -151,6 +159,81 @@ export const companyService = {
       activityService.log('company', id, 'deleted', `Company deleted`);
       triggerWebhook('company.deleted', { id });
       return true;
+    } catch (e) {
+      throw new Error(formatSupabaseError(e));
+    }
+  },
+
+  async findDuplicates(): Promise<DuplicateGroup[]> {
+    try {
+      const all = await this.getAll();
+      const groups: DuplicateGroup[] = [];
+      const visited = new Set<string>();
+
+      for (let i = 0; i < all.length; i++) {
+        if (visited.has(all[i].id)) continue;
+        const a = all[i];
+        const matches: Company[] = [];
+        let maxScore = 0;
+
+        for (let j = i + 1; j < all.length; j++) {
+          const b = all[j];
+          if (visited.has(b.id)) continue;
+          let score = 0;
+
+          if (a.name && b.name && a.name.toLowerCase() === b.name.toLowerCase()) {
+            score += 40;
+          } else if (a.name && b.name) {
+            const na = a.name.toLowerCase().trim();
+            const nb = b.name.toLowerCase().trim();
+            if ((na.includes(nb) || nb.includes(na)) && Math.min(na.length, nb.length) >= 3) {
+              score += 20;
+            }
+          }
+          if (a.website && b.website && a.website.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '') === b.website.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')) {
+            score += 35;
+          }
+          if (a.industry && b.industry && a.industry.toLowerCase() === b.industry.toLowerCase()) {
+            score += 10;
+          }
+
+          if (score >= 20) {
+            matches.push(b);
+            if (score > maxScore) maxScore = score;
+          }
+        }
+
+        if (matches.length > 0) {
+          groups.push({ company: a, duplicates: matches, score: maxScore });
+          for (const m of matches) visited.add(m.id);
+          visited.add(a.id);
+        }
+      }
+
+      return groups.sort((a, b) => b.score - a.score);
+    } catch (e) {
+      throw new Error(formatSupabaseError(e));
+    }
+  },
+
+  async merge(survivorId: string, mergeIds: string[]): Promise<Company> {
+    try {
+      const supabase = await getClient();
+
+      await supabase.from('tasks').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'company');
+      await supabase.from('meetings').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'company');
+      await supabase.from('activities').update({ entity_id: survivorId }).in('entity_id', mergeIds);
+      await supabase.from('taggings').update({ taggable_id: survivorId }).in('taggable_id', mergeIds).eq('taggable_type', 'company');
+      await supabase.from('contacts').update({ company_id: survivorId }).in('company_id', mergeIds);
+
+      for (const id of mergeIds) {
+        await this.delete(id);
+      }
+
+      const survivor = await this.getById(survivorId);
+      if (!survivor) throw new Error('Survivor company not found after merge');
+      activityService.log('company', survivorId, 'updated', `Company merged: merged ${mergeIds.length} duplicates`);
+      return survivor;
     } catch (e) {
       throw new Error(formatSupabaseError(e));
     }

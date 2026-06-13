@@ -11,7 +11,9 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { LeadTable } from '@/components/leads/LeadTable';
 import { LeadCreateForm } from '@/components/leads/LeadCreateForm';
+import { TagBadge } from '@/components/common/TagBadge';
 import { useLeads } from '@/hooks/useLeads';
+import { useTags } from '@/hooks/useTags';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -26,7 +28,10 @@ import { LEAD_STATUSES, LEAD_SOURCES, LEAD_PRIORITIES } from '@/lib/constants';
 import { ExportDropdown } from '@/components/common/ExportDropdown';
 import { ImportDialog } from '@/components/common/ImportDialog';
 import { PermissionGuard } from '@/components/teams/PermissionGuard';
+import { BulkActionBar } from '@/components/common/BulkActionBar';
 import { useCsvExport } from '@/hooks/useCsvExport';
+import { leadService } from '@/services/lead.service';
+import { tagService } from '@/services/tag.service';
 
 const ALL_STATUS = '__all_statuses';
 const ALL_SOURCE = '__all_sources';
@@ -34,6 +39,7 @@ const ALL_PRIORITY = '__all_priorities';
 
 function LeadsPageContent() {
   const { leads, loading, error, refresh, getFiltered, deleteLead } = useLeads();
+  const { tags, loading: tagsLoading } = useTags();
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -44,6 +50,7 @@ function LeadsPageContent() {
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') ?? ALL_STATUS);
   const [sourceFilter, setSourceFilter] = useState<string>(searchParams.get('source') ?? ALL_SOURCE);
   const [priorityFilter, setPriorityFilter] = useState<string>(searchParams.get('priority') ?? ALL_PRIORITY);
+  const [tagFilter, setTagFilter] = useState<string>(searchParams.get('tag') ?? '');
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
@@ -67,9 +74,15 @@ function LeadsPageContent() {
     } else {
       params.delete('priority');
     }
+    if (tagFilter) {
+      params.set('tag', tagFilter);
+    } else {
+      params.delete('tag');
+    }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [debouncedSearch, statusFilter, sourceFilter, priorityFilter, pathname, router, searchParams]);
+  }, [debouncedSearch, statusFilter, sourceFilter, priorityFilter, tagFilter, pathname, router, searchParams]);
 
+  const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | undefined>(undefined);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -87,9 +100,15 @@ function LeadsPageContent() {
     [search, statusFilter, sourceFilter, priorityFilter],
   );
 
-  const filteredLeads = useMemo(() => getFiltered(filters), [getFiltered, filters]);
+  const filteredLeads = useMemo(() => {
+    let result = getFiltered(filters);
+    if (tagFilter) {
+      result = result.filter((l) => l.tags.includes(tagFilter));
+    }
+    return result;
+  }, [getFiltered, filters, tagFilter]);
 
-  const hasActiveFilters = search || statusFilter !== ALL_STATUS || sourceFilter !== ALL_SOURCE || priorityFilter !== ALL_PRIORITY;
+  const hasActiveFilters = search || statusFilter !== ALL_STATUS || sourceFilter !== ALL_SOURCE || priorityFilter !== ALL_PRIORITY || !!tagFilter;
 
   const handleEdit = useCallback(
     (id: string) => {
@@ -146,6 +165,34 @@ function LeadsPageContent() {
   const handleSuccess = useCallback((_lead: Lead) => {
     // The hook's internal state is already updated by createLead/updateLead
   }, []);
+
+  const handleBulkAction = useCallback(async (action: string, ids: string[], payload?: Record<string, string>) => {
+    for (const id of ids) {
+      switch (action) {
+        case 'change_status':
+          if (payload?.status) await leadService.update(id, { status: payload.status as Lead['status'] });
+          break;
+        case 'change_priority':
+          if (payload?.priority) await leadService.update(id, { priority: payload.priority as Lead['priority'] });
+          break;
+        case 'assign_to':
+          if (payload?.assignedTo) await leadService.update(id, { assignedTo: payload.assignedTo });
+          break;
+        case 'add_tag':
+          if (payload?.tag) {
+            const existing = leads.find((l) => l.id === id);
+            if (existing && !existing.tags.includes(payload.tag)) {
+              await leadService.update(id, { tags: [...existing.tags, payload.tag] });
+            }
+          }
+          break;
+        case 'delete':
+          await leadService.delete(id);
+          break;
+      }
+    }
+    refresh();
+  }, [refresh, leads]);
 
   // --- Loading State ---
   if (loading) {
@@ -239,6 +286,22 @@ function LeadsPageContent() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={tagFilter} onValueChange={(v: string | null) => { if (v !== null) setTagFilter(v); }}>
+          <SelectTrigger className="sm:w-40" aria-label="Filter by tag">
+            <SelectValue placeholder="All tags" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All tags</SelectItem>
+            {tags.map((tag) => (
+              <SelectItem key={tag.id} value={tag.name}>
+                <span className="flex items-center gap-2">
+                  <span className="size-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                  {tag.name}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Empty State */}
@@ -258,9 +321,25 @@ function LeadsPageContent() {
         />
       )}
 
+      {/* Bulk Action Bar */}
+      {selectedLeadIds.size > 0 && (
+        <BulkActionBar
+          selectedIds={Array.from(selectedLeadIds)}
+          entityType="lead"
+          onAction={handleBulkAction}
+          onClear={() => setSelectedLeadIds(new Set())}
+        />
+      )}
+
       {/* Data Table */}
       {filteredLeads.length > 0 && (
-        <LeadTable leads={filteredLeads} onEdit={handleEdit} onDelete={handleDelete} />
+        <LeadTable
+          leads={filteredLeads}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          selectedIds={selectedLeadIds}
+          onSelectionChange={setSelectedLeadIds}
+        />
       )}
 
       {/* Import Dialog */}

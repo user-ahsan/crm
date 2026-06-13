@@ -69,7 +69,9 @@ export const NAV_ITEMS = [
   { label: 'Tasks', href: '/tasks', icon: 'checkbox' },
   { label: 'Meetings', href: '/meetings', icon: 'calendar' },
   { label: 'Analytics', href: '/analytics', icon: 'chart-bar' },
+  { label: 'Automation', href: '/settings/automation', icon: 'zap' },
   { label: 'Team', href: '/settings/team', icon: 'users-group' },
+  { label: 'Data Quality', href: '/settings/data-quality', icon: 'filter' },
   { label: 'Settings', href: '/settings', icon: 'settings' },
 ] as const;
 

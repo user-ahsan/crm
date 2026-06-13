@@ -11,17 +11,24 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { ContactTable } from '@/components/contacts/ContactTable';
 import { ContactCreateForm } from '@/components/contacts/ContactCreateForm';
+import { TagBadge } from '@/components/common/TagBadge';
 import { useContacts } from '@/hooks/useContacts';
+import { useTags } from '@/hooks/useTags';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ExportDropdown } from '@/components/common/ExportDropdown';
 import { ImportDialog } from '@/components/common/ImportDialog';
 import { PermissionGuard } from '@/components/teams/PermissionGuard';
+import { BulkActionBar } from '@/components/common/BulkActionBar';
 import { useCsvExport } from '@/hooks/useCsvExport';
+import { contactService } from '@/services/contact.service';
+import { tagService } from '@/services/tag.service';
 
 function ContactsPageContent() {
   const { contacts, loading, error, refresh, deleteContact } = useContacts();
+  const { tags } = useTags();
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -29,6 +36,7 @@ function ContactsPageContent() {
 
   const [search, setSearch] = useState(searchParams.get('q') ?? '');
   const debouncedSearch = useDebounce(search, 300);
+  const [tagFilter, setTagFilter] = useState<string>(searchParams.get('tag') ?? '');
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
@@ -37,25 +45,37 @@ function ContactsPageContent() {
     } else {
       params.delete('q');
     }
+    if (tagFilter) {
+      params.set('tag', tagFilter);
+    } else {
+      params.delete('tag');
+    }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [debouncedSearch, pathname, router, searchParams]);
+  }, [debouncedSearch, tagFilter, pathname, router, searchParams]);
 
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | undefined>(undefined);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const { exportEntity, isExporting } = useCsvExport();
 
   const filteredContacts = useMemo(() => {
-    if (!debouncedSearch.trim()) return contacts;
-    const s = debouncedSearch.toLowerCase();
-    return contacts.filter(
-      (c) =>
-        c.name.toLowerCase().includes(s) ||
-        c.email?.toLowerCase().includes(s) ||
-        c.jobTitle?.toLowerCase().includes(s) ||
-        c.tags.some((t) => t.toLowerCase().includes(s)),
-    );
-  }, [contacts, debouncedSearch]);
+    let result = contacts;
+    if (debouncedSearch.trim()) {
+      const s = debouncedSearch.toLowerCase();
+      result = result.filter(
+        (c) =>
+          c.name.toLowerCase().includes(s) ||
+          c.email?.toLowerCase().includes(s) ||
+          c.jobTitle?.toLowerCase().includes(s) ||
+          c.tags.some((t) => t.toLowerCase().includes(s)),
+      );
+    }
+    if (tagFilter) {
+      result = result.filter((c) => c.tags.includes(tagFilter));
+    }
+    return result;
+  }, [contacts, debouncedSearch, tagFilter]);
 
   const handleEdit = useCallback(
     (id: string) => {
@@ -112,6 +132,25 @@ function ContactsPageContent() {
     // The hook's internal state is already updated
   }, []);
 
+  const handleBulkAction = useCallback(async (action: string, ids: string[], payload?: Record<string, string>) => {
+    for (const id of ids) {
+      switch (action) {
+        case 'add_tag':
+          if (payload?.tag) {
+            const existing = contacts.find((c) => c.id === id);
+            if (existing && !existing.tags.includes(payload.tag)) {
+              await contactService.update(id, { tags: [...existing.tags, payload.tag] });
+            }
+          }
+          break;
+        case 'delete':
+          await contactService.delete(id);
+          break;
+      }
+    }
+    refresh();
+  }, [refresh, contacts]);
+
   // --- Loading State ---
   if (loading) {
     return (
@@ -156,7 +195,7 @@ function ContactsPageContent() {
         </div>
       </PageHeader>
 
-      {/* Search Bar */}
+      {/* Filter Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Input
           placeholder="Search contacts..."
@@ -165,6 +204,22 @@ function ContactsPageContent() {
           className="sm:w-80"
           aria-label="Search contacts"
         />
+        <Select value={tagFilter} onValueChange={(v: string | null) => { if (v !== null) setTagFilter(v); }}>
+          <SelectTrigger className="sm:w-40" aria-label="Filter by tag">
+            <SelectValue placeholder="All tags" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All tags</SelectItem>
+            {tags.map((tag) => (
+              <SelectItem key={tag.id} value={tag.name}>
+                <span className="flex items-center gap-2">
+                  <span className="size-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                  {tag.name}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Empty State */}
@@ -184,12 +239,24 @@ function ContactsPageContent() {
         />
       )}
 
+      {/* Bulk Action Bar */}
+      {selectedContactIds.size > 0 && (
+        <BulkActionBar
+          selectedIds={Array.from(selectedContactIds)}
+          entityType="contact"
+          onAction={handleBulkAction}
+          onClear={() => setSelectedContactIds(new Set())}
+        />
+      )}
+
       {/* Data Table */}
       {filteredContacts.length > 0 && (
         <ContactTable
           contacts={filteredContacts}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          selectedIds={selectedContactIds}
+          onSelectionChange={setSelectedContactIds}
         />
       )}
 

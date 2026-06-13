@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Lead } from '@/types/lead.types';
 import type { Task } from '@/types/task.types';
 import type { Meeting } from '@/types/meeting.types';
@@ -17,7 +17,13 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { TagBadge } from '@/components/common/TagBadge';
+import { TagInput } from '@/components/common/TagInput';
 import { useLeads } from '@/hooks/useLeads';
+import { useTags } from '@/hooks/useTags';
+import { tagService } from '@/services/tag.service';
+import type { Tag } from '@/types/tag.types';
 import { useTasks } from '@/hooks/useTasks';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useActivities } from '@/hooks/useActivities';
@@ -73,6 +79,9 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
 
+  const [entityTags, setEntityTags] = useState<Tag[]>([]);
+  const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
+
   // Fetch lead data
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +101,28 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
       });
     });
     return () => { cancelled = true; };
+  }, [leadId]);
+
+  // Fetch tags for this lead
+  useEffect(() => {
+    if (leadState.status !== 'success') return;
+    let cancelled = false;
+    tagService.getTagsForEntity('lead', leadId).then((tags) => {
+      if (!cancelled) setEntityTags(tags);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [leadState, leadId]);
+
+  const handleTagChange = useCallback(async (tags: Tag[]) => {
+    setEntityTags(tags);
+    const tagIds = tags.map((t) => {
+      if (t.id.startsWith('new-')) {
+        tagService.create(t.name, t.color).then((created) => created.id);
+        return null;
+      }
+      return t.id;
+    }).filter(Boolean) as string[];
+    tagService.setTagsForEntity('lead', leadId, tagIds).catch(() => {});
   }, [leadId]);
 
   // Fetch related tasks, meetings, activities when tab changes or lead loads
@@ -385,19 +416,30 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
                 <IconTags className="size-3.5" />
                 Tags
               </div>
-              <div className="flex flex-wrap gap-1">
-                {lead.tags.length > 0 ? (
-                  lead.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
-                    >
-                      {tag}
-                    </span>
+              <div className="flex flex-wrap items-center gap-1">
+                {entityTags.length > 0 ? (
+                  entityTags.map((tag) => (
+                    <TagBadge key={tag.id} name={tag.name} color={tag.color} />
                   ))
                 ) : (
                   <span className="text-sm text-muted-foreground/50">—</span>
                 )}
+                <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
+                  <PopoverTrigger render={<Button variant="ghost" size="icon-sm" className="size-5" />}>
+                    <IconEdit className="size-3" />
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-3" align="start">
+                    <div className="space-y-3">
+                      <p className="text-xs font-medium text-muted-foreground">Edit Tags</p>
+                      <TagInput
+                        selectedTags={entityTags}
+                        onTagsChange={handleTagChange}
+                        entityType="lead"
+                        entityId={leadId}
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
           </div>

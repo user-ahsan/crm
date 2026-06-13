@@ -32,11 +32,23 @@ interface LeadTableProps {
   leads: Lead[];
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  selectedIds?: Set<string>;
+  onSelectionChange?: (ids: Set<string>) => void;
 }
 
-export function LeadTable({ leads, onEdit, onDelete }: LeadTableProps) {
+export function LeadTable({ leads, onEdit, onDelete, selectedIds: externalSelectedIds, onSelectionChange }: LeadTableProps) {
   const router = useRouter();
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
+  const selectedIds = externalSelectedIds ?? internalSelectedIds;
+
+  const setSelectedIds = useCallback((ids: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    const next = typeof ids === 'function' ? ids(externalSelectedIds ?? internalSelectedIds) : ids;
+    if (onSelectionChange) {
+      onSelectionChange(next);
+    } else {
+      setInternalSelectedIds(next);
+    }
+  }, [externalSelectedIds, internalSelectedIds, onSelectionChange]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -48,7 +60,7 @@ export function LeadTable({ leads, onEdit, onDelete }: LeadTableProps) {
       }
       return next;
     });
-  }, []);
+  }, [setSelectedIds]);
 
   const toggleSelectAll = useCallback(() => {
     if (selectedIds.size === leads.length) {
@@ -56,7 +68,7 @@ export function LeadTable({ leads, onEdit, onDelete }: LeadTableProps) {
     } else {
       setSelectedIds(new Set(leads.map((l) => l.id)));
     }
-  }, [leads, selectedIds.size]);
+  }, [leads, selectedIds.size, setSelectedIds]);
 
   const isAllSelected = leads.length > 0 && selectedIds.size === leads.length;
 
