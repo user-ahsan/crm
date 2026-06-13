@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { IconPlus } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import type { Contact } from '@/types/contact.types';
@@ -11,6 +12,7 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { ContactTable } from '@/components/contacts/ContactTable';
 import { ContactCreateForm } from '@/components/contacts/ContactCreateForm';
 import { useContacts } from '@/hooks/useContacts';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ExportDropdown } from '@/components/common/ExportDropdown';
@@ -18,18 +20,34 @@ import { ImportDialog } from '@/components/common/ImportDialog';
 import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { useCsvExport } from '@/hooks/useCsvExport';
 
-export default function ContactsPage() {
+function ContactsPageContent() {
   const { contacts, loading, error, refresh, deleteContact } = useContacts();
 
-  const [search, setSearch] = useState('');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const [search, setSearch] = useState(searchParams.get('q') ?? '');
+  const debouncedSearch = useDebounce(search, 300);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (debouncedSearch) {
+      params.set('q', debouncedSearch);
+    } else {
+      params.delete('q');
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [debouncedSearch, pathname, router, searchParams]);
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | undefined>(undefined);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const { exportEntity, isExporting } = useCsvExport();
 
   const filteredContacts = useMemo(() => {
-    if (!search.trim()) return contacts;
-    const s = search.toLowerCase();
+    if (!debouncedSearch.trim()) return contacts;
+    const s = debouncedSearch.toLowerCase();
     return contacts.filter(
       (c) =>
         c.name.toLowerCase().includes(s) ||
@@ -37,7 +55,7 @@ export default function ContactsPage() {
         c.jobTitle?.toLowerCase().includes(s) ||
         c.tags.some((t) => t.toLowerCase().includes(s)),
     );
-  }, [contacts, search]);
+  }, [contacts, debouncedSearch]);
 
   const handleEdit = useCallback(
     (id: string) => {
@@ -192,5 +210,13 @@ export default function ContactsPage() {
         editContact={editingContact}
       />
     </div>
+  );
+}
+
+export default function ContactsPage() {
+  return (
+    <Suspense fallback={<LoadingSkeleton type="table" count={1} />}>
+      <ContactsPageContent />
+    </Suspense>
   );
 }

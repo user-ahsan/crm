@@ -5,6 +5,12 @@ import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
 
+let _client: Awaited<ReturnType<typeof createClient>> | null = null;
+async function getClient() {
+  if (!_client) _client = await createClient();
+  return _client;
+}
+
 function mapRowToLead(row: DbLead): Lead {
   return {
     id: row.id,
@@ -47,7 +53,7 @@ function mapLeadToDb(lead: Partial<LeadFormData>): Record<string, unknown> {
 export const leadService = {
   async getAll(page = 1, pageSize = 50): Promise<Lead[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('leads')
         .select('*')
@@ -62,7 +68,7 @@ export const leadService = {
 
   async getById(id: string): Promise<Lead | undefined> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('leads')
         .select('*')
@@ -80,7 +86,7 @@ export const leadService = {
 
   async getFiltered(filters: LeadFilters, page = 1, pageSize = 50): Promise<Lead[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       let query = supabase.from('leads').select('*');
       if (filters.search) {
         const s = filters.search.toLowerCase();
@@ -102,13 +108,21 @@ export const leadService = {
   },
 
   async create(data: LeadFormData): Promise<Lead> {
-    const now = new Date().toISOString();
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
+      if (data.assignedTo) {
+        const { data: user } = await supabase.from('profiles').select('id').eq('id', data.assignedTo).maybeSingle();
+        if (!user) console.warn(`[Lead] assignedTo user ${data.assignedTo} not found`);
+      }
+      if (data.companyName) {
+        const { data: existing } = await supabase.from('companies').select('id').eq('name', data.companyName).maybeSingle();
+        if (!existing) {
+          const { data: newCompany } = await supabase.from('companies').insert({ name: data.companyName }).select().single();
+          if (newCompany) console.log(`[Lead] Auto-created company "${data.companyName}"`);
+        }
+      }
       const dbRow = {
         ...mapLeadToDb(data),
-        created_at: now,
-        updated_at: now,
       };
       const { data: inserted, error } = await supabase
         .from('leads')
@@ -136,10 +150,13 @@ export const leadService = {
   },
 
   async update(id: string, data: Partial<LeadFormData>): Promise<Lead | undefined> {
-    const now = new Date().toISOString();
     try {
-      const supabase = await createClient();
-      const dbData = { ...mapLeadToDb(data), updated_at: now };
+      const supabase = await getClient();
+      if (data.assignedTo) {
+        const { data: user } = await supabase.from('profiles').select('id').eq('id', data.assignedTo).maybeSingle();
+        if (!user) console.warn(`[Lead] assignedTo user ${data.assignedTo} not found`);
+      }
+      const dbData = { ...mapLeadToDb(data) };
       const { data: updated, error } = await supabase
         .from('leads')
         .update(dbData)
@@ -166,7 +183,7 @@ export const leadService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       await supabase.from('tasks').delete().eq('related_to_id', id);
       await supabase.from('meetings').delete().eq('related_to_id', id);
       await supabase.from('activities').delete().eq('entity_id', id);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Card,
@@ -24,6 +24,7 @@ import {
 import { PageHeader } from '@/components/common/PageHeader';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { useThemeStore } from '@/store/theme';
+import { useSettingsStore } from '@/store/settings';
 import { useTeamContext } from '@/context/TeamContext';
 import { toast } from 'sonner';
 import {
@@ -38,26 +39,6 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 
-const STORAGE_KEY = 'nexuscrm-settings';
-
-interface SettingsData {
-  displayName: string;
-  email: string;
-  timezone: string;
-  emailNotif: boolean;
-  taskReminders: boolean;
-  meetingAlerts: boolean;
-}
-
-const DEFAULT_SETTINGS: SettingsData = {
-  displayName: 'Alice Johnson',
-  email: 'alice@nexuscrm.com',
-  timezone: 'America/New_York',
-  emailNotif: true,
-  taskReminders: true,
-  meetingAlerts: true,
-};
-
 const TIMEZONE_OPTIONS = [
   { value: 'America/New_York', label: 'Eastern Time (UTC-5)' },
   { value: 'America/Chicago', label: 'Central Time (UTC-6)' },
@@ -68,81 +49,44 @@ const TIMEZONE_OPTIONS = [
   { value: 'Asia/Tokyo', label: 'Tokyo (UTC+9)' },
 ];
 
-function loadSettings(): SettingsData {
-  if (typeof window === 'undefined') return { ...DEFAULT_SETTINGS };
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_SETTINGS };
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-  } catch {
-    return { ...DEFAULT_SETTINGS };
-  }
-}
-
-function saveSettings(data: SettingsData) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
-
 export default function SettingsPage() {
   const router = useRouter();
   const { theme, toggleTheme } = useThemeStore();
   const { team, members, loading: teamLoading } = useTeamContext();
-
-  const [displayName, setDisplayName] = useState(DEFAULT_SETTINGS.displayName);
-  const [email, setEmail] = useState(DEFAULT_SETTINGS.email);
-  const [timezone, setTimezone] = useState(DEFAULT_SETTINGS.timezone);
-  const [emailNotif, setEmailNotif] = useState(DEFAULT_SETTINGS.emailNotif);
-  const [taskReminders, setTaskReminders] = useState(DEFAULT_SETTINGS.taskReminders);
-  const [meetingAlerts, setMeetingAlerts] = useState(DEFAULT_SETTINGS.meetingAlerts);
+  const {
+    displayName,
+    email,
+    timezone,
+    emailNotif,
+    taskReminders,
+    meetingAlerts,
+    setDisplayName,
+    setEmail,
+    setTimezone,
+    setEmailNotif,
+    setTaskReminders,
+    setMeetingAlerts,
+    reset,
+  } = useSettingsStore();
   const [deleteOpen, setDeleteOpen] = useState(false);
-
-  // Load settings from localStorage on mount
-  useEffect(() => {
-    const saved = loadSettings();
-    setDisplayName(saved.displayName);
-    setEmail(saved.email);
-    setTimezone(saved.timezone);
-    setEmailNotif(saved.emailNotif);
-    setTaskReminders(saved.taskReminders);
-    setMeetingAlerts(saved.meetingAlerts);
-  }, []);
 
   const handleThemeToggle = useCallback(() => {
     toggleTheme();
   }, [toggleTheme]);
 
   const handleSaveNotifications = useCallback(() => {
-    const data: SettingsData = {
-      displayName,
-      email,
-      timezone,
-      emailNotif,
-      taskReminders,
-      meetingAlerts,
-    };
-    saveSettings(data);
     toast.success('Notification preferences saved successfully.');
-  }, [displayName, email, timezone, emailNotif, taskReminders, meetingAlerts]);
+  }, []);
 
   const handleSaveAccount = useCallback(() => {
-    const data: SettingsData = {
-      displayName,
-      email,
-      timezone,
-      emailNotif,
-      taskReminders,
-      meetingAlerts,
-    };
-    saveSettings(data);
     toast.success('Account settings saved successfully.');
-  }, [displayName, email, timezone, emailNotif, taskReminders, meetingAlerts]);
+  }, []);
 
   const handleDeleteAccount = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.clear();
+    reset();
     toast.success('Account has been deleted.');
     router.push('/signup');
-  }, [router]);
+  }, [router, reset]);
 
   return (
     <div className="space-y-6">

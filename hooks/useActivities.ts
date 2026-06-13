@@ -22,7 +22,26 @@ export function useActivities() {
     }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await activityService.getAll();
+        if (!cancelled) setActivities(data);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load activities');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, []);
 
   const getByEntity = useCallback(async (entityType: string, entityId: string) => {
     try {
@@ -39,11 +58,24 @@ export function useActivities() {
     description: string,
     metadata?: Record<string, unknown>,
   ) => {
+    const tempId = `temp-${Date.now()}`;
+    const optimisticItem: Activity = {
+      id: tempId,
+      entityType,
+      entityId,
+      type,
+      description,
+      metadata,
+      timestamp: new Date().toISOString(),
+    };
+    setActivities((prev) => [optimisticItem, ...prev]);
     try {
       const activity = await activityService.log(entityType, entityId, type, description, metadata);
-      setActivities((prev) => [activity, ...prev]);
+      setActivities((prev) => prev.map((a) => (a.id === tempId ? activity : a)));
       return activity;
-    } catch {
+    } catch (e) {
+      setActivities((prev) => prev.filter((a) => a.id !== tempId));
+      setError(e instanceof Error ? e.message : 'Failed to log activity');
       return undefined;
     }
   }, []);

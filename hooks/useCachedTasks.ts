@@ -1,53 +1,49 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import type { Task, TaskFormData, TaskPriority, TaskStatus } from '@/types/task.types';
-import { taskService } from '@/services/task.service';
-import { filterTasks, sortTasks, getOverdueTasks, getDueTodayTasks } from '@/modules/tasks/taskUtils';
+import { useCallback, useEffect, useState } from 'react';
 import { useEntityCache } from '@/store/entity-cache';
+import { taskService } from '@/services/task.service';
+import type { Task, TaskFormData, TaskPriority, TaskStatus } from '@/types/task.types';
+import { filterTasks, sortTasks, getOverdueTasks, getDueTodayTasks } from '@/modules/tasks/taskUtils';
 
-export function useTasks() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+export function useCachedTasks() {
+  const tasks = useEntityCache((s) => s.tasks);
+  const setTasks = useEntityCache((s) => s.setTasks);
+  const updateTask = useEntityCache((s) => s.updateTask);
+  const removeTask = useEntityCache((s) => s.removeTask);
+  const [loading, setLoading] = useState(tasks.length === 0);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
+  const refreshFromServer = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await taskService.getAll();
       setTasks(data);
-      useEntityCache.getState().setTasks(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load tasks');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setTasks]);
 
   useEffect(() => {
+    if (tasks.length > 0) return;
     let cancelled = false;
-    const controller = new AbortController();
     (async () => {
       setLoading(true);
       setError(null);
       try {
         const data = await taskService.getAll();
-        if (!cancelled) {
-          setTasks(data);
-          useEntityCache.getState().setTasks(data);
-        }
+        if (!cancelled) setTasks(data);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load tasks');
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, []);
+    return () => { cancelled = true; };
+  }, [tasks.length, setTasks]);
 
   const getFiltered = useCallback((status?: TaskStatus | 'all', priority?: TaskPriority | 'all') => {
     return filterTasks(tasks, status, priority);
@@ -69,75 +65,59 @@ export function useTasks() {
   const dueToday = useCallback(() => getDueTodayTasks(tasks), [tasks]);
 
   const createTask = useCallback(async (data: TaskFormData) => {
-    const tempId = `temp-${Date.now()}`;
-    const optimisticItem = { ...data, id: tempId, createdAt: new Date().toISOString() } as Task;
-    setTasks((prev) => [optimisticItem, ...prev]);
     try {
       const created = await taskService.create(data);
-      setTasks((prev) => prev.map((t) => (t.id === tempId ? created : t)));
       const { tasks: cached, setTasks: setCache } = useEntityCache.getState();
       setCache([created, ...cached]);
       return created;
     } catch (e) {
-      setTasks((prev) => prev.filter((t) => t.id !== tempId));
       setError(e instanceof Error ? e.message : 'Failed to create task');
       return undefined;
     }
   }, []);
 
-  const updateTask = useCallback(async (id: string, data: Partial<TaskFormData & { status: TaskStatus }>) => {
-    const previous = tasks;
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)));
+  const updateCachedTask = useCallback(async (id: string, data: Partial<TaskFormData & { status: TaskStatus }>) => {
     try {
       const updated = await taskService.update(id, data);
-      if (updated) {
-        setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
-        useEntityCache.getState().updateTask(id, updated);
-      }
+      if (updated) updateTask(id, updated);
       return updated;
     } catch (e) {
-      setTasks(previous);
       setError(e instanceof Error ? e.message : 'Failed to update task');
       return undefined;
     }
-  }, [tasks]);
+  }, [updateTask]);
 
-  const toggleTask = useCallback(async (id: string) => {
-    const previous = tasks;
-    setTasks((prev) => prev.map((t) =>
-      t.id === id ? { ...t, status: t.status === 'completed' ? 'pending' : 'completed' as TaskStatus } : t
-    ));
+  const toggleCachedTask = useCallback(async (id: string) => {
     try {
       const updated = await taskService.toggleStatus(id);
-      if (updated) {
-        setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
-        useEntityCache.getState().updateTask(id, updated);
-      }
+      if (updated) updateTask(id, updated);
       return updated;
     } catch (e) {
-      setTasks(previous);
       setError(e instanceof Error ? e.message : 'Failed to toggle task');
       return undefined;
     }
-  }, [tasks]);
+  }, [updateTask]);
 
-  const deleteTask = useCallback(async (id: string) => {
-    const previous = tasks;
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+  const deleteCachedTask = useCallback(async (id: string) => {
     try {
       await taskService.delete(id);
-      useEntityCache.getState().removeTask(id);
+      removeTask(id);
       return true;
     } catch (e) {
-      setTasks(previous);
       setError(e instanceof Error ? e.message : 'Failed to delete task');
       return false;
     }
-  }, [tasks]);
+  }, [removeTask]);
 
   return {
-    tasks, loading, error, refresh,
+    tasks,
+    loading,
+    error,
+    refreshFromServer,
     getFiltered, getSorted, getByEntity, overdue, dueToday,
-    createTask, updateTask, toggleTask, deleteTask,
+    createTask,
+    updateTask: updateCachedTask,
+    toggleTask: toggleCachedTask,
+    deleteTask: deleteCachedTask,
   };
 }

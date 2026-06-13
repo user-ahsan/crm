@@ -5,6 +5,12 @@ import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
 
+let _client: Awaited<ReturnType<typeof createClient>> | null = null;
+async function getClient() {
+  if (!_client) _client = await createClient();
+  return _client;
+}
+
 function mapRowToTask(row: DbTask): Task {
   return {
     id: row.id,
@@ -41,7 +47,7 @@ export const taskService = {
 
   async getAllRaw(page = 1, pageSize = 50): Promise<Task[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
@@ -81,7 +87,7 @@ export const taskService = {
 
   async getById(id: string): Promise<Task | undefined> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
@@ -108,7 +114,7 @@ export const taskService = {
 
   async getByEntity(entityType: string, entityId: string, page = 1, pageSize = 50): Promise<Task[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
@@ -126,7 +132,7 @@ export const taskService = {
 
   async getByAssignedTo(userId: string, page = 1, pageSize = 50): Promise<Task[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
@@ -142,14 +148,11 @@ export const taskService = {
   },
 
   async create(data: TaskFormData): Promise<Task> {
-    const now = new Date().toISOString();
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const dbRow = {
         ...mapTaskToDb(data),
         status: 'pending',
-        created_at: now,
-        updated_at: now,
       };
       const { data: inserted, error } = await supabase
         .from('tasks')
@@ -175,10 +178,9 @@ export const taskService = {
   },
 
   async update(id: string, data: Partial<TaskFormData & { status: TaskStatus }>): Promise<Task | undefined> {
-    const now = new Date().toISOString();
     try {
-      const supabase = await createClient();
-      const dbData = { ...mapTaskToDb(data), updated_at: now };
+      const supabase = await getClient();
+      const dbData = { ...mapTaskToDb(data) };
       const { data: updated, error } = await supabase
         .from('tasks')
         .update(dbData)
@@ -202,10 +204,34 @@ export const taskService = {
 
   async toggleStatus(id: string): Promise<Task | undefined> {
     try {
-      const task = await this.getById(id);
-      if (!task) return undefined;
-      const newStatus: TaskStatus = task.status === 'completed' ? 'pending' : 'completed';
-      return this.update(id, { status: newStatus });
+      const supabase = await getClient();
+      const { data: completedData, error: completedErr } = await supabase
+        .from('tasks')
+        .update({ status: 'completed' })
+        .eq('id', id)
+        .not('status', 'eq', 'completed')
+        .select()
+        .maybeSingle();
+      if (!completedErr && completedData) {
+        const task = mapRowToTask(completedData);
+        activityService.log('task', id, 'task_completed', `Task completed: ${task.title}`);
+        triggerWebhook('task.updated', { id, status: 'completed' });
+        return task;
+      }
+      const { data: pendingData, error: pendingErr } = await supabase
+        .from('tasks')
+        .update({ status: 'pending' })
+        .eq('id', id)
+        .eq('status', 'completed')
+        .select()
+        .maybeSingle();
+      if (!pendingErr && pendingData) {
+        const task = mapRowToTask(pendingData);
+        activityService.log('task', id, 'updated', `Task reopened: ${task.title}`);
+        triggerWebhook('task.updated', { id, status: 'pending' });
+        return task;
+      }
+      return undefined;
     } catch (e) {
       throw new Error(formatSupabaseError(e));
     }
@@ -213,7 +239,7 @@ export const taskService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { error } = await supabase.from('tasks').delete().eq('id', id);
       if (error) throw new Error(error.message);
       activityService.log('task', id, 'deleted', `Task deleted`);

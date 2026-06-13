@@ -5,6 +5,12 @@ import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
 
+let _client: Awaited<ReturnType<typeof createClient>> | null = null;
+async function getClient() {
+  if (!_client) _client = await createClient();
+  return _client;
+}
+
 function mapRowToContact(row: DbContact): Contact {
   return {
     id: row.id,
@@ -40,7 +46,7 @@ function mapContactToDb(contact: Partial<ContactFormData>): Record<string, unkno
 export const contactService = {
   async getAll(page = 1, pageSize = 50): Promise<Contact[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
@@ -55,7 +61,7 @@ export const contactService = {
 
   async getById(id: string): Promise<Contact | undefined> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
@@ -73,7 +79,7 @@ export const contactService = {
 
   async getByCompanyId(companyId: string, page = 1, pageSize = 50): Promise<Contact[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
@@ -89,7 +95,7 @@ export const contactService = {
 
   async getByLeadId(leadId: string, page = 1, pageSize = 50): Promise<Contact[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
@@ -105,7 +111,7 @@ export const contactService = {
 
   async search(query: string, page = 1, pageSize = 50): Promise<Contact[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const s = query.toLowerCase();
       const { data, error } = await supabase
         .from('contacts')
@@ -121,14 +127,11 @@ export const contactService = {
   },
 
   async create(data: ContactFormData): Promise<Contact> {
-    const now = new Date().toISOString();
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const dbRow = {
         ...mapContactToDb(data),
         lead_ids: [],
-        created_at: now,
-        updated_at: now,
       };
       const { data: inserted, error } = await supabase
         .from('contacts')
@@ -151,10 +154,9 @@ export const contactService = {
   },
 
   async update(id: string, data: Partial<ContactFormData>): Promise<Contact | undefined> {
-    const now = new Date().toISOString();
     try {
-      const supabase = await createClient();
-      const dbData = { ...mapContactToDb(data), updated_at: now };
+      const supabase = await getClient();
+      const dbData = { ...mapContactToDb(data) };
       const { data: updated, error } = await supabase
         .from('contacts')
         .update(dbData)
@@ -176,7 +178,7 @@ export const contactService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       await supabase.from('tasks').delete().eq('related_to_id', id);
       await supabase.from('meetings').delete().eq('related_to_id', id);
       await supabase.from('activities').delete().eq('entity_id', id);
@@ -192,7 +194,7 @@ export const contactService = {
 
   async linkToLead(contactId: string, leadId: string): Promise<Contact | undefined> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data: contact, error: fetchError } = await supabase
         .from('contacts')
         .select('lead_ids')
@@ -208,7 +210,7 @@ export const contactService = {
       }
       const { data: updated, error: updateError } = await supabase
         .from('contacts')
-        .update({ lead_ids: [...currentLeadIds, leadId], updated_at: new Date().toISOString() })
+        .update({ lead_ids: [...currentLeadIds, leadId] })
         .eq('id', contactId)
         .select()
         .single();

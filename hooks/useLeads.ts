@@ -3,7 +3,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Lead, LeadFormData, LeadFilters } from '@/types/lead.types';
 import { leadService } from '@/services/lead.service';
-import { applyLeadFilters, sortLeads } from '@/modules/leads/leadFilters';
+import { applyLeadFilters } from '@/modules/leads/leadFilters';
+import { useEntityCache } from '@/store/entity-cache';
 
 export function useLeads() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -16,6 +17,7 @@ export function useLeads() {
     try {
       const data = await leadService.getAll();
       setLeads(data);
+      useEntityCache.getState().setLeads(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load leads');
     } finally {
@@ -23,7 +25,29 @@ export function useLeads() {
     }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await leadService.getAll();
+        if (!cancelled) {
+          setLeads(data);
+          useEntityCache.getState().setLeads(data);
+        }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load leads');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, []);
 
   const getFiltered = useCallback((filters: LeadFilters) => {
     return applyLeadFilters(leads, filters);
@@ -38,39 +62,52 @@ export function useLeads() {
   }, []);
 
   const createLead = useCallback(async (data: LeadFormData) => {
+    const tempId = `temp-${Date.now()}`;
+    const optimisticItem = { ...data, id: tempId, createdAt: new Date().toISOString() } as Lead;
+    setLeads((prev) => [optimisticItem, ...prev]);
     try {
-      const newLead = await leadService.create(data);
-      setLeads((prev) => [newLead, ...prev]);
-      return newLead;
+      const created = await leadService.create(data);
+      setLeads((prev) => prev.map((l) => (l.id === tempId ? created : l)));
+      const { leads: cachedLeads, setLeads: setCache } = useEntityCache.getState();
+      setCache([created, ...cachedLeads]);
+      return created;
     } catch (e) {
+      setLeads((prev) => prev.filter((l) => l.id !== tempId));
       setError(e instanceof Error ? e.message : 'Failed to create lead');
       return undefined;
     }
   }, []);
 
   const updateLead = useCallback(async (id: string, data: Partial<LeadFormData>) => {
+    const previous = leads;
+    setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, ...data } : l)));
     try {
       const updated = await leadService.update(id, data);
       if (updated) {
         setLeads((prev) => prev.map((l) => (l.id === id ? updated : l)));
+        useEntityCache.getState().updateLead(id, updated);
       }
       return updated;
     } catch (e) {
+      setLeads(previous);
       setError(e instanceof Error ? e.message : 'Failed to update lead');
       return undefined;
     }
-  }, []);
+  }, [leads]);
 
   const deleteLead = useCallback(async (id: string) => {
+    const previous = leads;
+    setLeads((prev) => prev.filter((l) => l.id !== id));
     try {
-      const success = await leadService.delete(id);
-      if (success) setLeads((prev) => prev.filter((l) => l.id !== id));
-      return success;
+      await leadService.delete(id);
+      useEntityCache.getState().removeLead(id);
+      return true;
     } catch (e) {
+      setLeads(previous);
       setError(e instanceof Error ? e.message : 'Failed to delete lead');
       return false;
     }
-  }, []);
+  }, [leads]);
 
   return {
     leads,

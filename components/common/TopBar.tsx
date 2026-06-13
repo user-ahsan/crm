@@ -14,6 +14,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useThemeStore } from '@/store/theme';
+import { useCallback } from 'react';
 import { useTeamContext } from '@/context/TeamContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Button } from '@/components/ui/button';
@@ -48,6 +49,23 @@ export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notif
   const currentUser = useCurrentUser();
   const { team } = useTeamContext();
   const router = useRouter();
+
+  const handleSignOut = useCallback(async () => {
+    try {
+      const { createClient } = await import('@/lib/supabase/client');
+      const supabase = await createClient();
+      await supabase.auth.signOut();
+    } catch {
+      // Proceed with local cleanup even if Supabase call fails
+    }
+    document.cookie = 'sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = 'sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = 'sb-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    localStorage.removeItem('nexuscrm-auth');
+    localStorage.removeItem('sb-access-token');
+    localStorage.removeItem('sb-refresh-token');
+    router.push('/login');
+  }, [router]);
 
   return (
     <header
@@ -207,25 +225,7 @@ export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notif
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem variant="destructive" onClick={async () => {
-              try {
-                const { createClient } = await import('@/lib/supabase/client');
-                const supabase = await createClient();
-                await supabase.auth.signOut();
-              } catch {
-                // Proceed with local cleanup even if Supabase call fails
-              }
-              // Clear all auth cookies
-              document.cookie = 'sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-              document.cookie = 'sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-              document.cookie = 'sb-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-              // Clear any auth-related localStorage
-              localStorage.removeItem('nexuscrm-auth');
-              localStorage.removeItem('sb-access-token');
-              localStorage.removeItem('sb-refresh-token');
-              // Redirect to login
-              router.push('/login');
-            }}>
+            <DropdownMenuItem variant="destructive" onClick={handleSignOut}>
               <IconLogout className="size-4" />
               Sign out
             </DropdownMenuItem>

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { IconPlus } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import type { Lead, LeadStatus, LeadSource, LeadPriority } from '@/types/lead.types';
@@ -11,6 +12,7 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { LeadTable } from '@/components/leads/LeadTable';
 import { LeadCreateForm } from '@/components/leads/LeadCreateForm';
 import { useLeads } from '@/hooks/useLeads';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,13 +32,44 @@ const ALL_STATUS = '__all_statuses';
 const ALL_SOURCE = '__all_sources';
 const ALL_PRIORITY = '__all_priorities';
 
-export default function LeadsPage() {
+function LeadsPageContent() {
   const { leads, loading, error, refresh, getFiltered, deleteLead } = useLeads();
 
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>(ALL_STATUS);
-  const [sourceFilter, setSourceFilter] = useState<string>(ALL_SOURCE);
-  const [priorityFilter, setPriorityFilter] = useState<string>(ALL_PRIORITY);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const [search, setSearch] = useState(searchParams.get('q') ?? '');
+  const debouncedSearch = useDebounce(search, 300);
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') ?? ALL_STATUS);
+  const [sourceFilter, setSourceFilter] = useState<string>(searchParams.get('source') ?? ALL_SOURCE);
+  const [priorityFilter, setPriorityFilter] = useState<string>(searchParams.get('priority') ?? ALL_PRIORITY);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (debouncedSearch) {
+      params.set('q', debouncedSearch);
+    } else {
+      params.delete('q');
+    }
+    if (statusFilter !== ALL_STATUS) {
+      params.set('status', statusFilter);
+    } else {
+      params.delete('status');
+    }
+    if (sourceFilter !== ALL_SOURCE) {
+      params.set('source', sourceFilter);
+    } else {
+      params.delete('source');
+    }
+    if (priorityFilter !== ALL_PRIORITY) {
+      params.set('priority', priorityFilter);
+    } else {
+      params.delete('priority');
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [debouncedSearch, statusFilter, sourceFilter, priorityFilter, pathname, router, searchParams]);
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | undefined>(undefined);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -44,7 +77,7 @@ export default function LeadsPage() {
 
   const filters = useMemo(
     () => ({
-      search,
+      search: debouncedSearch,
       status: (statusFilter !== ALL_STATUS ? statusFilter : undefined) as LeadStatus | undefined,
       source: (sourceFilter !== ALL_SOURCE ? sourceFilter : undefined) as LeadSource | undefined,
       priority: (priorityFilter !== ALL_PRIORITY ? priorityFilter : undefined) as
@@ -247,5 +280,13 @@ export default function LeadsPage() {
         editLead={editingLead}
       />
     </div>
+  );
+}
+
+export default function LeadsPage() {
+  return (
+    <Suspense fallback={<LoadingSkeleton type="table" count={1} />}>
+      <LeadsPageContent />
+    </Suspense>
   );
 }

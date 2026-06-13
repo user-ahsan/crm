@@ -5,6 +5,12 @@ import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
 
+let _client: Awaited<ReturnType<typeof createClient>> | null = null;
+async function getClient() {
+  if (!_client) _client = await createClient();
+  return _client;
+}
+
 function mapRowToCompany(row: DbCompany): Company {
   return {
     id: row.id,
@@ -35,7 +41,7 @@ function mapCompanyToDb(company: Partial<CompanyFormData>): Record<string, unkno
 export const companyService = {
   async getAll(page = 1, pageSize = 50): Promise<Company[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('companies')
         .select('*')
@@ -50,7 +56,7 @@ export const companyService = {
 
   async getById(id: string): Promise<Company | undefined> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('companies')
         .select('*')
@@ -68,7 +74,7 @@ export const companyService = {
 
   async search(query: string, page = 1, pageSize = 50): Promise<Company[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const s = query.toLowerCase();
       const { data, error } = await supabase
         .from('companies')
@@ -84,15 +90,12 @@ export const companyService = {
   },
 
   async create(data: CompanyFormData): Promise<Company> {
-    const now = new Date().toISOString();
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const dbRow = {
         ...mapCompanyToDb(data),
         contact_ids: [],
         lead_ids: [],
-        created_at: now,
-        updated_at: now,
       };
       const { data: inserted, error } = await supabase
         .from('companies')
@@ -115,10 +118,9 @@ export const companyService = {
   },
 
   async update(id: string, data: Partial<CompanyFormData>): Promise<Company | undefined> {
-    const now = new Date().toISOString();
     try {
-      const supabase = await createClient();
-      const dbData = { ...mapCompanyToDb(data), updated_at: now };
+      const supabase = await getClient();
+      const dbData = { ...mapCompanyToDb(data) };
       const { data: updated, error } = await supabase
         .from('companies')
         .update(dbData)
@@ -140,7 +142,7 @@ export const companyService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       await supabase.from('tasks').delete().eq('related_to_id', id);
       await supabase.from('meetings').delete().eq('related_to_id', id);
       await supabase.from('activities').delete().eq('entity_id', id);

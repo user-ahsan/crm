@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { IconPlus } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import type { Company } from '@/types/company.types';
@@ -10,33 +11,50 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { CompanyTable } from '@/components/companies/CompanyTable';
 import { CompanyCreateForm } from '@/components/companies/CompanyCreateForm';
-import { useCompanies } from '@/hooks/useCompanies';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ExportDropdown } from '@/components/common/ExportDropdown';
 import { ImportDialog } from '@/components/common/ImportDialog';
 import { PermissionGuard } from '@/components/teams/PermissionGuard';
+import { useCompanies } from '@/hooks/useCompanies';
 import { useCsvExport } from '@/hooks/useCsvExport';
+import { useDebounce } from '@/hooks/useDebounce';
 
-export default function CompaniesPage() {
+/* ── Inner component with useSearchParams (requires Suspense wrapper) ── */
+function CompaniesPageContent() {
   const { companies, loading, error, refresh, deleteCompany } = useCompanies();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('q') ?? '');
+  const debouncedSearch = useDebounce(search, 300);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (debouncedSearch) {
+      params.set('q', debouncedSearch);
+    } else {
+      params.delete('q');
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [debouncedSearch, pathname, router, searchParams]);
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | undefined>(undefined);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const { exportEntity, isExporting } = useCsvExport();
 
   const filteredCompanies = useMemo(() => {
-    if (!search.trim()) return companies;
-    const s = search.toLowerCase();
+    if (!debouncedSearch.trim()) return companies;
+    const s = debouncedSearch.toLowerCase();
     return companies.filter(
       (c) =>
         c.name.toLowerCase().includes(s) ||
         c.industry?.toLowerCase().includes(s) ||
         c.location?.toLowerCase().includes(s),
     );
-  }, [companies, search]);
+  }, [companies, debouncedSearch]);
 
   const handleEdit = useCallback(
     (id: string) => {
@@ -191,5 +209,14 @@ export default function CompaniesPage() {
         editCompany={editingCompany}
       />
     </div>
+  );
+}
+
+/* ── Outer wrapper — no useSearchParams here, so it can be statically rendered ── */
+export default function CompaniesPage() {
+  return (
+    <Suspense fallback={<LoadingSkeleton type="table" count={1} />}>
+      <CompaniesPageContent />
+    </Suspense>
   );
 }

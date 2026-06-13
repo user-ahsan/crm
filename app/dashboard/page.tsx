@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import type { Lead } from '@/types/lead.types';
 import type { Task } from '@/types/task.types';
@@ -8,11 +8,13 @@ import type { Meeting } from '@/types/meeting.types';
 import { useLeads } from '@/hooks/useLeads';
 import { useTasks } from '@/hooks/useTasks';
 import { useMeetings } from '@/hooks/useMeetings';
+import { useInView } from '@/hooks/useInView';
 import {
   computeDashboardKPIs,
   computePipelineFunnel,
   computeLeadSources,
   computeMonthlyPerformance,
+  type DashboardKPIs,
 } from '@/modules/analytics/analyticsUtils';
 import { getDueTodayTasks } from '@/modules/tasks/taskUtils';
 import { formatCurrency } from '@/lib/formatters';
@@ -48,6 +50,39 @@ import {
   IconArrowRight,
   IconUsersGroup,
 } from '@tabler/icons-react';
+
+/* ── SessionStorage cache for above-fold KPIs ──────────── */
+const CACHE_KEY = 'dashboard-kpis';
+const CACHE_TTL = 60_000; // 60 seconds
+
+interface CacheEntry {
+  kpis: DashboardKPIs;
+  timestamp: number;
+}
+
+function loadCachedKPIs(): DashboardKPIs | null {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const entry: CacheEntry = JSON.parse(raw);
+    if (Date.now() - entry.timestamp > CACHE_TTL) {
+      sessionStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+    return entry.kpis;
+  } catch {
+    return null;
+  }
+}
+
+function saveCachedKPIs(kpis: DashboardKPIs): void {
+  try {
+    const entry: CacheEntry = { kpis, timestamp: Date.now() };
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(entry));
+  } catch {
+    // sessionStorage may be full or unavailable — non-critical
+  }
+}
 
 type PageState = 'loading' | 'error' | 'empty' | 'ready';
 
@@ -105,12 +140,28 @@ export default function DashboardPage() {
   const { meetings, loading: meetingsLoading, error: meetingsError, refresh: refreshMeetings } = useMeetings();
   const { team, loading: teamLoading } = useTeamContext();
 
+  // ── SessionStorage cache for above-fold KPIs ────────────────
+  const [cachedKpis, setCachedKpis] = useState<DashboardKPIs | null>(null);
+  const [cacheReady, setCacheReady] = useState(false);
+
+  useEffect(() => {
+    setCachedKpis(loadCachedKPIs());
+    setCacheReady(true);
+  }, []);
+
+  // ── Lazy loading refs for below-fold content ──────────
+  const [funnelRef, funnelInView] = useInView(0.1);
+  const [monthlyRef, monthlyInView] = useInView(0.1);
+
+  // ── Page state (cache-aware: skip loading if cached) ──
   const pageState = useMemo<PageState>(() => {
+    if (!cacheReady) return 'loading';
+    if (cachedKpis) return 'ready'; // show cached data instantly
     if (leadsLoading || tasksLoading || meetingsLoading) return 'loading';
     if (leadsError || tasksError || meetingsError) return 'error';
     if (leads.length === 0 && tasks.length === 0 && meetings.length === 0) return 'empty';
     return 'ready';
-  }, [leadsLoading, tasksLoading, meetingsLoading, leadsError, tasksError, meetingsError, leads, tasks, meetings]);
+  }, [cacheReady, cachedKpis, leadsLoading, tasksLoading, meetingsLoading, leadsError, tasksError, meetingsError, leads, tasks, meetings]);
 
   const error = leadsError ?? tasksError ?? meetingsError;
 
@@ -121,7 +172,19 @@ export default function DashboardPage() {
   }, [refreshLeads, refreshTasks, refreshMeetings]);
 
   /* Memoised computations */
-  const kpis = useMemo(() => computeDashboardKPIs(leads, tasks, meetings), [leads, tasks, meetings]);
+  const rawKpis = useMemo(() => computeDashboardKPIs(leads, tasks, meetings), [leads, tasks, meetings]);
+
+  // Use cached KPIs while hooks are loading or data is empty; fall through to fresh data otherwise
+  const kpis = cachedKpis && (leadsLoading || tasksLoading || meetingsLoading || leads.length === 0)
+    ? cachedKpis
+    : rawKpis;
+
+  // Persist fresh KPIs to cache once data arrives
+  useEffect(() => {
+    if (leads.length > 0 && !leadsLoading && !tasksLoading && !meetingsLoading) {
+      saveCachedKPIs(rawKpis);
+    }
+  }, [rawKpis, leads.length, leadsLoading, tasksLoading, meetingsLoading]);
   const funnel = useMemo(() => computePipelineFunnel(leads), [leads]);
   const sources = useMemo(() => computeLeadSources(leads), [leads]);
   const monthly = useMemo(() => computeMonthlyPerformance(leads), [leads]);
@@ -300,106 +363,133 @@ export default function DashboardPage() {
       {/* Middle Section: Pipeline Funnel + Monthly Performance */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Pipeline Funnel */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Pipeline Funnel</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {funnel.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No pipeline data available.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {funnel.map((stage, index) => {
-                  const maxCount = Math.max(...funnel.map((s) => s.count)) || 1;
-                  const barWidth = (stage.count / maxCount) * 100;
-                  return (
-                    <div key={stage.name} className="space-y-1">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">{stage.name}</span>
-                        <span className="text-muted-foreground">
-                          {stage.count} leads &middot;{' '}
-                          {formatCurrency(stage.value)}
-                        </span>
-                      </div>
-                      <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-primary transition-all"
-                          style={{ width: `${Math.max(barWidth, 2)}%` }}
-                        />
-                      </div>
+        <div ref={funnelRef}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Pipeline Funnel</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {funnelInView ? (
+                funnel.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    No pipeline data available.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {funnel.map((stage) => {
+                      const maxCount = Math.max(...funnel.map((s) => s.count)) || 1;
+                      const barWidth = (stage.count / maxCount) * 100;
+                      return (
+                        <div key={stage.name} className="space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="font-medium">{stage.name}</span>
+                            <span className="text-muted-foreground">
+                              {stage.count} leads &middot;{' '}
+                              {formatCurrency(stage.value)}
+                            </span>
+                          </div>
+                          <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full rounded-full bg-primary transition-all"
+                              style={{ width: `${Math.max(barWidth, 2)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )
+              ) : (
+                <div className="space-y-4" style={{ minHeight: 250 }}>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="space-y-1.5">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-3 w-full rounded-full" />
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Monthly Performance */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Monthly Performance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {monthly.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No monthly data available.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {/* Legend */}
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-block size-3 rounded-sm bg-primary" />
-                    <span>Leads</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-block size-3 rounded-sm bg-green-500" />
-                    <span>Won</span>
-                  </div>
-                </div>
-                {/* Bars */}
-                <div
-                  className="flex items-end gap-3"
-                  style={{ height: 180 }}
-                >
-                  {monthly.map((m) => {
-                    const maxLead = Math.max(...monthly.map((x) => x.leads)) || 1;
-                    const maxWon = Math.max(...monthly.map((x) => x.won)) || 1;
-                    return (
-                      <div
-                        key={m.month}
-                        className="flex flex-1 flex-col items-center gap-1"
-                      >
-                        {/* Won bar (stacked on top) */}
-                        <div
-                          className="w-full rounded-t-sm bg-green-500 transition-all"
-                          style={{
-                            height: `${(m.won / maxWon) * 120}px`,
-                            minHeight: m.won > 0 ? 4 : 0,
-                          }}
-                        />
-                        {/* Leads bar */}
-                        <div
-                          className="w-full rounded-sm bg-primary transition-all"
-                          style={{
-                            height: `${(m.leads / maxLead) * 120}px`,
-                            minHeight: m.leads > 0 ? 4 : 0,
-                          }}
-                        />
-                        <span className="mt-1 text-xs text-muted-foreground">
-                          {m.month.slice(5)}
-                        </span>
+        <div ref={monthlyRef}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly Performance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {monthlyInView ? (
+                monthly.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    No monthly data available.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Legend */}
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block size-3 rounded-sm bg-primary" />
+                        <span>Leads</span>
                       </div>
-                    );
-                  })}
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block size-3 rounded-sm bg-green-500" />
+                        <span>Won</span>
+                      </div>
+                    </div>
+                    {/* Bars */}
+                    <div
+                      className="flex items-end gap-3"
+                      style={{ height: 180 }}
+                    >
+                      {monthly.map((m) => {
+                        const maxLead = Math.max(...monthly.map((x) => x.leads)) || 1;
+                        const maxWon = Math.max(...monthly.map((x) => x.won)) || 1;
+                        return (
+                          <div
+                            key={m.month}
+                            className="flex flex-1 flex-col items-center gap-1"
+                          >
+                            {/* Won bar (stacked on top) */}
+                            <div
+                              className="w-full rounded-t-sm bg-green-500 transition-all"
+                              style={{
+                                height: `${(m.won / maxWon) * 120}px`,
+                                minHeight: m.won > 0 ? 4 : 0,
+                              }}
+                            />
+                            {/* Leads bar */}
+                            <div
+                              className="w-full rounded-sm bg-primary transition-all"
+                              style={{
+                                height: `${(m.leads / maxLead) * 120}px`,
+                                minHeight: m.leads > 0 ? 4 : 0,
+                              }}
+                            />
+                            <span className="mt-1 text-xs text-muted-foreground">
+                              {m.month.slice(5)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div className="flex items-end gap-3" style={{ height: 180, minHeight: 220 }}>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton
+                      key={i}
+                      className="flex-1 rounded-t-sm"
+                      style={{ height: `${40 + (i * 11) % 60}px` }}
+                    />
+                  ))}
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Bottom Section: Lead Sources + Tasks Due Today */}

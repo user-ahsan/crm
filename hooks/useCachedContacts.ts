@@ -1,52 +1,48 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import type { Contact, ContactFormData } from '@/types/contact.types';
-import { contactService } from '@/services/contact.service';
+import { useCallback, useEffect, useState } from 'react';
 import { useEntityCache } from '@/store/entity-cache';
+import { contactService } from '@/services/contact.service';
+import type { Contact, ContactFormData } from '@/types/contact.types';
 
-export function useContacts() {
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState(true);
+export function useCachedContacts() {
+  const contacts = useEntityCache((s) => s.contacts);
+  const setContacts = useEntityCache((s) => s.setContacts);
+  const updateContact = useEntityCache((s) => s.updateContact);
+  const removeContact = useEntityCache((s) => s.removeContact);
+  const [loading, setLoading] = useState(contacts.length === 0);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
+  const refreshFromServer = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await contactService.getAll();
       setContacts(data);
-      useEntityCache.getState().setContacts(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load contacts');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setContacts]);
 
   useEffect(() => {
+    if (contacts.length > 0) return;
     let cancelled = false;
-    const controller = new AbortController();
     (async () => {
       setLoading(true);
       setError(null);
       try {
         const data = await contactService.getAll();
-        if (!cancelled) {
-          setContacts(data);
-          useEntityCache.getState().setContacts(data);
-        }
+        if (!cancelled) setContacts(data);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load contacts');
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, []);
+    return () => { cancelled = true; };
+  }, [contacts.length, setContacts]);
 
   const getById = useCallback(async (id: string) => {
     try {
@@ -65,52 +61,48 @@ export function useContacts() {
   }, []);
 
   const createContact = useCallback(async (data: ContactFormData) => {
-    const tempId = `temp-${Date.now()}`;
-    const optimisticItem = { ...data, id: tempId, createdAt: new Date().toISOString() } as Contact;
-    setContacts((prev) => [optimisticItem, ...prev]);
     try {
       const created = await contactService.create(data);
-      setContacts((prev) => prev.map((c) => (c.id === tempId ? created : c)));
       const { contacts: cached, setContacts: setCache } = useEntityCache.getState();
       setCache([created, ...cached]);
       return created;
     } catch (e) {
-      setContacts((prev) => prev.filter((c) => c.id !== tempId));
       setError(e instanceof Error ? e.message : 'Failed to create contact');
       return undefined;
     }
   }, []);
 
-  const updateContact = useCallback(async (id: string, data: Partial<ContactFormData>) => {
-    const previous = contacts;
-    setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)));
+  const updateCachedContact = useCallback(async (id: string, data: Partial<ContactFormData>) => {
     try {
       const updated = await contactService.update(id, data);
-      if (updated) {
-        setContacts((prev) => prev.map((c) => (c.id === id ? updated : c)));
-        useEntityCache.getState().updateContact(id, updated);
-      }
+      if (updated) updateContact(id, updated);
       return updated;
     } catch (e) {
-      setContacts(previous);
       setError(e instanceof Error ? e.message : 'Failed to update contact');
       return undefined;
     }
-  }, [contacts]);
+  }, [updateContact]);
 
-  const deleteContact = useCallback(async (id: string) => {
-    const previous = contacts;
-    setContacts((prev) => prev.filter((c) => c.id !== id));
+  const deleteCachedContact = useCallback(async (id: string) => {
     try {
       await contactService.delete(id);
-      useEntityCache.getState().removeContact(id);
+      removeContact(id);
       return true;
     } catch (e) {
-      setContacts(previous);
       setError(e instanceof Error ? e.message : 'Failed to delete contact');
       return false;
     }
-  }, [contacts]);
+  }, [removeContact]);
 
-  return { contacts, loading, error, refresh, getById, getByCompanyId, createContact, updateContact, deleteContact };
+  return {
+    contacts,
+    loading,
+    error,
+    refreshFromServer,
+    getById,
+    getByCompanyId,
+    createContact,
+    updateContact: updateCachedContact,
+    deleteContact: deleteCachedContact,
+  };
 }

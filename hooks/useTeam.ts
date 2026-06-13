@@ -1,76 +1,48 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Team, TeamMember, TeamInvitation, TeamFormData, InviteMemberFormData, TeamRole } from '@/types/team.types';
+import type { TeamInvitation, TeamFormData, InviteMemberFormData, TeamRole } from '@/types/team.types';
 import { teamService } from '@/services/team.service';
-import { createClient } from '@/lib/supabase/client';
+import { useTeamContext } from '@/context/TeamContext';
 
 export function useTeam() {
-  const [team, setTeam] = useState<Team | null>(null);
-  const [members, setMembers] = useState<TeamMember[]>([]);
+  const { team, members, currentMember, loading, error: contextError, refresh: refreshContext } = useTeamContext();
   const [invitations, setInvitations] = useState<TeamInvitation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
-  /* Fetch the current user's ID on mount */
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     (async () => {
-      try {
-        const supabase = await createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!cancelled) setUserId(user?.id ?? null);
-      } catch {
-        if (!cancelled) setUserId(null);
+      if (team) {
+        try {
+          const teamInvitations = await teamService.getInvitations(team.id);
+          if (!cancelled) setInvitations(teamInvitations);
+        } catch {
+          if (!cancelled) setInvitations([]);
+        }
+      } else {
+        if (!cancelled) setInvitations([]);
       }
     })();
-    return () => { cancelled = true; };
-  }, []);
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [team]);
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const currentTeam = await teamService.getCurrentTeam();
-      setTeam(currentTeam);
-
-      if (currentTeam) {
-        const [teamMembers, teamInvitations] = await Promise.all([
-          teamService.getMembers(currentTeam.id),
-          teamService.getInvitations(currentTeam.id),
-        ]);
-        setMembers(teamMembers);
-        setInvitations(teamInvitations);
-      } else {
-        setMembers([]);
-        setInvitations([]);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load team data');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { refresh(); }, [refresh]);
-
-  /* Derive currentMember from the real user's ID */
-  const currentMember: TeamMember | null =
-    userId && members.length > 0
-      ? members.find((m) => m.userId === userId) ?? null
-      : null;
+  const error = mutationError || contextError;
 
   const updateTeam = useCallback(async (data: TeamFormData) => {
     try {
       if (!team?.id) throw new Error('No team loaded');
-      const updated = await teamService.update(team.id, data);
-      if (updated) setTeam(updated);
+      await teamService.update(team.id, data);
+      await refreshContext();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to update team');
+      setMutationError(e instanceof Error ? e.message : 'Failed to update team');
       throw e;
     }
-  }, [team]);
+  }, [team, refreshContext]);
 
   const inviteMember = useCallback(async (data: InviteMemberFormData) => {
     try {
@@ -78,7 +50,7 @@ export function useTeam() {
       const newInvitation = await teamService.inviteMember(team.id, data);
       setInvitations((prev) => [newInvitation, ...prev]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to invite member');
+      setMutationError(e instanceof Error ? e.message : 'Failed to invite member');
       throw e;
     }
   }, [team]);
@@ -90,63 +62,41 @@ export function useTeam() {
         setInvitations((prev) => prev.filter((inv) => inv.id !== invitationId));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to cancel invitation');
+      setMutationError(e instanceof Error ? e.message : 'Failed to cancel invitation');
       throw e;
     }
   }, []);
 
   const changeMemberRole = useCallback(async (memberId: string, role: TeamRole) => {
     try {
-      const updated = await teamService.changeMemberRole(memberId, role);
-      if (updated) {
-        setMembers((prev) => prev.map((m) => (m.id === memberId ? updated : m)));
-      }
+      await teamService.changeMemberRole(memberId, role);
+      await refreshContext();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to change member role');
+      setMutationError(e instanceof Error ? e.message : 'Failed to change member role');
       throw e;
     }
-  }, []);
+  }, [refreshContext]);
 
   const removeMember = useCallback(async (memberId: string) => {
     try {
-      const success = await teamService.removeMember(memberId);
-      if (success) {
-        setMembers((prev) => prev.filter((m) => m.id !== memberId));
-      }
+      await teamService.removeMember(memberId);
+      await refreshContext();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to remove member');
+      setMutationError(e instanceof Error ? e.message : 'Failed to remove member');
       throw e;
     }
-  }, []);
+  }, [refreshContext]);
 
   const createTeam = useCallback(async (data: TeamFormData) => {
     try {
-      const newTeam = await teamService.create(data);
-
-      /* Add the creator as an admin member via real Supabase */
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const { data: newMember } = await supabase
-        .from('team_members')
-        .insert({
-          team_id: newTeam.id,
-          user_id: user.id,
-          role: 'admin',
-        })
-        .select()
-        .single();
-
-      setTeam(newTeam);
-      setMembers(newMember ? [mapDbToTeamMember(newMember)] : []);
-
-      return newTeam;
+      const result = await teamService.createTeamWithAdmin(data);
+      await refreshContext();
+      return result.team;
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create team');
+      setMutationError(e instanceof Error ? e.message : 'Failed to create team');
       throw e;
     }
-  }, []);
+  }, [refreshContext]);
 
   return {
     team,
@@ -161,16 +111,6 @@ export function useTeam() {
     changeMemberRole,
     removeMember,
     createTeam,
-    refresh,
-  };
-}
-
-function mapDbToTeamMember(row: Record<string, unknown>): TeamMember {
-  return {
-    id: row.id as string,
-    teamId: row.team_id as string,
-    userId: row.user_id as string,
-    role: row.role as TeamRole,
-    joinedAt: row.joined_at as string,
+    refresh: refreshContext,
   };
 }

@@ -2,6 +2,14 @@ import { createClient } from '@/lib/supabase/client';
 import type { Team, TeamMember, TeamInvitation, TeamFormData, InviteMemberFormData, TeamRole } from '@/types/team.types';
 import type { DbTeam, DbTeamMember, DbTeamInvitation } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
+import { activityService } from './activity.service';
+import { triggerWebhook } from './webhook.service';
+
+let _client: Awaited<ReturnType<typeof createClient>> | null = null;
+async function getClient() {
+  if (!_client) _client = await createClient();
+  return _client;
+}
 
 function mapRowToTeam(row: DbTeam): Team {
   return {
@@ -47,7 +55,7 @@ function mapRowToTeamInvitation(row: DbTeamInvitation): TeamInvitation {
 export const teamService = {
   async getCurrentTeam(): Promise<Team | null> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('teams')
         .select('*')
@@ -65,7 +73,7 @@ export const teamService = {
 
   async getMembers(teamId: string): Promise<TeamMember[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('team_members')
         .select('*')
@@ -79,7 +87,7 @@ export const teamService = {
 
   async getInvitations(teamId: string): Promise<TeamInvitation[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('team_invitations')
         .select('*')
@@ -92,9 +100,8 @@ export const teamService = {
   },
 
   async create(data: TeamFormData): Promise<Team> {
-    const now = new Date().toISOString();
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
 
       /* Get the real authenticated user's ID */
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -104,8 +111,6 @@ export const teamService = {
         name: data.name,
         description: data.description ?? null,
         created_by: user.id,
-        created_at: now,
-        updated_at: now,
       };
       const { data: inserted, error } = await supabase
         .from('teams')
@@ -113,17 +118,19 @@ export const teamService = {
         .select()
         .single();
       if (error) throw new Error(error.message);
-      return mapRowToTeam(inserted as DbTeam);
+      const team = mapRowToTeam(inserted as DbTeam);
+      activityService.log('team', team.id, 'created', `Team created: ${team.name}`);
+      triggerWebhook('team.created', { id: team.id, name: team.name });
+      return team;
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : 'Failed to create team');
     }
   },
 
   async update(id: string, data: Partial<TeamFormData>): Promise<Team | undefined> {
-    const now = new Date().toISOString();
     try {
-      const supabase = await createClient();
-      const dbData: Record<string, unknown> = { ...mapTeamToDb(data), updated_at: now };
+      const supabase = await getClient();
+      const dbData: Record<string, unknown> = { ...mapTeamToDb(data) };
       const { data: updated, error } = await supabase
         .from('teams')
         .update(dbData)
@@ -134,17 +141,19 @@ export const teamService = {
         if (error.code === 'PGRST116') return undefined;
         throw new Error(error.message);
       }
-      return mapRowToTeam(updated as DbTeam);
+      const team = mapRowToTeam(updated as DbTeam);
+      activityService.log('team', id, 'updated', `Team updated: ${team.name}`);
+      triggerWebhook('team.updated', { id, ...data });
+      return team;
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : 'Failed to update team');
     }
   },
 
   async inviteMember(teamId: string, data: InviteMemberFormData): Promise<TeamInvitation> {
-    const now = new Date().toISOString();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
 
       /* Get the real authenticated user's ID */
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -157,7 +166,6 @@ export const teamService = {
         invited_by: user.id,
         status: 'pending',
         expires_at: expiresAt,
-        created_at: now,
       };
       const { data: inserted, error } = await supabase
         .from('team_invitations')
@@ -178,7 +186,7 @@ export const teamService = {
 
   async cancelInvitation(invitationId: string): Promise<boolean> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { error } = await supabase
         .from('team_invitations')
         .delete()
@@ -192,7 +200,7 @@ export const teamService = {
 
   async changeMemberRole(memberId: string, role: TeamRole): Promise<TeamMember | undefined> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data: updated, error } = await supabase
         .from('team_members')
         .update({ role })
@@ -211,7 +219,7 @@ export const teamService = {
 
   async removeMember(memberId: string): Promise<boolean> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { error } = await supabase
         .from('team_members')
         .delete()
@@ -220,6 +228,46 @@ export const teamService = {
       return true;
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : 'Failed to remove member');
+    }
+  },
+
+  async createTeamWithAdmin(data: TeamFormData): Promise<{ team: Team; member: TeamMember }> {
+    try {
+      const supabase = await getClient();
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error(userError?.message ?? 'Not authenticated');
+
+      const dbRow = {
+        name: data.name,
+        description: data.description ?? null,
+        created_by: user.id,
+      };
+      const { data: inserted, error } = await supabase
+        .from('teams')
+        .insert(dbRow)
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      const team = mapRowToTeam(inserted as DbTeam);
+
+      const { data: newMember, error: memberError } = await supabase
+        .from('team_members')
+        .insert({
+          team_id: team.id,
+          user_id: user.id,
+          role: 'admin',
+        })
+        .select()
+        .single();
+      if (memberError) throw new Error(memberError.message);
+
+      const member = mapRowToTeamMember(newMember as DbTeamMember);
+      activityService.log('team', team.id, 'created', `Team created: ${team.name}`);
+      triggerWebhook('team.created', { id: team.id, name: team.name });
+      return { team, member };
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : 'Failed to create team');
     }
   },
 };

@@ -4,6 +4,12 @@ import type { DbActivity } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
 import { triggerWebhook } from './webhook.service';
 
+let _client: Awaited<ReturnType<typeof createClient>> | null = null;
+async function getClient() {
+  if (!_client) _client = await createClient();
+  return _client;
+}
+
 function mapRowToActivity(row: DbActivity): Activity {
   return {
     id: row.id,
@@ -19,7 +25,7 @@ function mapRowToActivity(row: DbActivity): Activity {
 export const activityService = {
   async getAll(page = 1, pageSize = 50): Promise<Activity[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('activities')
         .select('*')
@@ -34,7 +40,7 @@ export const activityService = {
 
   async getByEntity(entityType: string, entityId: string): Promise<Activity[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('activities')
         .select('*')
@@ -50,7 +56,7 @@ export const activityService = {
 
   async getByType(type: ActivityType): Promise<Activity[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('activities')
         .select('*')
@@ -63,10 +69,16 @@ export const activityService = {
     }
   },
 
-  async getRecent(limit = 10): Promise<Activity[]> {
+  async getRecent(limit = 20): Promise<Activity[]> {
     try {
-      const all = await this.getAll();
-      return all.slice(0, limit);
+      const supabase = await getClient();
+      const { data, error } = await supabase
+        .from('activities')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .range(0, limit - 1);
+      if (error) throw new Error(error.message);
+      return data?.map(mapRowToActivity) ?? [];
     } catch (e) {
       throw new Error(formatSupabaseError(e));
     }
@@ -81,7 +93,7 @@ export const activityService = {
   ): Promise<Activity> {
     const timestamp = new Date().toISOString();
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const dbRow = {
         entity_type: entityType,
         entity_id: entityId,

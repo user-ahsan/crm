@@ -470,16 +470,28 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
                       className="flex items-center justify-between rounded-lg border p-3"
                     >
                       <div className="flex items-center gap-3">
-                        <div
+                        <span
                           className={cn(
-                            'size-2 rounded-full',
+                            'inline-flex items-center gap-1 text-xs',
                             task.status === 'completed'
-                              ? 'bg-green-500'
+                              ? 'text-green-600 dark:text-green-400'
                               : task.status === 'overdue'
-                                ? 'bg-red-500'
-                                : 'bg-yellow-500'
+                                ? 'text-red-600 dark:text-red-400'
+                                : 'text-yellow-600 dark:text-yellow-400'
                           )}
-                        />
+                        >
+                          <span
+                            className={cn(
+                              'size-2 rounded-full',
+                              task.status === 'completed'
+                                ? 'bg-green-500'
+                                : task.status === 'overdue'
+                                  ? 'bg-red-500'
+                                  : 'bg-yellow-500'
+                            )}
+                          />
+                          {task.status === 'completed' ? 'Done' : task.status === 'overdue' ? 'Overdue' : 'Pending'}
+                        </span>
                         <span className="text-sm font-medium text-foreground">{task.title}</span>
                       </div>
                       <span className="text-xs text-muted-foreground">
@@ -660,7 +672,19 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
                     className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50"
                   >
                     <div className="flex items-start gap-3">
-                      <div className={cn('mt-1.5 size-2.5 shrink-0 rounded-full', statusIcon)} />
+                      <span
+                        className={cn(
+                          'mt-1.5 inline-flex items-center gap-1 text-[10px] font-medium',
+                          task.status === 'completed'
+                            ? 'text-green-600 dark:text-green-400'
+                            : task.status === 'overdue'
+                              ? 'text-red-600 dark:text-red-400'
+                              : 'text-yellow-600 dark:text-yellow-400'
+                        )}
+                      >
+                        <span className={cn('size-2.5 shrink-0 rounded-full', statusIcon)} />
+                        {task.status === 'completed' ? 'Done' : task.status === 'overdue' ? 'Overdue' : 'Active'}
+                      </span>
                       <div>
                         <p
                           className={cn(

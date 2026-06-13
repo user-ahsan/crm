@@ -5,6 +5,12 @@ import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
 
+let _client: Awaited<ReturnType<typeof createClient>> | null = null;
+async function getClient() {
+  if (!_client) _client = await createClient();
+  return _client;
+}
+
 function mapRowToMeeting(row: DbMeeting): Meeting {
   return {
     id: row.id,
@@ -39,7 +45,7 @@ function mapMeetingToDb(meeting: Partial<MeetingFormData & { outcome: string }>)
 export const meetingService = {
   async getAll(page = 1, pageSize = 50): Promise<Meeting[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('meetings')
         .select('*')
@@ -54,7 +60,7 @@ export const meetingService = {
 
   async getById(id: string): Promise<Meeting | undefined> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('meetings')
         .select('*')
@@ -72,7 +78,7 @@ export const meetingService = {
 
   async getByEntity(entityType: string, entityId: string, page = 1, pageSize = 50): Promise<Meeting[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('meetings')
         .select('*')
@@ -89,7 +95,7 @@ export const meetingService = {
 
   async getByDateRange(start: string, end: string, page = 1, pageSize = 50): Promise<Meeting[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const { data, error } = await supabase
         .from('meetings')
         .select('*')
@@ -106,7 +112,7 @@ export const meetingService = {
 
   async getUpcoming(limit = 5): Promise<Meeting[]> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const now = new Date().toISOString();
       const { data, error } = await supabase
         .from('meetings')
@@ -122,13 +128,10 @@ export const meetingService = {
   },
 
   async create(data: MeetingFormData): Promise<Meeting> {
-    const now = new Date().toISOString();
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       const dbRow = {
         ...mapMeetingToDb(data),
-        created_at: now,
-        updated_at: now,
       };
       const { data: inserted, error } = await supabase
         .from('meetings')
@@ -140,9 +143,6 @@ export const meetingService = {
       activityService.log('meeting', meeting.id, 'meeting_scheduled', `Meeting scheduled: ${meeting.title}`, {
         date: meeting.dateTime,
       });
-      if (meeting.relatedToType && meeting.relatedToId) {
-        activityService.log(meeting.relatedToType, meeting.relatedToId, 'meeting_scheduled', `Meeting scheduled: ${meeting.title}`);
-      }
       triggerWebhook('meeting.created', {
         id: meeting.id,
         title: meeting.title,
@@ -157,10 +157,9 @@ export const meetingService = {
   },
 
   async update(id: string, data: Partial<MeetingFormData & { outcome: string }>): Promise<Meeting | undefined> {
-    const now = new Date().toISOString();
     try {
-      const supabase = await createClient();
-      const dbData = { ...mapMeetingToDb(data), updated_at: now };
+      const supabase = await getClient();
+      const dbData = { ...mapMeetingToDb(data) };
       const { data: updated, error } = await supabase
         .from('meetings')
         .update(dbData)
@@ -181,7 +180,7 @@ export const meetingService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const supabase = await createClient();
+      const supabase = await getClient();
       await supabase.from('activities').delete().eq('entity_id', id);
       const { error } = await supabase.from('meetings').delete().eq('id', id);
       if (error) throw new Error(error.message);
