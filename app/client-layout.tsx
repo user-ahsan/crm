@@ -7,7 +7,8 @@ import { Toaster } from '@/components/ui/sonner';
 import { useThemeStore } from '@/store';
 
 /* ── Routes that should NOT render the AppShell ──────────── */
-const AUTH_ROUTES = ['/login'];
+/* /login and /signup are standalone pages with no sidebar/navbar shell. */
+const AUTH_ROUTES = ['/login', '/signup'];
 
 /* ── Props ────────────────────────────────────────────────── */
 export interface ClientLayoutProps {

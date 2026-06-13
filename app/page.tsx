@@ -150,7 +150,7 @@ export default function HomePage() {
               <Button
                 size="lg"
                 className="w-full sm:w-auto"
-                onClick={() => router.push('/login')}
+                onClick={() => router.push('/signup')}
               >
                 Get Started
                 <IconChevronRight className="size-4" />
@@ -230,7 +230,7 @@ export default function HomePage() {
             <Button
               size="lg"
               className="mt-8"
-              onClick={() => router.push('/login')}
+              onClick={() => router.push('/signup')}
             >
               Get Started Free
               <IconChevronRight className="size-4" />

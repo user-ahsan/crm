@@ -10,50 +10,76 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 
-/* ── Validation ──────────────────────────────────────────── */
-interface LoginFormData {
+/* ── Types ────────────────────────────────────────────────── */
+interface SignupFormData {
+  fullName: string;
   email: string;
   password: string;
+  confirmPassword: string;
 }
 
 interface ValidationResult {
   isValid: boolean;
-  errors: Partial<Record<keyof LoginFormData, string>>;
+  errors: Partial<Record<keyof SignupFormData, string>>;
 }
 
-function validateLoginForm(data: LoginFormData): ValidationResult {
-  const errors: Partial<Record<keyof LoginFormData, string>> = {};
+/* ── Validation ──────────────────────────────────────────── */
+function validateSignupForm(data: SignupFormData): ValidationResult {
+  const errors: Partial<Record<keyof SignupFormData, string>> = {};
 
-  if (!data.email.trim()) {
+  /* Full Name */
+  const trimmedName = data.fullName.trim();
+  if (!trimmedName) {
+    errors.fullName = 'Full name is required';
+  } else if (trimmedName.length < 2) {
+    errors.fullName = 'Name must be at least 2 characters';
+  }
+
+  /* Email */
+  const trimmedEmail = data.email.trim();
+  if (!trimmedEmail) {
     errors.email = 'Email is required';
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())) {
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
     errors.email = 'Please enter a valid email address';
   }
 
+  /* Password */
   if (!data.password) {
     errors.password = 'Password is required';
+  } else if (data.password.length < 6) {
+    errors.password = 'Password must be at least 6 characters';
+  }
+
+  /* Confirm Password */
+  if (!data.confirmPassword) {
+    errors.confirmPassword = 'Please confirm your password';
+  } else if (data.password !== data.confirmPassword) {
+    errors.confirmPassword = 'Passwords do not match';
   }
 
   return { isValid: Object.keys(errors).length === 0, errors };
 }
 
-/* ── Login Page ──────────────────────────────────────────── */
-export default function LoginPage() {
+/* ── Signup Page ──────────────────────────────────────────── */
+export default function SignupPage() {
   const router = useRouter();
 
-  const [formData, setFormData] = useState<LoginFormData>({
+  const [formData, setFormData] = useState<SignupFormData>({
+    fullName: '',
     email: '',
     password: '',
+    confirmPassword: '',
   });
 
-  const [errors, setErrors] = useState<Partial<Record<keyof LoginFormData, string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof SignupFormData, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword1, setShowPassword1] = useState(false);
+  const [showPassword2, setShowPassword2] = useState(false);
 
   /* ── Field change handler ───────────────────────────── */
   const handleChange = useCallback(
-    (field: keyof LoginFormData) => (e: ChangeEvent<HTMLInputElement>) => {
+    (field: keyof SignupFormData) => (e: ChangeEvent<HTMLInputElement>) => {
       setFormData((prev) => ({ ...prev, [field]: e.target.value }));
       /* Clear field error when user starts typing */
       if (errors[field]) {
@@ -77,7 +103,7 @@ export default function LoginPage() {
       setSubmitError(null);
 
       /* 1. Validate */
-      const validation = validateLoginForm(formData);
+      const validation = validateSignupForm(formData);
       if (!validation.isValid) {
         setErrors(validation.errors);
         return;
@@ -91,8 +117,8 @@ export default function LoginPage() {
         await new Promise((resolve) => setTimeout(resolve, 1200));
 
         /* 3. Show success toast */
-        toast.success('Welcome to NexusCRM!', {
-          description: 'You have been signed in successfully.',
+        toast.success('Account created successfully', {
+          description: 'Welcome to NexusCRM! You can now sign in.',
         });
 
         /* 4. Redirect to dashboard */
@@ -118,7 +144,7 @@ export default function LoginPage() {
           Nexus<span className="text-muted-foreground">CRM</span>
         </CardTitle>
         <CardDescription className="text-sm">
-          Sign in to your account to continue
+          Create your account to get started
         </CardDescription>
       </CardHeader>
 
@@ -134,11 +160,33 @@ export default function LoginPage() {
             </div>
           )}
 
+          {/* Full Name Field */}
+          <div className="space-y-2">
+            <Label htmlFor="signup-fullname">Full Name</Label>
+            <Input
+              id="signup-fullname"
+              type="text"
+              placeholder="John Doe"
+              value={formData.fullName}
+              onChange={handleChange('fullName')}
+              disabled={isSubmitting}
+              aria-invalid={!!errors.fullName}
+              aria-describedby={errors.fullName ? 'fullname-error' : undefined}
+              autoComplete="name"
+              autoFocus
+            />
+            {errors.fullName && (
+              <p id="fullname-error" className="text-xs font-medium text-destructive">
+                {errors.fullName}
+              </p>
+            )}
+          </div>
+
           {/* Email Field */}
           <div className="space-y-2">
-            <Label htmlFor="login-email">Email</Label>
+            <Label htmlFor="signup-email">Email</Label>
             <Input
-              id="login-email"
+              id="signup-email"
               type="email"
               placeholder="you@company.com"
               value={formData.email}
@@ -147,7 +195,6 @@ export default function LoginPage() {
               aria-invalid={!!errors.email}
               aria-describedby={errors.email ? 'email-error' : undefined}
               autoComplete="email"
-              autoFocus
             />
             {errors.email && (
               <p id="email-error" className="text-xs font-medium text-destructive">
@@ -158,28 +205,28 @@ export default function LoginPage() {
 
           {/* Password Field */}
           <div className="space-y-2">
-            <Label htmlFor="login-password">Password</Label>
+            <Label htmlFor="signup-password">Password</Label>
             <div className="relative">
               <Input
-                id="login-password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Enter your password"
+                id="signup-password"
+                type={showPassword1 ? 'text' : 'password'}
+                placeholder="Min. 6 characters"
                 value={formData.password}
                 onChange={handleChange('password')}
                 disabled={isSubmitting}
                 aria-invalid={!!errors.password}
                 aria-describedby={errors.password ? 'password-error' : undefined}
-                autoComplete="current-password"
+                autoComplete="new-password"
                 className="pr-10"
               />
               <button
                 type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
+                onClick={() => setShowPassword1((prev) => !prev)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword1 ? 'Hide password' : 'Show password'}
                 tabIndex={-1}
               >
-                {showPassword ? (
+                {showPassword1 ? (
                   <IconEyeOff className="size-4" />
                 ) : (
                   <IconEye className="size-4" />
@@ -189,6 +236,48 @@ export default function LoginPage() {
             {errors.password && (
               <p id="password-error" className="text-xs font-medium text-destructive">
                 {errors.password}
+              </p>
+            )}
+          </div>
+
+          {/* Confirm Password Field */}
+          <div className="space-y-2">
+            <Label htmlFor="signup-confirm-password">Confirm Password</Label>
+            <div className="relative">
+              <Input
+                id="signup-confirm-password"
+                type={showPassword2 ? 'text' : 'password'}
+                placeholder="Re-enter your password"
+                value={formData.confirmPassword}
+                onChange={handleChange('confirmPassword')}
+                disabled={isSubmitting}
+                aria-invalid={!!errors.confirmPassword}
+                aria-describedby={
+                  errors.confirmPassword ? 'confirm-password-error' : undefined
+                }
+                autoComplete="new-password"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword2((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={showPassword2 ? 'Hide confirm password' : 'Show confirm password'}
+                tabIndex={-1}
+              >
+                {showPassword2 ? (
+                  <IconEyeOff className="size-4" />
+                ) : (
+                  <IconEye className="size-4" />
+                )}
+              </button>
+            </div>
+            {errors.confirmPassword && (
+              <p
+                id="confirm-password-error"
+                className="text-xs font-medium text-destructive"
+              >
+                {errors.confirmPassword}
               </p>
             )}
           </div>
@@ -223,21 +312,21 @@ export default function LoginPage() {
                     d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
                   />
                 </svg>
-                Signing in…
+                Creating account…
               </span>
             ) : (
-              'Sign In'
+              'Create Account'
             )}
           </Button>
 
-          {/* Sign-up link */}
+          {/* Sign-in link */}
           <p className="text-center text-sm text-muted-foreground">
-            Don&apos;t have an account?{' '}
+            Already have an account?{' '}
             <Link
-              href="/signup"
+              href="/login"
               className="font-medium text-primary underline-offset-4 hover:underline"
             >
-              Sign Up
+              Sign In
             </Link>
           </p>
         </form>
