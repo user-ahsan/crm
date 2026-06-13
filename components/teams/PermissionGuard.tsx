@@ -15,8 +15,9 @@ interface PermissionGuardProps {
 
 /**
  * Renders children only if the current user has the specified permission.
- * If denied + fallback: renders fallback.
- * If denied + no fallback: renders nothing (null).
+ * - While role is loading: renders nothing (avoids "Access Denied" flash).
+ * - If denied + fallback: renders fallback.
+ * - If denied + no fallback: renders nothing (null).
  * No layout shift — uses inline rendering (no wrappers that affect layout).
  */
 export function PermissionGuard({
@@ -26,8 +27,11 @@ export function PermissionGuard({
   fallback,
   children,
 }: PermissionGuardProps) {
-  const { role } = useTeamContext();
+  const { role, loading } = useTeamContext();
   const { hasPermission, canAccessRecord } = usePermissions(role);
+
+  /* While loading, render nothing — avoids flashing "Access Denied" */
+  if (loading) return null;
 
   const isAllowed = scope
     ? canAccessRecord(entity, scope)

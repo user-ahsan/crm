@@ -57,31 +57,26 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
-  /* Fetch the real user ID from Supabase Auth */
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const supabase = await createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!cancelled) setUserId(user?.id ?? null);
-      } catch {
-        if (!cancelled) setUserId(null);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  /* Derive current member from the real user's ID */
-  const currentMember = userId ? members.find((m) => m.userId === userId) ?? null : null;
-  const role = currentMember?.role ?? null;
-
-  /* ── Data Loader ────────────────────────────────────────── */
+  /* ── Data Loader (waits for userId before resolving) ─────── */
   const load = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
+      /* 1. Get the real user ID from Supabase Auth */
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      const uid = user?.id ?? null;
+      setUserId(uid);
+
+      /* 2. If we have no authenticated user, stop here */
+      if (!uid) {
+        setTeam(null);
+        setMembers([]);
+        return;
+      }
+
+      /* 3. Load team data */
       const currentTeam = await teamService.getCurrentTeam();
       setTeam(currentTeam);
 
@@ -104,6 +99,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  /* Derive current member from the real user's ID */
+  const currentMember = userId ? members.find((m) => m.userId === userId) ?? null : null;
+  const role = currentMember?.role ?? null;
 
   /* ── Permission Helpers (stable references via useMemo) ─── */
   const permissionHelpers = useMemo(() => {
