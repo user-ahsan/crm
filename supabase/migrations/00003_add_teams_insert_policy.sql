@@ -10,4 +10,4 @@ create policy "Authenticated users can create teams"
 create policy "Users can add themselves as members"
   on public.team_members for insert
   to authenticated
-  with check (user_id = auth.uid());
+  with check (user_id = auth.uid()::text);
