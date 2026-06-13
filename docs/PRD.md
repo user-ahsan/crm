@@ -1,483 +1,151 @@
-# PRODUCT REQUIREMENTS DOCUMENT (PRD)
+# Product Requirements Document (PRD)
 
-## CRM + SALES + CONTACT + SCHEDULING PLATFORM
-
----
-
-## 1. PRODUCT OVERVIEW
-
-### 1.1 Product Name (Working)
-
-**NexusCRM** – Unified Sales & Relationship Management System
-
-### 1.2 Vision
-
-To build a fully integrated CRM system that manages:
-
-- Leads
-- Contacts
-- Companies
-- Sales pipelines
-- Meetings & scheduling
-- Communication logs
-- Activity tracking
-- Sales analytics
-
-The system acts as a single source of truth for all customer relationships.
-
-### 1.3 Core Idea
-
-Instead of fragmented tools (Excel + WhatsApp + Calendar + Notes), this system unifies:
-
-> Lead → Contact → Deal → Meeting → Outcome → Analytics
-
-### 1.4 Target Users
-
-- Sales teams
-- Freelancers
-- Agencies
-- Startups
-- Customer support teams
-- Business development teams
+## Project Name: NexusCRM — Unified Sales & Relationship Management System
 
 ---
 
-## 2. PRODUCT GOALS
+### 1. Project Overview & Objective
 
-### 2.1 Primary Goals
+- **What is it?** A fully interactive, SaaS-style CRM frontend that manages the complete sales lifecycle — from lead acquisition to deal closure. It simulates the experience of enterprise platforms like HubSpot and Pipedrive, entirely on the frontend.
+- **The Problem:** Sales teams, freelancers, and agencies resort to fragmented tools (Excel + WhatsApp + Calendar + Notes) to manage customer relationships. There is no single source of truth for tracking leads, contacts, meetings, tasks, and deal progress.
+- **The Solution:** NexusCRM unifies the entire sales workflow into one dashboard — Lead → Contact → Company → Deal → Meeting → Task → Outcome → Analytics — with a polished, production-grade UI.
 
-- Centralize customer data
-- Track sales lifecycle
-- Manage communication history
-- Schedule meetings efficiently
-- Improve conversion rates
-- Provide analytics-driven insights
+### 2. Core User Personas & Target Audience
 
-### 2.2 Secondary Goals
+| Persona | Primary Goal |
+|---------|-------------|
+| **Sales Rep** | Track leads, move deals through pipeline, log activities, schedule follow-ups |
+| **Sales Manager** | Monitor team performance, view pipeline analytics, forecast revenue |
+| **Freelancer** | Manage client relationships, track proposals, log communications |
+| **Agency Owner** | Organize contacts/companies, track multiple deals, schedule client meetings |
+| **Startup Founder** | Centralize early customer data, track conversion funnel |
 
-- Provide clean UI/UX like SaaS tools (HubSpot-like feel)
-- Reduce manual tracking effort
-- Provide automation-ready structure
-- Support scalability for multi-user teams
+### 3. What You Are Building (In Scope)
 
-### 2.3 Non-Goals
-
-- No real payment processing
-- No external email sending system required (optional mock only)
-- No telephony integration (Twilio, etc.)
-- No AI automation required (optional future extension)
-
----
-
-## 3. CORE SYSTEM MODULES
-
-### 3.1 LEAD MANAGEMENT SYSTEM
-
-#### 3.1.1 Purpose
-
-Track potential customers from entry → conversion.
-
-#### 3.1.2 Lead Data Structure
-
-Each lead contains:
-
-| Field             | Type     |
-|-------------------|----------|
-| Lead ID           | UUID     |
-| Full Name         | String   |
-| Email             | String   |
-| Phone Number      | String   |
-| Company Name      | String   |
-| Industry          | String   |
-| Country / Region  | String   |
-| Lead Source       | Enum     |
-| Status            | Enum     |
-| Priority          | Enum     |
-| Assigned Sales Rep| User ID  |
-| Estimated Value   | Number   |
-| Tags              | String[] |
-| Notes             | Text     |
-| Created Date      | DateTime |
-| Last Updated Date | DateTime |
-
-**Lead Source enum:** Manual, Website, Referral, Ads, Social
-
-**Status enum:** New, Contacted, Qualified, Converted, Lost
-
-**Priority enum:** Low, Medium, High
-
-#### 3.1.3 Lead Lifecycle Stages
-
-```
-New Lead → Contacted → Responded → Qualified → Proposal Sent → Negotiation → Won / Lost
-```
-
-#### 3.1.4 Features
-
-- Create Lead
-- Edit Lead
-- Delete Lead
-- Bulk Import Leads
-- Search Leads
-- Filter Leads (status, source, priority)
+#### 3.1 Lead Management System
+- Create / Edit / Delete leads
+- Lead status pipeline: New → Contacted → Qualified → Proposal → Won / Lost
 - Assign leads to users
-- Add internal notes
-- View lead timeline
-- Change status with one click
-- Lead activity tracking
+- Lead notes & activity timeline
+- Lead filtering + search
+- **This is the CORE of the CRM.**
 
-#### 3.1.5 Lead Detail View
+#### 3.2 Contact Management System
+- Add / Edit / Delete contacts (people)
+- Link contacts to leads
+- Contact profile page with activity history
+- Tagging system
+- Global contact search
 
-Each lead has a full profile:
+#### 3.3 Company Management System
+- Company profiles
+- Link companies to leads & contacts
+- Company dashboard with revenue estimation (mock)
+- Company activity aggregation
 
-- Contact info
-- Communication history
-- Meetings
-- Notes
-- Tasks
-- Deal value progression
+#### 3.4 Sales Pipeline (Kanban Board)
+- Drag & drop pipeline with stages: New → Contacted → Qualified → Proposal → Won → Lost
+- Move leads between stages
+- Stage-wise analytics (counts, values)
 
----
+#### 3.5 Task Management System
+- Create tasks assigned to leads/contacts/companies
+- Due dates & priority levels
+- Mark complete / incomplete
+- Overdue detection (UI logic)
 
-### 3.2 CONTACT MANAGEMENT SYSTEM
-
-#### 3.2.1 Purpose
-
-Store and manage real individuals associated with leads or companies.
-
-#### 3.2.2 Contact Fields
-
-| Field         | Type     |
-|---------------|----------|
-| Contact ID    | UUID     |
-| Name          | String   |
-| Email         | String   |
-| Phone         | String   |
-| Job Title     | String   |
-| Company       | String   |
-| Linked Leads   | Lead[]   |
-| Location      | String   |
-| Social Links  | String[] |
-| Tags          | String[] |
-| Notes         | Text     |
-
-#### 3.2.3 Features
-
-- Add/Edit/Delete contact
-- Link contact to multiple leads
-- Contact activity timeline
-- Communication logs
-- Contact search engine
-- Contact grouping (by company or tags)
-
-#### 3.2.4 Contact Profile Page
-
-Includes:
-
-- Overview card
-- Associated leads
-- Meeting history
-- Task list
-- Communication log
-- Notes system
-
----
-
-### 3.3 COMPANY MANAGEMENT SYSTEM
-
-#### 3.3.1 Purpose
-
-Organize leads and contacts under organizations.
-
-#### 3.3.2 Company Fields
-
-| Field         | Type     |
-|---------------|----------|
-| Company ID    | UUID     |
-| Company Name  | String   |
-| Industry      | String   |
-| Size          | String   |
-| Revenue       | Number   |
-| Location      | String   |
-| Website       | String   |
-| Linked Contacts | Contact[] |
-| Linked Leads  | Lead[]   |
-
-#### 3.3.3 Features
-
-- Company directory
-- Company profile page
-- Associated contacts view
-- Associated leads view
-- Revenue estimation tracking
-
----
-
-### 3.4 SALES PIPELINE SYSTEM (KANBAN)
-
-#### 3.4.1 Purpose
-
-Visualize deals moving through stages.
-
-#### 3.4.2 Pipeline Stages
-
-| Stage          | Description          |
-|----------------|----------------------|
-| New            | Fresh lead           |
-| Contacted      | Initial outreach done|
-| Qualified      | Validated interest   |
-| Proposal Sent  | Quote/proposal sent  |
-| Negotiation    | Terms being discussed|
-| Won            | Deal closed          |
-| Lost           | Deal lost            |
-
-#### 3.4.3 Features
-
-- Drag and drop leads between stages
-- Stage-wise analytics
-- Pipeline value calculation
-- Win/loss ratio tracking
-- Deal aging indicator
-
----
-
-### 3.5 TASK & ACTIVITY MANAGEMENT
-
-#### 3.5.1 Purpose
-
-Track all follow-ups and internal actions.
-
-#### 3.5.2 Task Fields
-
-| Field              | Type       |
-|--------------------|------------|
-| Task ID            | UUID       |
-| Title              | String     |
-| Description        | Text       |
-| Related Lead/Contact/Company | UUID |
-| Assigned User      | User ID    |
-| Due Date           | DateTime   |
-| Priority           | Enum       |
-| Status             | Enum       |
-
-**Status enum:** Pending, Completed, Overdue
-
-**Priority enum:** Low, Medium, High, Critical
-
-#### 3.5.3 Features
-
-- Create tasks from leads
-- Task reminders (UI only or simulated)
-- Task calendar view
-- Task filters
-- Task completion tracking
-
-#### 3.5.4 Activity Log System
-
-Every entity tracks activity:
-
-- Lead created
-- Email logged
-- Call logged
-- Meeting scheduled
-- Status updated
-- Note added
-
----
-
-### 3.6 MEETING & SCHEDULING SYSTEM
-
-#### 3.6.1 Purpose
-
-Manage all meetings between team and clients.
-
-#### 3.6.2 Meeting Fields
-
-| Field          | Type               |
-|----------------|--------------------|
-| Meeting ID     | UUID               |
-| Title          | String             |
-| Participants   | Contact[]/User[]   |
-| Linked Lead/Company | UUID         |
-| Date & Time    | DateTime           |
-| Duration       | Number (minutes)   |
-| Meeting Type   | Enum               |
-| Notes          | Text               |
-| Outcome        | Text               |
-
-**Meeting Type enum:** Online, Offline, Call
-
-#### 3.6.3 Features
-
-- Schedule meeting
+#### 3.6 Meeting & Scheduling System
+- Schedule meetings linked to leads, contacts, or companies
 - Calendar view (monthly/weekly)
-- Meeting reminders (UI simulated)
-- Meeting history per lead
-- Reschedule meetings
-- Meeting notes system
+- Meeting notes & history
+- Rescheduling UI
+
+#### 3.7 Activity Log System
+- Per-entity timeline of actions (lead created, call logged, meeting scheduled, status changed)
+- Filter by activity type
+
+#### 3.8 Dashboard
+- KPI cards: Total Leads, Active Deals, Won Deals, Revenue Estimate (mock)
+- Charts: Pipeline funnel, Lead sources, Monthly performance
+
+#### 3.9 Global Search System
+- Cmd+K command palette search across Leads, Contacts, Companies, Tasks, Meetings
+
+#### 3.10 UI System
+- Full SaaS dashboard UI using shadcn/ui components
+- Dark / light mode
+- Responsive layout
+- Sidebar navigation, detail drawers, modals
 
 ---
 
-### 3.7 COMMUNICATION LOG SYSTEM
+### 4. What Is NOT In Scope (Out of Scope)
 
-#### 3.7.1 Purpose
-
-Track all interactions.
-
-#### 3.7.2 Types of Communication
-
-| Type             | Description                        |
-|------------------|------------------------------------|
-| Email (mock)     | Log sent/received emails           |
-| Call log         | Record phone conversations         |
-| WhatsApp note    | Log WhatsApp interactions (mock)   |
-| Meeting notes    | Attach notes to scheduled meetings |
-| Internal notes   | Free-form team notes               |
-
-#### 3.7.3 Features
-
-- Log communication manually
-- Attach communication to lead/contact
-- Timeline view
-- Filter by communication type
+| Area | Reason |
+|------|--------|
+| **Real backend server** | No Express/NestJS; data is local state or lightweight Supabase |
+| **Real email system** | No SMTP, Gmail API, or email automation — UI mock only |
+| **Real messaging (WhatsApp, SMS, Chat)** | Activity logs only (simulated) |
+| **Real authentication** | No JWT backend or role enforcement — UI-level login simulation |
+| **Real payment/billing** | No Stripe or subscription system |
+| **Enterprise infrastructure** | No multi-tenancy, microservices, queues, workers, or cron jobs |
+| **AI / Automation** | No AI scoring, predictive analytics, or automation workflows (future upgrade) |
 
 ---
 
-### 3.8 DASHBOARD SYSTEM
+### 5. Non-Functional Requirements
 
-#### 3.8.1 Overview Metrics
-
-| Metric              | Description                      |
-|---------------------|----------------------------------|
-| Total Leads         | Count of all leads in system     |
-| Active Deals        | Leads in open pipeline stages    |
-| Conversion Rate     | Won / (Won + Lost) percentage   |
-| Revenue Forecast    | Sum of estimated deal values     |
-| Meetings Scheduled  | Upcoming meetings count          |
-| Tasks Due Today     | Overdue and due-today tasks      |
-
-#### 3.8.2 Charts
-
-- Lead funnel visualization
-- Monthly performance
-- Sales pipeline distribution
-- Source analytics
+| Category | Requirement |
+|----------|------------|
+| **Tech Stack** | Next.js (App Router), React 18+, TypeScript, Tailwind CSS, shadcn/ui |
+| **State Management** | Local state + React hooks + optional lightweight store |
+| **Data Layer** | Local mock data (JSON/TS files) + optional Supabase |
+| **Deployment** | Vercel (fully static/deployable) |
+| **Performance** | Lazy loading modules, optimized tables, memoized computations |
+| **UX** | Responsive design, skeleton loading, empty/error/success states everywhere |
+| **UI Quality** | Production-grade SaaS feel — every feature must survive real-world chaotic usage |
 
 ---
 
-### 3.9 SEARCH SYSTEM
+### 6. Simple Rule of This Project
 
-**Global Search Includes:**
+> **You are building:** A fully interactive CRM frontend that behaves like real SaaS software.
+>
+> **You are NOT building:** A real backend-powered enterprise system.
 
-- Leads
-- Contacts
-- Companies
-- Tasks
-- Meetings
-
-**Features:**
-
-- Instant search
-- Command palette style UI
-- Keyboard shortcuts
+Think of it as simulating a real company CRM where:
+- ✅ Everything looks real
+- ✅ Everything behaves real
+- ✅ Data is mocked or lightweight
+- ✅ Impresses like a $50k SaaS dashboard
 
 ---
 
-### 3.10 SETTINGS SYSTEM
+### 7. Tech Stack Summary
 
-- Profile settings
-- Team roles (mock)
-- Notification settings (UI only)
-- Theme settings
-- Data preferences
-
----
-
-## 4. SYSTEM-WIDE REQUIREMENTS
-
-### 4.1 Performance
-
-- Fast UI rendering
-- Lazy loading modules
-- Optimized tables
-- Virtualized lists (if needed)
-
-### 4.2 UX Requirements
-
-- Fully responsive design
-- Dark mode support
-- Loading skeletons everywhere
-- Empty states everywhere
-- Error states everywhere
-- Inline feedback on actions
-
-### 4.3 Data Requirements
-
-System must support relationships between entities:
-
-- Lead → Contact mapping (many-to-many)
-- Contact → Company mapping (many-to-one)
-- Meeting → Lead mapping (many-to-one)
-- Task → Any entity mapping (polymorphic)
-
-### 4.4 Navigation Requirements
-
-- Sidebar navigation
-- Breadcrumb system
-- Quick access panels
-- Contextual actions
+```
+Frontend:    Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui
+Data:        Local mock data (JSON/TS) + optional Supabase (light)
+Deployment:  Vercel
+Auth:        UI simulation only
+```
 
 ---
 
-## 5. DATA ENTITIES (CORE MODEL)
+### 8. Key User Flows
 
-| Entity    | Description                     |
-|-----------|---------------------------------|
-| Lead      | Primary CRM entity              |
-| Contact   | Person-level entity             |
-| Company   | Organization-level entity       |
-| Task      | Action entity                   |
-| Meeting   | Scheduling entity               |
-| Activity  | Event log entity                |
+| Flow | Path |
+|------|------|
+| **Lead Conversion** | Lead created → contacted → qualified → meeting → won |
+| **Contact Engagement** | Contact created → linked to lead → meeting scheduled → communication logged |
+| **Sales Pipeline** | Lead enters pipeline → stages updated → deal tracked → closed |
+| **Task Execution** | Task created → assigned → due date → completed → logged |
 
 ---
 
-## 6. KEY USER FLOWS
+### 9. Final Product Summary
 
-### Flow 1: Lead Conversion
-
-> Lead created → contacted → qualified → meeting → won
-
-### Flow 2: Contact Engagement
-
-> Contact created → linked to lead → meeting scheduled → communication logged
-
-### Flow 3: Sales Pipeline
-
-> Lead enters pipeline → stages updated → deal tracked → closed
-
-### Flow 4: Task Execution
-
-> Task created → assigned → due date → completed → logged
-
----
-
-## 7. FUTURE EXTENSIONS
-
-- Email automation
-- AI lead scoring
-- WhatsApp integration
-- CRM analytics AI insights
-- Multi-tenant SaaS system
-- Payment integration
-
----
-
-## 8. FINAL PRODUCT SUMMARY
-
-This CRM is not just a dashboard.
-
-It is a **Complete Sales Operating System** covering:
+This CRM is not just a dashboard. It is a **Complete Sales Operating System** covering:
 
 - ✅ Lead lifecycle
 - ✅ Contact intelligence
