@@ -254,12 +254,12 @@ create policy "Enable all for authenticated users" on public.activities for all 
 drop policy if exists "Users can view teams they belong to" on public.teams;
 create policy "Users can view teams they belong to" on public.teams for select to authenticated using (
   id in (select team_id from public.team_members where user_id = auth.uid()::text)
-  or created_by = auth.uid()
+  or created_by::text = auth.uid()::text
 );
 drop policy if exists "Authenticated users can create teams" on public.teams;
 create policy "Authenticated users can create teams" on public.teams for insert to authenticated with check (true);
 drop policy if exists "Team admins can update their team" on public.teams;
-create policy "Team admins can update their team" on public.teams for update to authenticated using (created_by = auth.uid()) with check (created_by = auth.uid());
+create policy "Team admins can update their team" on public.teams for update to authenticated using (created_by::text = auth.uid()::text) with check (created_by::text = auth.uid()::text);
 
 -- Team Members
 drop policy if exists "Team members can view team roster" on public.team_members;

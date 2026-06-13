@@ -34,7 +34,7 @@ drop policy if exists "Users can add themselves as members" on public.team_membe
 create policy "Users can add themselves as members"
   on public.team_members for insert
   to authenticated
-  with check (user_id = auth.uid()::text OR user_id = auth.uid());
+  with check (user_id = auth.uid()::text);
 
 -- Replace the old admin manage policy with a focused insert policy
 drop policy if exists "Team admins can manage members" on public.team_members;

@@ -62,21 +62,21 @@ create policy "Users can view teams they belong to"
   on public.teams for select
   to authenticated
   using (
-    id in (select team_id from public.team_members where user_id = auth.uid())
-    or created_by = auth.uid()
+    id in (select team_id from public.team_members where user_id = auth.uid()::text)
+    or created_by = auth.uid()::text
   );
 
 create policy "Team admins can update their team"
   on public.teams for update
   to authenticated
-  using (created_by = auth.uid())
-  with check (created_by = auth.uid());
+  using (created_by = auth.uid()::text)
+  with check (created_by = auth.uid()::text);
 
 create policy "Team members can view team roster"
   on public.team_members for select
   to authenticated
   using (
-    team_id in (select team_id from public.team_members where user_id = auth.uid())
+    team_id in (select team_id from public.team_members where user_id = auth.uid()::text)
   );
 
 create policy "Team admins can manage members"
@@ -86,7 +86,7 @@ create policy "Team admins can manage members"
     exists (
       select 1 from public.team_members
       where team_id = team_members.team_id
-        and user_id = auth.uid()
+        and user_id = auth.uid()::text
         and role = 'admin'
     )
   );
@@ -98,7 +98,7 @@ create policy "Team admins can update members"
     exists (
       select 1 from public.team_members
       where team_id = team_members.team_id
-        and user_id = auth.uid()
+        and user_id = auth.uid()::text
         and role = 'admin'
     )
   );
@@ -110,7 +110,7 @@ create policy "Team admins can delete members"
     exists (
       select 1 from public.team_members
       where team_id = team_members.team_id
-        and user_id = auth.uid()
+        and user_id = auth.uid()::text
         and role = 'admin'
     )
   );
