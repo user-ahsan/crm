@@ -13,6 +13,9 @@ import { CompanyCreateForm } from '@/components/companies/CompanyCreateForm';
 import { useCompanies } from '@/hooks/useCompanies';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { ExportDropdown } from '@/components/common/ExportDropdown';
+import { ImportDialog } from '@/components/common/ImportDialog';
+import { useCsvExport } from '@/hooks/useCsvExport';
 
 export default function CompaniesPage() {
   const { companies, loading, error, refresh, deleteCompany } = useCompanies();
@@ -20,6 +23,8 @@ export default function CompaniesPage() {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | undefined>(undefined);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const { exportEntity, isExporting } = useCsvExport();
 
   const filteredCompanies = useMemo(() => {
     if (!search.trim()) return companies;
@@ -111,10 +116,20 @@ export default function CompaniesPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <PageHeader title="Companies" description="Manage your company accounts">
-        <Button onClick={handleCreateNew}>
-          <IconPlus className="mr-2 size-4" />
-          New Company
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportDropdown
+            entityTypes={[{ key: 'companies', label: 'Companies' }]}
+            onExport={exportEntity}
+            isExporting={isExporting}
+          />
+          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+            Import
+          </Button>
+          <Button onClick={handleCreateNew}>
+            <IconPlus className="mr-2 size-4" />
+            New Company
+          </Button>
+        </div>
       </PageHeader>
 
       {/* Search Bar */}
@@ -153,6 +168,15 @@ export default function CompaniesPage() {
           onDelete={handleDelete}
         />
       )}
+
+      {/* Import Dialog */}
+      <ImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        entityType="companies"
+        entityLabel="Companies"
+        onImportComplete={refresh}
+      />
 
       {/* Create/Edit Dialog */}
       <CompanyCreateForm

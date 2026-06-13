@@ -21,6 +21,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { LEAD_STATUSES, LEAD_SOURCES, LEAD_PRIORITIES } from '@/lib/constants';
+import { ExportDropdown } from '@/components/common/ExportDropdown';
+import { ImportDialog } from '@/components/common/ImportDialog';
+import { useCsvExport } from '@/hooks/useCsvExport';
 
 const ALL_STATUS = '__all_statuses';
 const ALL_SOURCE = '__all_sources';
@@ -35,6 +38,8 @@ export default function LeadsPage() {
   const [priorityFilter, setPriorityFilter] = useState<string>(ALL_PRIORITY);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | undefined>(undefined);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const { exportEntity, isExporting } = useCsvExport();
 
   const filters = useMemo(
     () => ({
@@ -132,10 +137,20 @@ export default function LeadsPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <PageHeader title="Leads" description="Manage your sales leads pipeline">
-        <Button onClick={handleCreateNew}>
-          <IconPlus className="mr-2 size-4" />
-          New Lead
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportDropdown
+            entityTypes={[{ key: 'leads', label: 'Leads' }]}
+            onExport={exportEntity}
+            isExporting={isExporting}
+          />
+          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+            Import
+          </Button>
+          <Button onClick={handleCreateNew}>
+            <IconPlus className="mr-2 size-4" />
+            New Lead
+          </Button>
+        </div>
       </PageHeader>
 
       {/* Filter Bar */}
@@ -209,6 +224,15 @@ export default function LeadsPage() {
       {filteredLeads.length > 0 && (
         <LeadTable leads={filteredLeads} onEdit={handleEdit} onDelete={handleDelete} />
       )}
+
+      {/* Import Dialog */}
+      <ImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        entityType="leads"
+        entityLabel="Leads"
+        onImportComplete={refresh}
+      />
 
       {/* Create/Edit Dialog */}
       <LeadCreateForm

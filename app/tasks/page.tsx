@@ -11,10 +11,15 @@ import { useTasks } from '@/hooks/useTasks';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { IconPlus, IconChecklist } from '@tabler/icons-react';
+import { ExportDropdown } from '@/components/common/ExportDropdown';
+import { ImportDialog } from '@/components/common/ImportDialog';
+import { useCsvExport } from '@/hooks/useCsvExport';
 
 export default function TasksPage() {
   const { tasks, loading, error, refresh } = useTasks();
   const [createOpen, setCreateOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const { exportEntity, isExporting } = useCsvExport();
 
   const handleCreateSuccess = useCallback(() => {
     refresh();
@@ -60,10 +65,20 @@ export default function TasksPage() {
     return (
       <div className="flex flex-col gap-6 p-6">
         <PageHeader title="Tasks">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <IconPlus size={16} />
-            New Task
-          </Button>
+          <div className="flex items-center gap-2">
+            <ExportDropdown
+              entityTypes={[{ key: 'tasks', label: 'Tasks' }]}
+              onExport={exportEntity}
+              isExporting={isExporting}
+            />
+            <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+              Import
+            </Button>
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <IconPlus size={16} />
+              New Task
+            </Button>
+          </div>
         </PageHeader>
         <EmptyState
           icon={<IconChecklist size={48} stroke={1.5} />}
@@ -79,6 +94,13 @@ export default function TasksPage() {
           onOpenChange={setCreateOpen}
           onSuccess={handleCreateSuccess}
         />
+        <ImportDialog
+          open={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
+          entityType="tasks"
+          entityLabel="Tasks"
+          onImportComplete={refresh}
+        />
       </div>
     );
   }
@@ -93,10 +115,20 @@ export default function TasksPage() {
             : `${tasks.filter((t) => t.status === 'pending').length} pending · ${tasks.filter((t) => t.status === 'completed').length} completed`
         }
       >
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
-          <IconPlus size={16} />
-          New Task
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportDropdown
+            entityTypes={[{ key: 'tasks', label: 'Tasks' }]}
+            onExport={exportEntity}
+            isExporting={isExporting}
+          />
+          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+            Import
+          </Button>
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <IconPlus size={16} />
+            New Task
+          </Button>
+        </div>
       </PageHeader>
 
       {/* Task list with filter tabs */}
@@ -107,6 +139,13 @@ export default function TasksPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         onSuccess={handleCreateSuccess}
+      />
+      <ImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        entityType="tasks"
+        entityLabel="Tasks"
+        onImportComplete={refresh}
       />
     </div>
   );

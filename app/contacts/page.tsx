@@ -13,6 +13,9 @@ import { ContactCreateForm } from '@/components/contacts/ContactCreateForm';
 import { useContacts } from '@/hooks/useContacts';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { ExportDropdown } from '@/components/common/ExportDropdown';
+import { ImportDialog } from '@/components/common/ImportDialog';
+import { useCsvExport } from '@/hooks/useCsvExport';
 
 export default function ContactsPage() {
   const { contacts, loading, error, refresh, deleteContact } = useContacts();
@@ -20,6 +23,8 @@ export default function ContactsPage() {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | undefined>(undefined);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const { exportEntity, isExporting } = useCsvExport();
 
   const filteredContacts = useMemo(() => {
     if (!search.trim()) return contacts;
@@ -112,10 +117,20 @@ export default function ContactsPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <PageHeader title="Contacts" description="Manage your contact relationships">
-        <Button onClick={handleCreateNew}>
-          <IconPlus className="mr-2 size-4" />
-          New Contact
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportDropdown
+            entityTypes={[{ key: 'contacts', label: 'Contacts' }]}
+            onExport={exportEntity}
+            isExporting={isExporting}
+          />
+          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+            Import
+          </Button>
+          <Button onClick={handleCreateNew}>
+            <IconPlus className="mr-2 size-4" />
+            New Contact
+          </Button>
+        </div>
       </PageHeader>
 
       {/* Search Bar */}
@@ -154,6 +169,15 @@ export default function ContactsPage() {
           onDelete={handleDelete}
         />
       )}
+
+      {/* Import Dialog */}
+      <ImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        entityType="contacts"
+        entityLabel="Contacts"
+        onImportComplete={refresh}
+      />
 
       {/* Create/Edit Dialog */}
       <ContactCreateForm

@@ -12,10 +12,15 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { IconPlus, IconCalendarEvent } from '@tabler/icons-react';
 import type { Meeting } from '@/types/meeting.types';
+import { ExportDropdown } from '@/components/common/ExportDropdown';
+import { ImportDialog } from '@/components/common/ImportDialog';
+import { useCsvExport } from '@/hooks/useCsvExport';
 
 export default function MeetingsPage() {
   const { meetings, loading, error, refresh } = useMeetings();
   const [createOpen, setCreateOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const { exportEntity, isExporting } = useCsvExport();
 
   const handleCreateSuccess = useCallback(
     (meeting: Meeting) => {
@@ -65,10 +70,20 @@ export default function MeetingsPage() {
     return (
       <div className="flex flex-col gap-6 p-6">
         <PageHeader title="Meetings">
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <IconPlus size={16} />
-            Schedule Meeting
-          </Button>
+          <div className="flex items-center gap-2">
+            <ExportDropdown
+              entityTypes={[{ key: 'meetings', label: 'Meetings' }]}
+              onExport={exportEntity}
+              isExporting={isExporting}
+            />
+            <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+              Import
+            </Button>
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <IconPlus size={16} />
+              Schedule Meeting
+            </Button>
+          </div>
         </PageHeader>
         <EmptyState
           icon={<IconCalendarEvent size={48} stroke={1.5} />}
@@ -84,6 +99,13 @@ export default function MeetingsPage() {
           onOpenChange={setCreateOpen}
           onSuccess={handleCreateSuccess}
         />
+        <ImportDialog
+          open={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
+          entityType="meetings"
+          entityLabel="Meetings"
+          onImportComplete={refresh}
+        />
       </div>
     );
   }
@@ -98,10 +120,20 @@ export default function MeetingsPage() {
             : `${meetings.length} meeting${meetings.length !== 1 ? 's' : ''} scheduled`
         }
       >
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
-          <IconPlus size={16} />
-          Schedule Meeting
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportDropdown
+            entityTypes={[{ key: 'meetings', label: 'Meetings' }]}
+            onExport={exportEntity}
+            isExporting={isExporting}
+          />
+          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+            Import
+          </Button>
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <IconPlus size={16} />
+            Schedule Meeting
+          </Button>
+        </div>
       </PageHeader>
 
       {/* Meeting calendar — month/week view */}
@@ -112,6 +144,13 @@ export default function MeetingsPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         onSuccess={handleCreateSuccess}
+      />
+      <ImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        entityType="meetings"
+        entityLabel="Meetings"
+        onImportComplete={refresh}
       />
     </div>
   );

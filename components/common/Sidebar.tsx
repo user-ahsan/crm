@@ -98,7 +98,12 @@ export function Sidebar({
       <Separator />
 
       {/* ── Navigation Items ──────────────────────────── */}
-      <div className="flex-1 space-y-1 overflow-y-auto px-2 py-2">
+      <div
+        className={cn(
+          'flex-1 overflow-y-auto px-2 py-2',
+          collapsed ? 'grid grid-cols-2 gap-1' : 'space-y-1',
+        )}
+      >
 
         {NAV_ITEMS.map((item) => {
           const Icon = iconMap[item.icon as IconKey];
@@ -110,7 +115,7 @@ export function Sidebar({
               onClick={onNavClick}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                collapsed && 'justify-center px-0 gap-0',
+                collapsed && 'justify-center px-0',
                 isActive
                   ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                   : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
