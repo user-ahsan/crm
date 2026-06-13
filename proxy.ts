@@ -42,6 +42,7 @@ const protectedRoutes = [
   '/meetings',
   '/analytics',
   '/settings',
+  '/onboarding', // protected so only authenticated users can access; has its own special layout
 ] as const;
 
 /**

@@ -8,7 +8,9 @@ import { useThemeStore } from '@/store';
 
 /* ── Routes that should NOT render the AppShell ──────────── */
 /* /login and /signup are standalone pages with no sidebar/navbar shell. */
+/* /onboarding also has its own special layout (no sidebar). */
 const AUTH_ROUTES = ['/login', '/signup'];
+const ONBOARDING_ROUTE = '/onboarding';
 
 /* ── Props ────────────────────────────────────────────────── */
 export interface ClientLayoutProps {
@@ -30,9 +32,12 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
   const isLandingPage = pathname === '/';
+  const isOnboarding =
+    pathname === ONBOARDING_ROUTE ||
+    pathname.startsWith(`${ONBOARDING_ROUTE}/`);
 
-  /* ── Auth & landing pages: standalone (no AppShell) ──── */
-  if (isAuthRoute || isLandingPage) {
+  /* ── Auth, landing & onboarding pages: standalone (no AppShell) ──── */
+  if (isAuthRoute || isLandingPage || isOnboarding) {
     return (
       <>
         {children}

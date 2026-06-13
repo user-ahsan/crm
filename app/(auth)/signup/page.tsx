@@ -116,13 +116,25 @@ export default function SignupPage() {
         // Simulate auth delay
         await new Promise((resolve) => setTimeout(resolve, 1200));
 
-        /* 3. Show success toast */
-        toast.success('Account created successfully', {
-          description: 'Welcome to NexusCRM! You can now sign in.',
+        /* 3. Simulate auto-login (set cookies & session storage) */
+        document.cookie = 'sb-access-token=simulated; path=/; max-age=3600';
+        document.cookie = 'sb-refresh-token=simulated; path=/; max-age=3600';
+
+        sessionStorage.setItem(
+          'onboarding-user',
+          JSON.stringify({
+            fullName: formData.fullName,
+            email: formData.email,
+          }),
+        );
+
+        /* 4. Show onboarding welcome toast */
+        toast.success('Welcome to NexusCRM!', {
+          description: 'Let us help you get started with a quick onboarding.',
         });
 
-        /* 4. Redirect to dashboard */
-        router.push('/dashboard');
+        /* 5. Redirect to onboarding flow */
+        router.push('/onboarding');
       } catch {
         setSubmitError('An unexpected error occurred. Please try again.');
       } finally {
