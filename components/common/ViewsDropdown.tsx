@@ -53,8 +53,17 @@ export function ViewsDropdown({
   }, [entityType]);
 
   useEffect(() => {
-    loadViews();
-  }, [loadViews]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await savedViewService.getViews(entityType);
+        if (!cancelled) setViews(data);
+      } catch {
+        if (!cancelled) toast.error('Failed to load saved views');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [entityType]);
 
   const handleSave = async () => {
     if (!viewName.trim()) {

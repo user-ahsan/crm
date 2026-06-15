@@ -81,8 +81,19 @@ export default function ApiKeysPage() {
   }, []);
 
   useEffect(() => {
-    loadKeys();
-  }, [loadKeys]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await apiKeyService.getAll();
+        if (!cancelled) setKeys(data);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load API keys');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const handleCreate = async () => {
     if (!newKeyName.trim()) {

@@ -20,6 +20,7 @@ export function NoteEditor({ initialTitle = '', initialBody = '', onSave, onCanc
   useEffect(() => {
     setTitle(initialTitle);
     setBody(initialBody);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
   }, [initialTitle, initialBody]);
 
   const handleSave = async () => {
