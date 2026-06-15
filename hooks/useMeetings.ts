@@ -25,8 +25,22 @@ export function useMeetings() {
   }, []);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    let cancelled = false;
+    meetingService.getAll()
+      .then((data) => {
+        if (cancelled) return;
+        setMeetings(data);
+        useEntityCache.getState().setMeetings(data);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : 'Failed to load meetings');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const getByEntity = useCallback(async (entityType: string, entityId: string) => {
     try {

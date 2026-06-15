@@ -26,8 +26,22 @@ export function useTasks() {
   }, []);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    let cancelled = false;
+    taskService.getAll()
+      .then((data) => {
+        if (cancelled) return;
+        setTasks(data);
+        useEntityCache.getState().setTasks(data);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : 'Failed to load tasks');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const getFiltered = useCallback((status?: TaskStatus | 'all', priority?: TaskPriority | 'all') => {
     return filterTasks(tasks, status, priority);

@@ -26,8 +26,22 @@ export function useLeads() {
   }, []);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    let cancelled = false;
+    leadService.getAll()
+      .then((data) => {
+        if (cancelled) return;
+        setLeads(data);
+        useEntityCache.getState().setLeads(data);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : 'Failed to load leads');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const getFiltered = useCallback((filters: LeadFilters) => {
     return applyLeadFilters(leads, filters);

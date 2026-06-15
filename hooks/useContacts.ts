@@ -25,8 +25,22 @@ export function useContacts() {
   }, []);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    let cancelled = false;
+    contactService.getAll()
+      .then((data) => {
+        if (cancelled) return;
+        setContacts(data);
+        useEntityCache.getState().setContacts(data);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : 'Failed to load contacts');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const getById = useCallback(async (id: string) => {
     try {

@@ -25,8 +25,22 @@ export function useCompanies() {
   }, []);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    let cancelled = false;
+    companyService.getAll()
+      .then((data) => {
+        if (cancelled) return;
+        setCompanies(data);
+        useEntityCache.getState().setCompanies(data);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : 'Failed to load companies');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const getById = useCallback(async (id: string) => {
     try {
