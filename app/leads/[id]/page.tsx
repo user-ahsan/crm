@@ -69,7 +69,7 @@ export default function LeadDetailPage() {
   }, []);
 
   const handleSuccess = useCallback(
-    (_updatedLead: Lead) => {
+    () => {
       loadLead();
     },
     [loadLead],

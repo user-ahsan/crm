@@ -3,9 +3,8 @@
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { IconMail, IconPlus, IconTrash, IconEdit } from '@tabler/icons-react';
+import { IconMail, IconPlus, IconTrash } from '@tabler/icons-react';
 import { toast } from 'sonner';
-import type { EmailSequence } from '@/types/campaign.types';
 import { PageHeader } from '@/components/common/PageHeader';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { EmptyState } from '@/components/common/EmptyState';

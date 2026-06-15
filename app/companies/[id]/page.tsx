@@ -67,7 +67,7 @@ export default function CompanyDetailPage() {
   }, []);
 
   const handleSuccess = useCallback(
-    (_updatedCompany: Company) => {
+    () => {
       loadCompany();
     },
     [loadCompany],

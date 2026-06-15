@@ -210,8 +210,8 @@ function LeadsPageContent() {
     setDialogOpen(true);
   }, []);
 
-  const handleSuccess = useCallback((_lead: Lead) => {
-    // The hook's internal state is already updated by createLead/updateLead
+  const handleSuccess = useCallback(() => {
+    // The hook's internal state is already updated
   }, []);
 
   // ── Bulk action handlers ──────────────────────────────────────────

@@ -144,7 +144,7 @@ function CompaniesPageContent() {
     setDialogOpen(true);
   }, []);
 
-  const handleSuccess = useCallback((_company: Company) => {
+  const handleSuccess = useCallback(() => {
     // The hook's internal state is already updated
   }, []);
 

@@ -1,6 +1,6 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { SmsLog, SmsFormData } from '@/types/sms.types';
-import type { DbSmsLog, SmsLogInsert } from '@/types/supabase.types';
+import type { DbSmsLog } from '@/types/supabase.types';
 import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
 

@@ -153,7 +153,7 @@ function ContactsPageContent() {
     setDialogOpen(true);
   }, []);
 
-  const handleSuccess = useCallback((_contact: Contact) => {
+  const handleSuccess = useCallback(() => {
     // The hook's internal state is already updated
   }, []);
 

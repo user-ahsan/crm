@@ -67,7 +67,7 @@ export default function ContactDetailPage() {
   }, []);
 
   const handleSuccess = useCallback(
-    (_updatedContact: Contact) => {
+    () => {
       loadContact();
     },
     [loadContact],

@@ -6,7 +6,6 @@ import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { useGoals } from '@/hooks/useGoals';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -77,7 +76,6 @@ const periodColorMap: Record<GoalPeriod, string> = {
 
 export default function GoalsPage() {
   const { goals, loading, error, refresh, create, update, remove, getProgress } = useGoals();
-  const { user } = useCurrentUser();
   const [filterPeriod, setFilterPeriod] = useState<GoalPeriod | ''>('');
   const [filterType, setFilterType] = useState<GoalType | ''>('');
   const [createOpen, setCreateOpen] = useState(false);
