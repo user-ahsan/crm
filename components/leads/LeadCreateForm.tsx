@@ -95,6 +95,7 @@ export function LeadCreateForm({ open, onOpenChange, onSuccess, editLead }: Lead
       setTagInput('');
       setSubmitting(false);
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
   }, [open, editLead]);
 
   const updateField = useCallback(

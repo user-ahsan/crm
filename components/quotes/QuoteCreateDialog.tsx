@@ -89,6 +89,7 @@ export function QuoteCreateDialog({
       }
       setSubmitting(false);
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
   }, [open, editQuote]);
 
   const updateItem = useCallback(

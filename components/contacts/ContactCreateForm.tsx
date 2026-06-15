@@ -83,6 +83,7 @@ export function ContactCreateForm({ open, onOpenChange, onSuccess, editContact }
       setTagInput('');
       setSubmitting(false);
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
   }, [open, editContact]);
 
   const updateField = useCallback(

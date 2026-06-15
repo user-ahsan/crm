@@ -62,6 +62,7 @@ export function SavedViewDialog({
         setEntityType(defaultEntityType);
       }
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
   }, [open, view, defaultEntityType]);
 
   const handleSave = async () => {

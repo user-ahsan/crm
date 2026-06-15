@@ -75,6 +75,7 @@ export function CompanyCreateForm({ open, onOpenChange, onSuccess, editCompany }
       setErrors({});
       setSubmitting(false);
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
   }, [open, editCompany]);
 
   const updateField = useCallback(

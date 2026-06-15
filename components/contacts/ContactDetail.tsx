@@ -118,8 +118,27 @@ export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
   }, [contactId]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const found = await contactService.getById(contactId);
+        if (cancelled) return;
+        if (!found) {
+          setError('Contact not found');
+          setLoading(false);
+          return;
+        }
+        setContact(found);
+        const meetings = await meetingService.getByEntity('contact', contactId);
+        if (!cancelled) setRelatedMeetings(meetings);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load contact details');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [contactId]);
 
   const handleTagChange = useCallback(async (tags: Tag[]) => {
     setEntityTags(tags);

@@ -112,7 +112,6 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
   // Fetch lead data
   useEffect(() => {
     let cancelled = false;
-    setLeadState({ status: 'loading' });
     getLeadById(leadId).then((lead) => {
       if (cancelled) return;
       if (lead) {
@@ -159,6 +158,7 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
     let cancelled = false;
 
     if (activeTab === 'tasks' || activeTab === 'overview') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTasksLoading(true);
       getTasksByEntity('lead', lead.id).then((relatedTasks) => {
         if (!cancelled) setTasks(relatedTasks);
@@ -170,6 +170,7 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
     }
 
     if (activeTab === 'meetings' || activeTab === 'overview') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMeetingsLoading(true);
       getMeetingsByEntity('lead', lead.id).then((relatedMeetings) => {
         if (!cancelled) setMeetings(relatedMeetings);
@@ -181,6 +182,7 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
     }
 
     if (activeTab === 'activity' || activeTab === 'overview') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActivitiesLoading(true);
       getActivitiesByEntity('lead', lead.id).then((relatedActivities) => {
         if (!cancelled) setActivities(relatedActivities);

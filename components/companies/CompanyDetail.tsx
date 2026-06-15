@@ -96,8 +96,35 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
   }, [companyId]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const found = await companyService.getById(companyId);
+        if (cancelled) return;
+        if (!found) {
+          setError('Company not found');
+          setLoading(false);
+          return;
+        }
+        setCompany(found);
+        const [contactResults, leadResults] = await Promise.all([
+          Promise.all(found.contactIds.map((id) => contactService.getById(id))),
+          Promise.all(found.leadIds.map((id) => leadService.getById(id))),
+        ]);
+        if (cancelled) return;
+        setLinkedContacts(contactResults.filter((c): c is Contact => c !== undefined));
+        setLinkedLeads(leadResults.filter((l): l is Lead => l !== undefined));
+        tagService.getTagsForEntity('company', companyId).then((tags) => {
+          if (!cancelled) setEntityTags(tags);
+        }).catch(() => {});
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load company details');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [companyId]);
 
   const handleTagChange = useCallback(async (tags: Tag[]) => {
     setEntityTags(tags);

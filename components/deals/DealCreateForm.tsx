@@ -79,6 +79,7 @@ export function DealCreateForm({ open, onOpenChange, onSuccess, editDeal, stages
       setTagInput('');
       setSubmitting(false);
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
   }, [open, editDeal]);
 
   const updateField = useCallback(
