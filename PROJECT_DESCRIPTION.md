@@ -1,130 +1,116 @@
-# NexusCRM — Project Description
+# NexusCRM — What Actually Exists
 
-Built commit by commit, this is a production-grade SaaS CRM powered by Next.js 16, Supabase, and shadcn/ui. Below is everything that exists, what partially works, and what hasn't been built yet.
-
----
-
-## ✅ FULLY IMPLEMENTED
-
-### Core CRM
-- **Leads** — create, edit, delete, filter, search, bulk actions, score
-- **Contacts** — create, edit, delete, link to companies, bulk actions
-- **Companies** — create, edit, delete, link to leads/contacts, bulk actions
-- **Tasks** — create, assign, set due dates, mark complete, auto-detect overdue
-- **Meetings** — schedule, link to any record, calendar view
-- **Dashboard** — KPI cards, pipeline funnel chart, lead sources, monthly trends, tasks due today
-
-### Pipeline & Kanban
-- **Leads pipeline** — drag between status columns
-- **Deals pipeline** — custom stages, drag to move, total value per column
-- **Swimlanes** — group kanban by assignee, status, or priority
-
-### Auth & Teams
-- **Sign up / Sign in** — real Supabase auth (email + password)
-- **Team auto-creation** — every signup creates a team
-- **Roles** — admin, manager, agent, viewer with per-feature permissions
-- **Invite members** — send email invitations, manage pending invites
-- **Onboarding wizard** — 6-step setup (profile, company, goals, invite team)
-
-### Deals & Revenue
-- **Deal pipeline** — custom stages with probability percentages
-- **Deal kanban** — drag deals between stages
-- **Revenue tracking** — deal values, currency support
-- **Sales forecasting** — monthly targets vs actuals, auto-calculate from deals
-- **Lead scoring** — automatic 0-100 score from data completeness
-
-### Communication
-- **Notes** — add Markdown notes to any record, edit and delete
-- **Call logs** — log inbound/outbound calls with duration and result
-- **Email history** — record sent/received emails against any record
-- **SMS history** — record sent/received SMS against any record
-- **Email composer** — compose and log emails from within the app
-
-### Tags
-- **Create/edit/delete** colored tags
-- **Tag any record** — leads, contacts, companies, deals, tasks, meetings
-- **Filter by tag** — on every list page
-- **Tag management page**
-
-### Automation
-- **Automation rules** — trigger on 14 events (lead.created, task.overdue, etc.)
-- **Actions** — assign user, change status, add tag, send email, trigger webhook
-- **Enable/disable** — toggle rules on and off
-
-### Data Quality
-- **Duplicate detection** — scan leads/contacts/companies for matches
-- **Merge** — pick a survivor, automatically move related records
-- **Score-based matching** — each group gets a similarity percentage
-
-### File Attachments
-- **Upload files** to any record
-- **Supabase Storage** backend
-- **File list** with type icons
-
-### Saved Views
-- **Save filters** as named views
-- **Load/rename/delete** — per entity type
-
-### API Keys
-- **Generate keys** with read/write scopes
-- **Copy on creation** (shown once)
-- **Regenerate and delete**
-
-### Settings
-- **Account** — name, email, timezone, notification preferences
-- **Teams** — info, members, invitations, role management
-- **API Keys** — full key management UI
-- **Workflows** — custom state machines for leads/deals/tasks
-- **Portal** — invite customer portal users, share records
-- **Automation** — manage automation rules
-- **Data Quality** — duplicate scanning and merging
-- **Forecasts** — monthly target setting
-- **Integrations** — connect Google/Outlook calendar (mock)
-- **Saved Views** — manage all saved filter presets
-
-### UI/UX
-- **Dark mode** — persists across sessions, no flash on load
-- **Responsive sidebar** — collapsible, works on mobile
-- **Search debounce** — 300ms on all list pages
-- **CSV export** — download any entity as CSV
-- **CSV import** — bulk-import leads, contacts, companies
-- **Filters in URL** — shareable, bookmarkable filter state
-- **Optimistic updates** — UI responds instantly, rolls back on error
-- **Every state covered** — loading skeletons, empty states, error states
+Built commit-by-commit with Next.js 16, Supabase, and shadcn/ui. No mock data in production. Real Supabase auth. Real database.
 
 ---
 
-## ⚡ PARTIALLY IMPLEMENTED
+## ✅ FULLY WORKING (end-to-end, nothing missing)
 
-- **Email sending** — composer and history exist, but emails only log to the database. No real SMTP/SendGrid/Resend integration — nothing actually gets delivered.
-- **SMS sending** — same as email. You can compose and log SMS, but no Twilio/Vonage integration for actual delivery.
-- **Calendar sync** — Settings > Integrations has a "Connect Google Calendar" button and stores the connection, but there's no real OAuth flow. No actual sync happens.
-- **Webhook management** — webhooks fire on every mutation and an n8n endpoint exists, but there's no UI to add/edit/remove webhook URLs from inside the app.
-- **Workflow builder** — the data model and settings page exist but it's form-based, not a drag-and-drop visual editor. Custom workflows don't change the kanban yet.
-- **Customer portal** — you can create portal users and share records, but there's no actual portal frontend. Portal users have nowhere to log in.
-- **Email sequences** — you can create sequences with multiple emails and delay days, but they never actually send. No scheduler.
+**Leads** — CRUD, filter, search, bulk actions, CSV export/import, tagging, scoring, duplicate detection, status/priority management, activity logging, permission control
+
+**Contacts** — CRUD, link to companies, filter, search, bulk actions, CSV export/import, tagging, duplicate detection, activity logging
+
+**Companies** — CRUD, filter, search, bulk actions, CSV export/import, tagging, duplicate detection, activity logging
+
+**Tasks** — CRUD, assignee, due dates, auto-overdue detection, toggle complete, link to any entity, bulk actions, activity logging
+
+**Meetings** — CRUD, schedule, link to any entity, activity logging
+
+**Dashboard** — KPI cards, pipeline funnel chart, lead sources pie chart, monthly trends bar chart, tasks due today, team status banner
+
+**Pipeline (Leads)** — kanban board, drag between statuses, swimlanes by assignee/status/priority
+
+**Pipeline (Deals)** — kanban board, custom stages with probability, drag between stages, total value per column, swimlanes
+
+**Auth** — sign up, sign in, email confirmation flow, session management, sign out (clears cookies + server session)
+
+**Teams** — auto-created on signup, member roles (admin/manager/agent/viewer), invite members, manage pending invitations, permission guards on every feature
+
+**Onboarding** — 6-step wizard: welcome, profile, company, goals, invite team, complete
+
+**Notes** — create, edit, delete on any record. Markdown body. Author tracking. Full history.
+
+**Call Logs** — log inbound/outbound calls on any record. Duration, result (completed/no answer/busy/failed/voicemail), notes.
+
+**Tags** — create/edit/delete colored tags. Tag any record type. Filter by tag on list pages. Dedicated tag management page.
+
+**Lead Scoring** — automatic 0-100 score per lead based on data completeness (email, phone, company, source, tags). Score breakdown visible on lead detail. Filter by minimum score.
+
+**Duplicate Detection** — scan leads/contacts/companies for duplicates. Merge groups by selecting a survivor. Automatically moves tasks/meetings/activities/tags to survivor.
+
+**Bulk Actions** — select multiple records, change status/priority/assignee/tag, or delete in one operation. Works on leads, contacts, companies.
+
+**Saved Views** — save current filters as a named view. Load, rename, delete. Works on leads, contacts, companies.
+
+**API Keys** — generate scoped API keys. Copy on creation (shown once). Regenerate, delete. Listed on settings page.
+
+**Settings (Account)** — display name, email, timezone, notification preferences. Persisted via Zustand.
+
+**Settings (Team)** — team name/description, member list with role badges, role change, remove member, pending invitations tab.
+
+**Settings (Automation)** — list automation rules, enable/disable toggle, create with trigger/conditions/actions, edit, delete.
+
+**Settings (Data Quality)** — tabbed duplicate scanning for leads/contacts/companies. Merge with survivor selection.
+
+**Settings (Forecasts)** — monthly target vs actual grid. Auto-calculate actuals from deal values. Year selector. Summary row with achievement percentage.
+
+**Settings (Saved Views)** — manage all saved filter presets across entity types.
+
+**Settings (Workflows)** — custom state machines for leads/deals/tasks. Add/edit/delete states. Define allowed transitions.
+
+**Settings (Portal)** — invite portal users (name, email, password). Toggle active/inactive. Share records with view/comment/edit permission.
+
+**Deal Pipeline Stages** — custom stages with names, colors, probabilities, sort order. CRUD from settings.
+
+**Deal Revenue Tracking** — deals with title, value, currency, stage, close date, tags. CRUD from dedicated deals page.
+
+**Sales Forecasting** — monthly targets set manually. Actuals auto-calculated from deal values by expected close month. Progress bars. Year-over-year.
+
+**Entity Cache** — shared Zustand store syncs across hooks. Edit on one page reflects on another without refetch.
+
+**Optimistic Updates** — every mutation updates UI instantly. Rolls back on server error.
+
+**URL Filter State** — all filters (search, status, source, priority, tag, min score) persisted in URL params. Survives refresh and navigation.
+
+**Search Debounce** — 300ms debounce on all list page searches.
+
+**CSV Export** — download any entity list as CSV with BOM for Excel.
+
+**CSV Import** — upload CSV for leads, contacts, companies. Column validation. Required field checks.
+
+**Dark Mode** — toggle in header. Persisted. No white flash on load (blocking script in `<head>`).
+
+**Session Caching** — shared in-memory cache for Supabase auth. One `getUser()` call per page session, not per component. No rate limit issues.
+
+**Proxy Middleware** — checks `sb-` cookies for auth. Zero API calls. Routes unauthenticated users to login.
 
 ---
 
-## 🗺️ NOT YET BUILT
+## ⚡ PARTIAL / HAS GAPS
 
-- Real email delivery (SMTP / SendGrid / Resend)
-- Real SMS delivery (Twilio / Vonage)
-- Real calendar OAuth sync (Google / Outlook)
-- Customer portal frontend (login page + dashboard for external users)
-- Email campaign/sequence scheduler
-- Mobile app
-- Public REST API documentation
-- Real-time push notifications (WebSocket)
-- Unit and integration tests
+**Email history** — you can compose and send emails from the UI, and they get recorded in the `email_history` table with timestamps. But there's **no real email delivery** — no SMTP, no SendGrid, no Resend. Nothing actually leaves the server. The feature works as a **log** only.
+
+**SMS history** — same as email. You can compose SMS from the UI, recorded in `sms_logs`. But **no real SMS provider** (Twilio/Vonage). Log only.
+
+**Webhooks** — every create/update/delete fires `triggerWebhook()` and there's a `/api/webhook/n8n` POST endpoint with auth. But there's **no UI to manage webhook URLs** — you can't add or remove destinations from inside the app. Only works if you configure the n8n endpoint directly.
+
+**File attachments** — upload works via Supabase Storage bucket `attachments`. Files are stored and listed. But there's **no file size limit enforcement** in the UI, no image preview, and the bucket must be created manually in the Supabase dashboard.
+
+**Email sequences / campaigns** — you can create sequences with multiple campaign emails and delay days. Full CRUD. But there's **no scheduler** — sequences never actually execute. They exist as data only.
+
+**Workflow builder** — the settings page lets you create custom states and transitions for leads/deals/tasks. But it's **form-based**, not a drag-and-drop visual editor. Custom states don't change how the pipeline kanban renders (still uses default stages).
 
 ---
 
-## By the Numbers
+## ❌ NOT BUILT
 
-- **31 app routes**
-- **7 database migrations** → **32 tables**
-- **~400 source files**
-- **Zero mock data in production code** (all real Supabase)
-- **Build status: ✅ Passes clean**
-- **Auth API calls per page session: 1** (shared cache, no rate limit issues)
+- **Real email sending** — no SendGrid, Resend, SMTP, or any delivery provider
+- **Real SMS sending** — no Twilio, Vonage, or any provider
+- **Calendar sync** — no Google or Outlook OAuth. The "Connect" button on the integrations page stores an email address but does nothing.
+- **Customer portal frontend** — no login page, dashboard, or any UI for portal users to see their shared records. Only the admin-side user management exists.
+- **Email campaign scheduler** — no background job, cron, or trigger to actually send campaign emails
+- **Mobile app** — nothing
+- **Public REST API** — API key management UI exists, but there are no public API endpoints, docs, or rate limiting
+- **Real-time notifications** — no WebSocket, no push, no email alerts
+- **Unit tests** — zero
+- **Integration tests** — zero
