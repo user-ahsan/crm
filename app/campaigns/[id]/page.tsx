@@ -82,8 +82,26 @@ export default function CampaignDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    loadSequence();
-  }, [loadSequence]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await campaignService.getSequence(id);
+        if (cancelled) return;
+        if (data) {
+          setSequence(data);
+          setEditName(data.name);
+          setEditDesc(data.description);
+        } else {
+          setSeqError('Campaign not found');
+        }
+      } catch (e) {
+        if (!cancelled) setSeqError(e instanceof Error ? e.message : 'Failed to load campaign');
+      } finally {
+        if (!cancelled) setSeqLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
 
   const handleSaveInfo = useCallback(async () => {
     if (!editName.trim()) return;

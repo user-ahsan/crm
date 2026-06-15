@@ -63,6 +63,7 @@ export function ContactCreateForm({ open, onOpenChange, onSuccess, editContact }
   const isEditMode = !!editContact;
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (open) {
       if (editContact) {
         setFormData({
@@ -83,7 +84,7 @@ export function ContactCreateForm({ open, onOpenChange, onSuccess, editContact }
       setTagInput('');
       setSubmitting(false);
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [open, editContact]);
 
   const updateField = useCallback(

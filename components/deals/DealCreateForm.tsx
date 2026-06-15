@@ -57,6 +57,7 @@ export function DealCreateForm({ open, onOpenChange, onSuccess, editDeal, stages
   const isEditMode = !!editDeal;
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (open) {
       if (editDeal) {
         setFormData({
@@ -79,7 +80,7 @@ export function DealCreateForm({ open, onOpenChange, onSuccess, editDeal, stages
       setTagInput('');
       setSubmitting(false);
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [open, editDeal]);
 
   const updateField = useCallback(

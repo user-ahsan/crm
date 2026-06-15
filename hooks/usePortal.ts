@@ -80,6 +80,7 @@ export function usePortalShares(portalUserId: string | null) {
   }, [portalUserId]);
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (!portalUserId) {
       setShares([]);
       setLoading(false);
@@ -99,6 +100,7 @@ export function usePortalShares(portalUserId: string | null) {
       }
     })();
     return () => { cancelled = true; };
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [portalUserId]);
 
   const shareRecord = async (data: PortalShareFormData) => {

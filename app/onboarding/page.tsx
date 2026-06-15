@@ -118,6 +118,7 @@ export default function OnboardingPage() {
 
   /* ── Pre-fill from signup data ─────────────────────────── */
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     try {
       const stored = sessionStorage.getItem('onboarding-user');
       if (stored) {
@@ -138,6 +139,7 @@ export default function OnboardingPage() {
     } catch {
       /* Silently ignore — sessionStorage may be empty or corrupted */
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   /* ── Field updater ─────────────────────────────────────── */

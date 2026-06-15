@@ -148,7 +148,7 @@ function SimpleBarChart({
 export default function DashboardPage() {
   const router = useRouter();
   const { leads, loading: leadsLoading, error: leadsError, refresh: refreshLeads } = useLeads();
-  const { tasks, loading: tasksLoading, error: tasksError, refresh: refreshTasks } = useTasks();
+  const { tasks, loading: tasksLoading, error: tasksError, refresh: refreshTasks, toggleTask } = useTasks();
   const { meetings, loading: meetingsLoading, error: meetingsError, refresh: refreshMeetings } = useMeetings();
   const { team, loading: teamLoading } = useTeamContext();
 
@@ -157,8 +157,10 @@ export default function DashboardPage() {
   const [cacheReady, setCacheReady] = useState(false);
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     setCachedKpis(loadCachedKPIs());
     setCacheReady(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   // ── Lazy loading refs for below-fold content ──────────
@@ -181,6 +183,10 @@ export default function DashboardPage() {
     refreshTasks();
     refreshMeetings();
   }, [refreshLeads, refreshTasks, refreshMeetings]);
+
+  const handleToggleTask = useCallback(async (id: string) => {
+    await toggleTask(id);
+  }, [toggleTask]);
 
   /* Memoised computations */
   const rawKpis = useMemo(() => computeDashboardKPIs(leads, tasks, meetings), [leads, tasks, meetings]);
@@ -519,6 +525,7 @@ export default function DashboardPage() {
                     <Checkbox
                       className="mt-0.5"
                       checked={task.status === 'completed'}
+                      onCheckedChange={() => handleToggleTask(task.id)}
                     />
                     <div className="flex-1 space-y-1">
                       <p

@@ -58,6 +58,7 @@ export function CompanyCreateForm({ open, onOpenChange, onSuccess, editCompany }
   const isEditMode = !!editCompany;
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (open) {
       if (editCompany) {
         setFormData({
@@ -75,7 +76,7 @@ export function CompanyCreateForm({ open, onOpenChange, onSuccess, editCompany }
       setErrors({});
       setSubmitting(false);
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [open, editCompany]);
 
   const updateField = useCallback(

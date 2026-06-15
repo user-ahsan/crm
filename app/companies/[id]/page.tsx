@@ -39,8 +39,24 @@ export default function CompanyDetailPage() {
   }, [companyId]);
 
   useEffect(() => {
-    loadCompany();
-  }, [loadCompany]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await companyService.getById(companyId);
+        if (cancelled) return;
+        if (data) {
+          setCompany(data);
+        } else {
+          setError('Company not found');
+        }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load company');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [companyId]);
 
   const handleBack = useCallback(() => {
     router.push('/companies');

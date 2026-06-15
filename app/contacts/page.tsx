@@ -77,6 +77,7 @@ function ContactsPageContent() {
   // Auto-open create dialog when navigated from Quick Actions
   useEffect(() => {
     if (searchParams.get('action') === 'create') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDialogOpen(true);
     }
   }, [searchParams]);

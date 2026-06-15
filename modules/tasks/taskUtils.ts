@@ -18,15 +18,19 @@ export function getOverdueTasks(tasks: Task[]): Task[] {
 }
 
 export function getDueTodayTasks(tasks: Task[]): Task[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const now = new Date();
+  // Build today's bounds in LOCAL timezone
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayEnd = new Date(todayStart);
+  todayEnd.setDate(todayEnd.getDate() + 1);
+
   return tasks.filter((t) => {
     if (t.status === 'completed') return false;
     if (!t.dueDate) return false;
+    // Parse dueDate as LOCAL date (works for "2026-06-14" and ISO strings)
     const due = new Date(t.dueDate);
-    return due >= today && due < tomorrow;
+    const dueLocal = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+    return dueLocal >= todayStart && dueLocal < todayEnd;
   });
 }
 

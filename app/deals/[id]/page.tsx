@@ -60,7 +60,25 @@ export default function DealDetailPage() {
     }
   }, [dealId]);
 
-  useEffect(() => { loadDeal(); }, [loadDeal]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await dealService.getById(dealId);
+        if (cancelled) return;
+        if (data) {
+          setDeal(data);
+        } else {
+          setError('Deal not found');
+        }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load deal');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [dealId]);
 
   const handleSuccess = useCallback(() => { loadDeal(); }, [loadDeal]);
 

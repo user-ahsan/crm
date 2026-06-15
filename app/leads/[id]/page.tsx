@@ -41,8 +41,24 @@ export default function LeadDetailPage() {
   }, [leadId]);
 
   useEffect(() => {
-    loadLead();
-  }, [loadLead]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await leadService.getById(leadId);
+        if (cancelled) return;
+        if (data) {
+          setLead(data);
+        } else {
+          setError('Lead not found');
+        }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load lead');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [leadId]);
 
   const handleBack = useCallback(() => {
     router.push('/leads');

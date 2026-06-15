@@ -53,6 +53,7 @@ export function SavedViewDialog({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (open) {
       if (view) {
         setName(view.name);
@@ -62,7 +63,7 @@ export function SavedViewDialog({
         setEntityType(defaultEntityType);
       }
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [open, view, defaultEntityType]);
 
   const handleSave = async () => {

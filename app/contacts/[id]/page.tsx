@@ -39,8 +39,24 @@ export default function ContactDetailPage() {
   }, [contactId]);
 
   useEffect(() => {
-    loadContact();
-  }, [loadContact]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await contactService.getById(contactId);
+        if (cancelled) return;
+        if (data) {
+          setContact(data);
+        } else {
+          setError('Contact not found');
+        }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load contact');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [contactId]);
 
   const handleBack = useCallback(() => {
     router.push('/contacts');

@@ -63,6 +63,7 @@ export function QuoteCreateDialog({
   const isEditMode = !!editQuote;
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (open) {
       if (editQuote) {
         setTitle(editQuote.title);
@@ -89,7 +90,7 @@ export function QuoteCreateDialog({
       }
       setSubmitting(false);
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [open, editQuote]);
 
   const updateItem = useCallback(

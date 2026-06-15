@@ -207,8 +207,22 @@ export default function AnalyticsPage() {
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const l = await leadService.getAll();
+        if (cancelled) return;
+        setLeads(l);
+        setPageState(l.length === 0 ? 'empty' : 'ready');
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : 'Failed to load analytics');
+          setPageState('error');
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const handleRetry = useCallback(() => {
     loadData();

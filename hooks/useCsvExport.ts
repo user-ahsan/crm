@@ -12,7 +12,7 @@ const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 /**
  * Generic CSV export helper. Writes typed data to a CSV file and triggers download.
  */
-function exportToCsv<T extends Record<string, any>>(
+function exportToCsv<T extends Record<string, unknown>>(
   data: T[],
   filename: string,
   columns: ExportColumn[],

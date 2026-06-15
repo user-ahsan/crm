@@ -72,6 +72,7 @@ export function LeadCreateForm({ open, onOpenChange, onSuccess, editLead }: Lead
 
   // Reset form when dialog opens/closes or editLead changes
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (open) {
       if (editLead) {
         setFormData({
@@ -95,7 +96,7 @@ export function LeadCreateForm({ open, onOpenChange, onSuccess, editLead }: Lead
       setTagInput('');
       setSubmitting(false);
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [open, editLead]);
 
   const updateField = useCallback(
