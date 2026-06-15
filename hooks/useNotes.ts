@@ -24,8 +24,6 @@ export function useNotes(entityType?: string, entityId?: string) {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     communicationService.getNotes(entityType, entityId)
       .then((data) => {
         if (!cancelled) setNotes(data);

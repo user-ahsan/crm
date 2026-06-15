@@ -24,7 +24,6 @@ export function useLeadScore(leadId: string) {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     leadService.getScore(leadId).then((data) => {
       if (!cancelled) setScore(data ?? null);
     }).catch((e) => {
@@ -89,8 +88,30 @@ export function useAllScores() {
   }, []);
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = (await import('@/lib/supabase/client')).createClient;
+        const client = await supabase();
+        const { data, error: err } = await client.from('lead_scores').select('*');
+        if (err) throw new Error(err.message);
+        type DbLeadScoreRow = {
+          id: string; lead_id: string; score: number;
+          factors: Record<string, number>; updated_at: string;
+        };
+        const mapped = (data ?? []).map((r: DbLeadScoreRow) => ({
+          id: r.id, leadId: r.lead_id, score: r.score,
+          factors: r.factors, updatedAt: r.updated_at,
+        }));
+        if (!cancelled) setScores(mapped);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load scores');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const batchUpdate = useCallback(async () => {
     setLoading(true);

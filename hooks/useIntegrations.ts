@@ -22,8 +22,19 @@ export function useIntegrations() {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    integrationService.getCalendarIntegrations()
+      .then((data) => {
+        if (!cancelled) setIntegrations(data);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load integrations');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const connect = async (data: CalendarIntegrationFormData) => {
     const integration = await integrationService.connectCalendar(data);

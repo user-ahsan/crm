@@ -25,8 +25,6 @@ export function useAttachments(relatedToType: RelatedEntityType, relatedToId: st
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     attachmentService.getAttachments(relatedToType, relatedToId)
       .then((data) => {
         if (!cancelled) setAttachments(data);

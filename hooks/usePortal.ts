@@ -22,8 +22,20 @@ export function usePortalUsers() {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    (async () => {
+      try {
+        setError(null);
+        const data = await portalService.getUsers();
+        if (!cancelled) setUsers(data);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load portal users');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const createUser = async (data: PortalUserFormData) => {
     const user = await portalService.createUser(data);
@@ -68,8 +80,26 @@ export function usePortalShares(portalUserId: string | null) {
   }, [portalUserId]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!portalUserId) {
+      setShares([]);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await portalService.getShares(portalUserId);
+        if (!cancelled) setShares(data);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load shares');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [portalUserId]);
 
   const shareRecord = async (data: PortalShareFormData) => {
     const share = await portalService.shareRecord(data);
