@@ -11,7 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -63,16 +62,6 @@ export function ContactTable({ contacts, onEdit, onDelete, selectedIds: external
       return next;
     });
   }, [setSelectedIds]);
-
-  const toggleSelectAll = useCallback(() => {
-    if (selectedIds.size === contacts.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(contacts.map((c) => c.id)));
-    }
-  }, [contacts, selectedIds.size, setSelectedIds]);
-
-  const isAllSelected = contacts.length > 0 && selectedIds.size === contacts.length;
 
   const navigateToContact = useCallback(
     (id: string) => {

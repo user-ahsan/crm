@@ -1,10 +1,10 @@
 'use client';
 
 import { useRef, useCallback } from 'react';
-import type { FileAttachment, RelatedEntityType } from '@/types/attachment.types';
+import type { RelatedEntityType } from '@/types/attachment.types';
 import { useAttachments } from '@/hooks/useAttachments';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { formatDate, formatRelativeTime } from '@/lib/formatters';
+import { formatRelativeTime } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
@@ -16,7 +16,6 @@ import {
   IconFileTypeCsv,
   IconFileTypeDoc,
   IconFileTypePdf,
-  IconFileTypePng,
   IconFileTypeZip,
   IconPhoto,
   IconMovie,

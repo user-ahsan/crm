@@ -282,7 +282,7 @@ export function KanbanBoard({ swimlaneGroup, swimlaneData }: KanbanBoardProps = 
 }
 
 /** Small avatar used in assignee swimlane headers */
-function LaneAvatar({ laneId, label }: { laneId: string; label: string }) {
+function LaneAvatar({ laneId }: { laneId: string; label: string }) {
   const user = USERS.find((u) => u.id === laneId);
   if (user) {
     return (

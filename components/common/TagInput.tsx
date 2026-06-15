@@ -4,9 +4,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import type { Tag } from '@/types/tag.types';
 import { TagBadge } from '@/components/common/TagBadge';
 import { useTags } from '@/hooks/useTags';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { IconPlus, IconTags } from '@tabler/icons-react';
+import { IconPlus } from '@tabler/icons-react';
 
 interface TagInputProps {
   selectedTags: Tag[];

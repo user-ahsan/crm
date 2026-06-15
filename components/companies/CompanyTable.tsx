@@ -60,16 +60,6 @@ export function CompanyTable({ companies, onEdit, onDelete, selectedIds: externa
     });
   }, [setSelectedIds]);
 
-  const toggleSelectAll = useCallback(() => {
-    if (selectedIds.size === companies.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(companies.map((c) => c.id)));
-    }
-  }, [companies, selectedIds.size, setSelectedIds]);
-
-  const isAllSelected = companies.length > 0 && selectedIds.size === companies.length;
-
   const navigateToCompany = useCallback(
     (id: string) => {
       router.push(`/companies/${id}`);

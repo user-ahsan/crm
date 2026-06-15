@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { USERS } from '@/lib/constants';
 import { formatCurrency, formatDate, getInitials } from '@/lib/formatters';
-import { IconEdit, IconTrash, IconCurrencyDollar, IconCalendarEvent, IconUser } from '@tabler/icons-react';
+import { IconEdit, IconTrash, IconCurrencyDollar, IconCalendarEvent } from '@tabler/icons-react';
 
 interface DealTableProps {
   deals: Deal[];

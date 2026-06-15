@@ -17,7 +17,7 @@ interface EmailComposerProps {
   onClose?: () => void;
 }
 
-export function EmailComposer({ toAddress = '', relatedToType, relatedToId, onSend, onSaveDraft, onClose }: EmailComposerProps) {
+export function EmailComposer({ toAddress = '', onSend, onSaveDraft, onClose }: EmailComposerProps) {
   const [to, setTo] = useState(toAddress);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');

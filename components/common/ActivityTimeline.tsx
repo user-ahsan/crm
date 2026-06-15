@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/formatters';
 import {
   IconMail,
-  IconPhone,
   IconCalendar,
   IconCheck,
   IconPlus,

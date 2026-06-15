@@ -42,7 +42,6 @@ import {
   IconUsers,
   IconCalendarEvent,
   IconCheckbox,
-  IconNote,
   IconTags,
   IconAlertCircle,
   IconLoader2,

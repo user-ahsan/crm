@@ -126,7 +126,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
                   {TYPE_LABELS[type] ?? type}
                   <span className="ml-auto text-[10px]">({grouped[type].length})</span>
                 </div>
-                {grouped[type].map((result, idx) => {
+                {grouped[type].map((result) => {
                   const globalIdx = flatResults.indexOf(result);
                   return (
                     <div

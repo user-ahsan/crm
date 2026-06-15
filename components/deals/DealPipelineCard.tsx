@@ -15,7 +15,7 @@ interface DealPipelineCardProps {
   onClick?: (deal: Deal) => void;
 }
 
-export function DealPipelineCard({ deal, stageColor, onClick }: DealPipelineCardProps) {
+export function DealPipelineCard({ deal, onClick }: DealPipelineCardProps) {
   const dragImageRef = useRef<HTMLDivElement | null>(null);
 
   const handleDragStart = useCallback(

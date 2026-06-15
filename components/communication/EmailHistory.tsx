@@ -30,7 +30,7 @@ interface EmailHistoryProps {
   toAddress?: string;
 }
 
-export function EmailHistory({ emails, loading, entityType, entityId, onSend, onRefresh, subject, toAddress }: EmailHistoryProps) {
+export function EmailHistory({ emails, loading, entityType, entityId, onSend, onRefresh, toAddress }: EmailHistoryProps) {
   const [showComposer, setShowComposer] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 

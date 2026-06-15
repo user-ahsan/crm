@@ -5,7 +5,6 @@ import type { Lead } from '@/types/lead.types';
 import type { Task } from '@/types/task.types';
 import type { Meeting } from '@/types/meeting.types';
 import type { Activity } from '@/types/activity.types';
-import type { LeadScore } from '@/types/lead-scoring.types';
 import { useEmail } from '@/hooks/useEmail';
 import { EmailHistory } from '@/components/communication/EmailHistory';
 import { useSms } from '@/hooks/useSms';
@@ -28,7 +27,6 @@ import { TagInput } from '@/components/common/TagInput';
 import { LeadScoreBadge } from '@/components/leads/LeadScoreBadge';
 import { useLeads } from '@/hooks/useLeads';
 import { useLeadScore } from '@/hooks/useLeadScoring';
-import { useTags } from '@/hooks/useTags';
 import { SCORING_FACTORS } from '@/types/lead-scoring.types';
 import { tagService } from '@/services/tag.service';
 import type { Tag } from '@/types/tag.types';
@@ -78,7 +76,7 @@ type LoadState<T> =
 
 export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
   const { getById: getLeadById } = useLeads();
-  const { score: leadScoreData, loading: scoreLoading, recalculate: recalculateScore, refresh: refreshScore } = useLeadScore(leadId);
+  const { score: leadScoreData, loading: scoreLoading, recalculate: recalculateScore } = useLeadScore(leadId);
   const { getByEntity: getTasksByEntity } = useTasks();
   const { getByEntity: getMeetingsByEntity } = useMeetings();
   const { getByEntity: getActivitiesByEntity } = useActivities();
@@ -102,7 +100,7 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
     refresh: refreshEmails,
   } = useEmail('lead', leadId);
 
-  const { callLogs, loading: callLogsLoading, logCall, refresh: refreshCallLogs } = useCallLogs('lead', leadId);
+  const { callLogs, loading: callLogsLoading, logCall } = useCallLogs('lead', leadId);
 
   const { smsLogs, loading: smsLoading, sendSms, refresh: refreshSms } = useSms('lead', leadId);
 
@@ -170,7 +168,6 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
     }
 
     if (activeTab === 'meetings' || activeTab === 'overview') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMeetingsLoading(true);
       getMeetingsByEntity('lead', lead.id).then((relatedMeetings) => {
         if (!cancelled) setMeetings(relatedMeetings);
@@ -182,7 +179,6 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
     }
 
     if (activeTab === 'activity' || activeTab === 'overview') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActivitiesLoading(true);
       getActivitiesByEntity('lead', lead.id).then((relatedActivities) => {
         if (!cancelled) setActivities(relatedActivities);
@@ -944,7 +940,7 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
               <div className="absolute bottom-0 left-[17px] top-0 w-px bg-border" />
 
               <div className="space-y-0">
-                {activities.map((activity, index) => (
+                {activities.map((activity) => (
                   <div key={activity.id} className="relative flex gap-4 pb-6 last:pb-0">
                     {/* Timeline dot */}
                     <div className="relative z-10 mt-0.5 flex shrink-0">

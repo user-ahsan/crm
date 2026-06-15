@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import type { Note } from '@/types/communication.types';
 import { useNotes } from '@/hooks/useNotes';
 import { NoteEditor } from './NoteEditor';
 import { formatRelativeTime, getInitials } from '@/lib/formatters';
@@ -29,8 +28,6 @@ export function NotesList({ entityType, entityId }: NotesListProps) {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
-
-  const editingNote = editingNoteId ? notes.find((n) => n.id === editingNoteId) ?? null : null;
 
   const handleCreate = useCallback(async (title: string, body: string) => {
     setSaving(true);

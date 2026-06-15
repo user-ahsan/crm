@@ -69,7 +69,7 @@ function TaskRow({
   const isCompleted = task.status === 'completed';
 
   const handleCheckedChange = useCallback(
-    (checked: boolean) => {
+    () => {
       onToggle(task.id);
     },
     [task.id, onToggle]

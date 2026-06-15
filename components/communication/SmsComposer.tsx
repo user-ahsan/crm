@@ -18,7 +18,7 @@ interface SmsComposerProps {
 
 const MAX_CHARS = 160;
 
-export function SmsComposer({ toNumber = '', relatedToType, relatedToId, onSend, onClose }: SmsComposerProps) {
+export function SmsComposer({ toNumber = '', onSend, onClose }: SmsComposerProps) {
   const [to, setTo] = useState(toNumber);
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);

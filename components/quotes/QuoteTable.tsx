@@ -1,6 +1,5 @@
 'use client';
 
-import { useCallback } from 'react';
 import type { Quote, QuoteStatus } from '@/types/quote.types';
 import {
   Table,
