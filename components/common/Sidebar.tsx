@@ -23,9 +23,12 @@ import {
   IconFilter,
   IconCalendarShare,
   IconWorld,
+  IconMailForward,
+  IconHierarchy,
+  IconKey,
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
-import { NAV_ITEMS } from '@/lib/constants';
+import { NAV_GROUPS } from '@/lib/constants';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { useTeamContext } from '@/context/TeamContext';
@@ -57,6 +60,9 @@ const iconMap = {
   filter: IconFilter,
   'calendar-share': IconCalendarShare,
   world: IconWorld,
+  'mail-forward': IconMailForward,
+  hierarchy: IconHierarchy,
+  'api-key': IconKey,
 } as const;
 
 type IconKey = keyof typeof iconMap;
@@ -119,66 +125,76 @@ export function Sidebar({
 
       <Separator />
 
-      {/* ── Navigation Items ──────────────────────────── */}
+      {/* ── Navigation Items (grouped) ─────────────────── */}
       <div
         className={cn(
           'flex-1 overflow-y-auto',
-          collapsed ? 'flex flex-col items-center gap-0.5 px-1 py-1.5' : 'space-y-0.5 px-2 py-2',
+          collapsed
+            ? 'flex flex-col items-center gap-1 px-1 py-1.5'
+            : 'space-y-3 px-2 py-2',
         )}
       >
+        {NAV_GROUPS.map((group) => (
+          <div key={group.label} className={collapsed ? '' : 'space-y-0.5'}>
+            {!collapsed && (
+              <p className="px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+                {group.label}
+              </p>
+            )}
+            {group.items.map((item) => {
+              const Icon = iconMap[item.icon as IconKey];
+              const isActive = isActiveRoute(item.href);
 
-        {NAV_ITEMS.map((item) => {
-          const Icon = iconMap[item.icon as IconKey];
-          const isActive = isActiveRoute(item.href);
-
-          const linkElement = (
-            <Link
-              href={item.href}
-              onClick={onNavClick}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                collapsed && 'justify-center px-0',
-                isActive
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
-              )}
-              aria-current={isActive ? 'page' : undefined}
-            >
-              {Icon && <Icon className="size-5 shrink-0" aria-hidden="true" />}
-              {!collapsed && <span className="truncate">{item.label}</span>}
-            </Link>
-          );
-
-          /* Collapsed state — show tooltip on hover */
-          if (collapsed) {
-            return (
-              <Tooltip key={item.href}>
-                <TooltipTrigger
-                  render={
-                    <Link
-                      href={item.href}
-                      onClick={onNavClick}
-                      className={cn(
-                        'flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                        isActive
-                          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                          : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
-                      )}
-                      aria-current={isActive ? 'page' : undefined}
-                    />
-                  }
+              const linkElement = (
+                <Link
+                  href={item.href}
+                  onClick={onNavClick}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    collapsed && 'justify-center px-0',
+                    isActive
+                      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
+                  )}
+                  aria-current={isActive ? 'page' : undefined}
                 >
                   {Icon && <Icon className="size-5 shrink-0" aria-hidden="true" />}
-                </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={8}>
-                  {item.label}
-                </TooltipContent>
-              </Tooltip>
-            );
-          }
+                  {!collapsed && <span className="truncate">{item.label}</span>}
+                </Link>
+              );
 
-          return <div key={item.href}>{linkElement}</div>;
-        })}
+              /* Collapsed state — show tooltip on hover */
+              if (collapsed) {
+                return (
+                  <Tooltip key={item.href}>
+                    <TooltipTrigger
+                      render={
+                        <Link
+                          href={item.href}
+                          onClick={onNavClick}
+                          className={cn(
+                            'flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                            isActive
+                              ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                              : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
+                          )}
+                          aria-current={isActive ? 'page' : undefined}
+                        />
+                      }
+                    >
+                      {Icon && <Icon className="size-5 shrink-0" aria-hidden="true" />}
+                    </TooltipTrigger>
+                    <TooltipContent side="right" sideOffset={8}>
+                      {item.label}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              }
+
+              return <div key={item.href}>{linkElement}</div>;
+            })}
+          </div>
+        ))}
       </div>
 
       <Separator />

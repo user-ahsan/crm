@@ -1,20 +1,10 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono, DM_Sans, Inter } from 'next/font/google';
+import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import ClientLayout from './client-layout';
 
 /* ── Font Configuration ──────────────────────────────────── */
-const interHeading = Inter({
-  subsets: ['latin'],
-  variable: '--font-heading',
-});
-
-const dmSans = DM_Sans({
-  subsets: ['latin'],
-  variable: '--font-sans',
-});
-
 const geistSans = Geist({
   variable: '--font-geist-sans',
   subsets: ['latin'],
@@ -48,8 +38,6 @@ export default function RootLayout({
         geistSans.variable,
         geistMono.variable,
         'font-sans',
-        dmSans.variable,
-        interHeading.variable,
       )}
     >
       <head>

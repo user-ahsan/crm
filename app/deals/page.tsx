@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, Suspense } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { IconPlus, IconCurrencyDollar } from '@tabler/icons-react';
 import { toast } from 'sonner';

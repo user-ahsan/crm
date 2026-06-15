@@ -14,7 +14,7 @@ import {
   computeDashboardKPIs,
   computePipelineFunnel,
   computeLeadSources,
-  computeMonthlyPerformance,
+
   type DashboardKPIs,
 } from '@/modules/analytics/analyticsUtils';
 import { getDueTodayTasks } from '@/modules/tasks/taskUtils';
@@ -27,13 +27,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Progress,
-  ProgressLabel,
-  ProgressValue,
-  ProgressTrack,
-  ProgressIndicator,
-} from '@/components/ui/progress';
+
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { StatCard } from '@/components/common/StatCard';
@@ -50,6 +44,22 @@ import {
   IconArrowDownRight,
   IconArrowRight,
   IconUsersGroup,
+  IconMail,
+  IconStar,
+  IconPlus,
+  IconCalendarEvent,
+  IconFileReport,
+  IconChartBar,
+  IconSettings,
+  IconBuilding,
+  IconTags,
+  IconFlag,
+  IconTarget,
+  IconBrandTelegram,
+  IconPhone,
+  IconFileDescription,
+  IconLink,
+  IconColumns3,
 } from '@tabler/icons-react';
 
 /* ── SessionStorage cache for above-fold KPIs ──────────── */
@@ -153,7 +163,6 @@ export default function DashboardPage() {
 
   // ── Lazy loading refs for below-fold content ──────────
   const [funnelRef, funnelInView] = useInView(0.1);
-  const [monthlyRef, monthlyInView] = useInView(0.1);
 
   // ── Page state (cache-aware: skip loading if cached) ──
   const pageState = useMemo<PageState>(() => {
@@ -189,7 +198,6 @@ export default function DashboardPage() {
   }, [rawKpis, leads.length, leadsLoading, tasksLoading, meetingsLoading]);
   const funnel = useMemo(() => computePipelineFunnel(leads), [leads]);
   const sources = useMemo(() => computeLeadSources(leads), [leads]);
-  const monthly = useMemo(() => computeMonthlyPerformance(leads), [leads]);
   const dueToday = useMemo(() => getDueTodayTasks(tasks), [tasks]);
 
   const today = useMemo(() => formatDate(new Date()), []);
@@ -223,16 +231,6 @@ export default function DashboardPage() {
               <Skeleton className="h-48 w-full" />
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-5 w-40" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-48 w-full" />
-            </CardContent>
-          </Card>
-        </div>
-        <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
               <Skeleton className="h-5 w-32" />
@@ -362,10 +360,10 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Middle Section: Pipeline Funnel + Monthly Performance */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Middle Section: Pipeline Funnel + Quick Actions */}
+      <div className="grid gap-6 lg:grid-cols-5 items-start">
         {/* Pipeline Funnel */}
-        <div ref={funnelRef}>
+        <div ref={funnelRef} className="lg:col-span-3">
           <Card>
             <CardHeader>
               <CardTitle>Pipeline Funnel</CardTitle>
@@ -415,80 +413,46 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Monthly Performance */}
-        <div ref={monthlyRef}>
+        {/* Quick Actions — scrollable with max height */}
+        <div className="lg:col-span-2">
           <Card>
-            <CardHeader>
-              <CardTitle>Monthly Performance</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
-            <CardContent>
-              {monthlyInView ? (
-                monthly.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-muted-foreground">
-                    No monthly data available.
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {/* Legend */}
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1.5">
-                        <span className="inline-block size-3 rounded-sm bg-primary" />
-                        <span>Leads</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="inline-block size-3 rounded-sm bg-green-500" />
-                        <span>Won</span>
-                      </div>
-                    </div>
-                    {/* Bars */}
-                    <div
-                      className="flex items-end gap-3"
-                      style={{ height: 180 }}
+            <CardContent className="p-0 max-h-[420px] overflow-y-auto">
+              <nav className="divide-y divide-border">
+                {[
+                  { icon: IconMail, label: 'Email Campaign', desc: 'Create & send new campaign', href: '/campaigns?action=create', color: 'text-blue-500' },
+                  { icon: IconStar, label: 'High Priority', desc: 'View high-priority leads', href: '/leads?priority=high', color: 'text-red-500' },
+                  { icon: IconPlus, label: 'New Lead', desc: 'Add a new lead record', href: '/leads?action=create', color: 'text-emerald-500' },
+                  { icon: IconUsers, label: 'New Contact', desc: 'Add a new contact', href: '/contacts?action=create', color: 'text-violet-500' },
+                  { icon: IconCalendarEvent, label: 'Schedule Meeting', desc: 'Set up a meeting', href: '/meetings?action=create', color: 'text-orange-500' },
+                  { icon: IconCheck, label: 'New Task', desc: 'Create a to-do item', href: '/tasks?action=create', color: 'text-cyan-500' },
+                  { icon: IconCurrencyDollar, label: 'New Deal', desc: 'Track a new deal', href: '/deals?action=create', color: 'text-amber-500' },
+                  { icon: IconColumns3, label: 'Pipeline', desc: 'View pipeline stages', href: '/pipeline', color: 'text-indigo-500' },
+                  { icon: IconChartBar, label: 'Analytics', desc: 'View reports & charts', href: '/analytics', color: 'text-pink-500' },
+                  { icon: IconFlag, label: 'Goals', desc: 'Track your targets', href: '/goals', color: 'text-rose-500' },
+                  { icon: IconTarget, label: 'Quotes', desc: 'Manage quotes', href: '/quotes', color: 'text-teal-500' },
+                  { icon: IconBuilding, label: 'Companies', desc: 'Browse organizations', href: '/companies', color: 'text-sky-500' },
+                ].map((action) => {
+                  const Icon = action.icon;
+                  return (
+                    <Link
+                      key={action.label}
+                      href={action.href}
+                      className="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-muted/50"
                     >
-                      {monthly.map((m) => {
-                        const maxLead = Math.max(...monthly.map((x) => x.leads)) || 1;
-                        const maxWon = Math.max(...monthly.map((x) => x.won)) || 1;
-                        return (
-                          <div
-                            key={m.month}
-                            className="flex flex-1 flex-col items-center gap-1"
-                          >
-                            {/* Won bar (stacked on top) */}
-                            <div
-                              className="w-full rounded-t-sm bg-green-500 transition-all"
-                              style={{
-                                height: `${(m.won / maxWon) * 120}px`,
-                                minHeight: m.won > 0 ? 4 : 0,
-                              }}
-                            />
-                            {/* Leads bar */}
-                            <div
-                              className="w-full rounded-sm bg-primary transition-all"
-                              style={{
-                                height: `${(m.leads / maxLead) * 120}px`,
-                                minHeight: m.leads > 0 ? 4 : 0,
-                              }}
-                            />
-                            <span className="mt-1 text-xs text-muted-foreground">
-                              {m.month.slice(5)}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )
-              ) : (
-                <div className="flex items-end gap-3" style={{ height: 180, minHeight: 220 }}>
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <Skeleton
-                      key={i}
-                      className="flex-1 rounded-t-sm"
-                      style={{ height: `${40 + (i * 11) % 60}px` }}
-                    />
-                  ))}
-                </div>
-              )}
+                      <span className={`flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted ${action.color}`}>
+                        <Icon className="size-3.5" stroke={1.5} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium leading-tight">{action.label}</p>
+                        <p className="text-[10px] text-muted-foreground leading-tight">{action.desc}</p>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </nav>
             </CardContent>
           </Card>
         </div>
@@ -508,23 +472,28 @@ export default function DashboardPage() {
               </p>
             ) : (
               <div className="space-y-4">
-                {sources.map((source) => (
-                  <div key={source.source} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium capitalize">
-                        {source.label}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {source.count} ({source.percentage}%)
-                      </span>
+                {sources.map((source) => {
+                  const maxPct = Math.max(...sources.map((s) => s.percentage)) || 1;
+                  const barWidth = (source.percentage / maxPct) * 100;
+                  return (
+                    <div key={source.source} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium capitalize">
+                          {source.label}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {source.count} ({source.percentage}%)
+                        </span>
+                      </div>
+                      <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all"
+                          style={{ width: `${Math.max(barWidth, 2)}%` }}
+                        />
+                      </div>
                     </div>
-                    <Progress value={source.percentage}>
-                      <ProgressTrack>
-                        <ProgressIndicator />
-                      </ProgressTrack>
-                    </Progress>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>

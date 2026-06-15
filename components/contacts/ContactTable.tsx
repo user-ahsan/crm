@@ -107,15 +107,15 @@ export function ContactTable({ contacts, onEdit, onDelete, selectedIds: external
         <TableHeader>
           <TableRow>
             <TableHead className="w-10" />
-            <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Phone</TableHead>
-            <TableHead>Job Title</TableHead>
-            <TableHead>Company</TableHead>
-            <TableHead>Tags</TableHead>
-            <TableHead>Linked Leads</TableHead>
+            <TableHead className="min-w-[140px]">Name</TableHead>
+            <TableHead className="min-w-[180px]">Email</TableHead>
+            <TableHead className="min-w-[130px]">Phone</TableHead>
+            <TableHead className="min-w-[120px]">Job Title</TableHead>
+            <TableHead className="min-w-[120px]">Company</TableHead>
+            <TableHead className="min-w-[100px]">Tags</TableHead>
+            <TableHead className="min-w-[90px]">Linked Leads</TableHead>
             {(onEdit || onDelete) && (
-              <TableHead className="w-24 text-right">Actions</TableHead>
+              <TableHead className="w-24 min-w-[80px] text-right">Actions</TableHead>
             )}
           </TableRow>
         </TableHeader>
@@ -184,12 +184,15 @@ export function ContactTable({ contacts, onEdit, onDelete, selectedIds: external
                   )}
                 </TableCell>
                 <TableCell>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1.5">
                     {contact.tags.length > 0 ? (
                       contact.tags.slice(0, 3).map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs font-normal">
+                        <span
+                          key={tag}
+                          className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                        >
                           {tag}
-                        </Badge>
+                        </span>
                       ))
                     ) : (
                       <span className="text-muted-foreground/50">—</span>

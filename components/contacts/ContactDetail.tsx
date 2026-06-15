@@ -511,7 +511,7 @@ export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
                         </p>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <Badge
                         variant={
                           task.status === 'completed'
@@ -520,7 +520,7 @@ export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
                             ? 'destructive'
                             : 'secondary'
                         }
-                        className="text-xs font-normal"
+                        className="text-xs font-normal capitalize"
                       >
                         {task.status}
                       </Badge>

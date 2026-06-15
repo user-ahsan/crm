@@ -38,9 +38,9 @@ import { convertToCSV, downloadCSV } from '@/lib/csv-export';
 import { LEAD_EXPORT_COLUMNS } from '@/lib/csv-export-definitions';
 import type { SavedView } from '@/types/saved-view.types';
 
-const ALL_STATUS = '__all_statuses';
-const ALL_SOURCE = '__all_sources';
-const ALL_PRIORITY = '__all_priorities';
+const ALL_STATUS = '';
+const ALL_SOURCE = '';
+const ALL_PRIORITY = '';
 
 function LeadsPageContent() {
   const { leads, loading, error, refresh, getFiltered, deleteLead } = useLeads();
@@ -99,6 +99,13 @@ function LeadsPageContent() {
   const [editingLead, setEditingLead] = useState<Lead | undefined>(undefined);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const { exportEntity, isExporting } = useCsvExport();
+
+  // Auto-open create dialog when navigated from Quick Actions
+  useEffect(() => {
+    if (searchParams.get('action') === 'create') {
+      setDialogOpen(true);
+    }
+  }, [searchParams]);
 
   const filters = useMemo(
     () => ({

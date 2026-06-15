@@ -109,7 +109,7 @@ export function AppShell({ children }: AppShellProps) {
           <Separator />
 
           <main className="flex-1 overflow-y-auto">
-            <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 md:p-6 lg:p-8">
+            <div className="mx-auto flex w-full flex-col gap-6 p-4 md:p-6 lg:p-8">
               {children}
             </div>
           </main>

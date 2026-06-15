@@ -1,97 +1,91 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
-export const NORMALIZE_PHONE_REGEX = /\D/g;
-export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/* ── Email Validation ────────────────────────────────────── */
+export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/* ── Phone Normalization ─────────────────────────────────── */
 export function normalizePhone(phone: string): string {
-  return phone.replace(NORMALIZE_PHONE_REGEX, '').slice(-10);
+  return phone.replace(/[\s\-().]/g, '');
 }
 
+/* ── Fuzzy Name Match ────────────────────────────────────── */
 export function fuzzyNameMatch(a: string, b: string): boolean {
-  const na = a.toLowerCase().trim();
-  const nb = b.toLowerCase().trim();
-  if (na.length < 3 || nb.length < 3) return na === nb;
-  return na.slice(0, 3) === nb.slice(0, 3) && na.slice(-3) === nb.slice(-3);
+  const normA = a.toLowerCase().replace(/\s+/g, ' ').trim();
+  const normB = b.toLowerCase().replace(/\s+/g, ' ').trim();
+  if (normA === normB) return true;
+  return normA.includes(normB) || normB.includes(normA);
 }
 
-export interface DuplicateMatcher<T> {
-  key: keyof T | ((item: T) => string);
-  weight: number;
-  type: 'exact' | 'fuzzy' | 'normalized';
-}
-
+/* ── Duplicate Detection ─────────────────────────────────── */
 export interface DuplicateGroup<T> {
   item: T;
   duplicates: T[];
   score: number;
 }
 
-export function findDuplicates<T extends { id: string }>(
+interface WeightRule<T> {
+  key: (item: T) => string;
+  weight: number;
+  type: 'exact' | 'fuzzy' | 'normalized';
+}
+
+export function findDuplicates<T>(
   items: T[],
-  matchers: DuplicateMatcher<T>[],
-  minScore = 25,
+  rules: WeightRule<T>[],
+  threshold: number,
 ): DuplicateGroup<T>[] {
   const groups: DuplicateGroup<T>[] = [];
-  const visited = new Set<string>();
+  const visited = new Set<number>();
 
   for (let i = 0; i < items.length; i++) {
-    if (visited.has(items[i].id)) continue;
-    const a = items[i];
-    const matches: T[] = [];
-    let maxScore = 0;
+    if (visited.has(i)) continue;
+
+    const group: T[] = [items[i]];
+    visited.add(i);
 
     for (let j = i + 1; j < items.length; j++) {
-      const b = items[j];
-      if (visited.has(b.id)) continue;
+      if (visited.has(j)) continue;
+
       let score = 0;
-
-      for (const matcher of matchers) {
-        let valA: string;
-        let valB: string;
-
-        if (typeof matcher.key === 'function') {
-          valA = matcher.key(a);
-          valB = matcher.key(b);
-        } else {
-          valA = String(a[matcher.key] ?? '');
-          valB = String(b[matcher.key] ?? '');
-        }
-
+      for (const rule of rules) {
+        const valA = rule.key(items[i]);
+        const valB = rule.key(items[j]);
         if (!valA || !valB) continue;
 
-        let matched = false;
-        switch (matcher.type) {
+        let match = false;
+        switch (rule.type) {
           case 'exact':
-            matched = valA.toLowerCase() === valB.toLowerCase();
-            break;
-          case 'normalized':
-            matched = normalizePhone(valA) === normalizePhone(valB) && normalizePhone(valA).length >= 10;
+            match = valA.toLowerCase() === valB.toLowerCase();
             break;
           case 'fuzzy':
-            matched = fuzzyNameMatch(valA, valB);
+            match = fuzzyNameMatch(valA, valB);
+            break;
+          case 'normalized':
+            match = normalizePhone(valA) === normalizePhone(valB);
             break;
         }
-
-        if (matched) score += matcher.weight;
+        if (match) score += rule.weight;
       }
 
-      if (score >= minScore) {
-        matches.push(b);
-        if (score > maxScore) maxScore = score;
+      if (score >= threshold) {
+        group.push(items[j]);
+        visited.add(j);
       }
     }
 
-    if (matches.length > 0) {
-      groups.push({ item: a, duplicates: matches, score: maxScore });
-      for (const m of matches) visited.add(m.id);
-      visited.add(a.id);
+    if (group.length > 1) {
+      groups.push({
+        item: group[0],
+        duplicates: group.slice(1),
+        score: threshold,
+      });
     }
   }
 
-  return groups.sort((a, b) => b.score - a.score);
+  return groups;
 }

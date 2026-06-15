@@ -114,26 +114,26 @@ export function LeadTable({ leads, onEdit, onDelete, selectedIds: externalSelect
                 aria-label="Select all leads"
               />
             </TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Company</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Priority</TableHead>
-            <TableHead>Score</TableHead>
-            <TableHead>Assigned To</TableHead>
-            <TableHead>
+            <TableHead className="min-w-[120px]">Name</TableHead>
+            <TableHead className="min-w-[140px]">Email</TableHead>
+            <TableHead className="min-w-[100px]">Company</TableHead>
+            <TableHead className="min-w-[80px]">Status</TableHead>
+            <TableHead className="min-w-[70px]">Priority</TableHead>
+            <TableHead className="w-16">Score</TableHead>
+            <TableHead className="min-w-[100px]">Assigned To</TableHead>
+            <TableHead className="min-w-[70px]">
               <span className="inline-flex items-center gap-1">
                 <IconCurrencyDollar className="size-3.5" />
                 Value
               </span>
             </TableHead>
-            <TableHead>
+            <TableHead className="min-w-[80px]">
               <span className="inline-flex items-center gap-1">
                 <IconCalendarEvent className="size-3.5" />
                 Created
               </span>
             </TableHead>
-            <TableHead className="w-24 text-right">Actions</TableHead>
+            <TableHead className="sticky right-0 w-24 min-w-[80px] bg-background text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

@@ -19,13 +19,13 @@ export function TagBadge({ name, color = '#6366f1', onRemove, size = 'sm' }: Tag
     <Badge
       variant="outline"
       className={cn(
-        'inline-flex items-center gap-1 font-normal border-0',
-        size === 'sm' ? 'text-xs h-5 px-1.5' : 'text-sm h-6 px-2',
+        'inline-flex items-center gap-1.5 font-normal border-0',
+        size === 'sm' ? 'text-xs h-5 px-2' : 'text-sm h-6 px-2.5',
         onRemove && 'pr-1',
       )}
       style={{ backgroundColor: bg, color: text }}
     >
-      {name}
+      <span>{name}</span>
       {onRemove && (
         <button
           type="button"

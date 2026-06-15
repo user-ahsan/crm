@@ -73,6 +73,13 @@ function ContactsPageContent() {
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | undefined>(undefined);
+
+  // Auto-open create dialog when navigated from Quick Actions
+  useEffect(() => {
+    if (searchParams.get('action') === 'create') {
+      setDialogOpen(true);
+    }
+  }, [searchParams]);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const { exportEntity, isExporting } = useCsvExport();
 

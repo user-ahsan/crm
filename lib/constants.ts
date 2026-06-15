@@ -91,28 +91,56 @@ export const PIPELINE_STAGES: { key: LeadStatus; label: string; color: string }[
   { key: 'lost', label: 'Lost', color: 'border-t-red-500' },
 ];
 
-export const NAV_ITEMS = [
-  { label: 'Dashboard', href: '/dashboard', icon: 'layout-dashboard' },
-  { label: 'Leads', href: '/leads', icon: 'users' },
-  { label: 'Contacts', href: '/contacts', icon: 'address-book' },
-  { label: 'Companies', href: '/companies', icon: 'building' },
-  { label: 'Deals', href: '/deals', icon: 'currency-dollar' },
-  { label: 'Pipeline', href: '/pipeline', icon: 'columns-3' },
-  { label: 'Tasks', href: '/tasks', icon: 'checkbox' },
-  { label: 'Meetings', href: '/meetings', icon: 'calendar' },
-  { label: 'Quotes', href: '/quotes', icon: 'file-invoice' },
-  { label: 'Goals', href: '/goals', icon: 'flag' },
-  { label: 'Campaigns', href: '/campaigns', icon: 'mail-forward' },
-  { label: 'Analytics', href: '/analytics', icon: 'chart-bar' },
-  { label: 'Workflows', href: '/settings/workflows', icon: 'hierarchy' },
-  { label: 'Automation', href: '/settings/automation', icon: 'zap' },
-  { label: 'Team', href: '/settings/team', icon: 'users-group' },
-  { label: 'Data Quality', href: '/settings/data-quality', icon: 'filter' },
-  { label: 'Integrations', href: '/settings/integrations', icon: 'calendar-share' },
-  { label: 'Portal', href: '/settings/portal', icon: 'world' },
-  { label: 'API Keys', href: '/settings/api-keys', icon: 'api-key' },
-  { label: 'Settings', href: '/settings', icon: 'settings' },
-] as const;
+export interface NavGroup {
+  label: string;
+  items: readonly { label: string; href: string; icon: string }[];
+}
+
+export const NAV_GROUPS: NavGroup[] = [
+  {
+    label: 'Main',
+    items: [
+      { label: 'Dashboard', href: '/dashboard', icon: 'layout-dashboard' },
+      { label: 'Leads', href: '/leads', icon: 'users' },
+      { label: 'Contacts', href: '/contacts', icon: 'address-book' },
+      { label: 'Pipeline', href: '/pipeline', icon: 'columns-3' },
+      { label: 'Tasks', href: '/tasks', icon: 'checkbox' },
+    ],
+  },
+  {
+    label: 'Sales',
+    items: [
+      { label: 'Deals', href: '/deals', icon: 'currency-dollar' },
+      { label: 'Companies', href: '/companies', icon: 'building' },
+      { label: 'Meetings', href: '/meetings', icon: 'calendar' },
+      { label: 'Campaigns', href: '/campaigns', icon: 'mail-forward' },
+      { label: 'Quotes', href: '/quotes', icon: 'file-invoice' },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [
+      { label: 'Analytics', href: '/analytics', icon: 'chart-bar' },
+      { label: 'Goals', href: '/goals', icon: 'flag' },
+    ],
+  },
+  {
+    label: 'Settings',
+    items: [
+      { label: 'Team', href: '/settings/team', icon: 'users-group' },
+      { label: 'Workflows', href: '/settings/workflows', icon: 'hierarchy' },
+      { label: 'Automation', href: '/settings/automation', icon: 'zap' },
+      { label: 'Data Quality', href: '/settings/data-quality', icon: 'filter' },
+      { label: 'Integrations', href: '/settings/integrations', icon: 'calendar-share' },
+      { label: 'Portal', href: '/settings/portal', icon: 'world' },
+      { label: 'API Keys', href: '/settings/api-keys', icon: 'api-key' },
+      { label: 'Settings', href: '/settings', icon: 'settings' },
+    ],
+  },
+];
+
+// Flat list kept for backward compatibility
+export const NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items) as readonly { label: string; href: string; icon: string }[];
 
 export const USERS = [
   { id: 'user-1', name: 'Alice Johnson', initials: 'AJ', color: 'bg-blue-500' },
