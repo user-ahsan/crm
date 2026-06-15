@@ -2,7 +2,7 @@ import { getSharedClient } from '@/lib/supabase/client';
 import type { Lead, LeadFormData, LeadFilters } from '@/types/lead.types';
 import type { DbLead, DbLeadScore, LeadInsert } from '@/types/supabase.types';
 import type { LeadScore } from '@/types/lead-scoring.types';
-import { findDuplicates, normalizePhone, fuzzyNameMatch } from '@/lib/utils';
+import { findDuplicates } from '@/lib/utils';
 import type { DuplicateGroup } from '@/lib/utils';
 import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';

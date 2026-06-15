@@ -117,7 +117,7 @@ function LeadsPageContent() {
         | LeadPriority
         | undefined,
     }),
-    [search, statusFilter, sourceFilter, priorityFilter],
+    [debouncedSearch, statusFilter, sourceFilter, priorityFilter],
   );
 
   const filteredLeads = useMemo(() => {

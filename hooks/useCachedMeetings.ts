@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useEntityCache } from '@/store/entity-cache';
 import { meetingService } from '@/services/meeting.service';
-import type { Meeting, MeetingFormData } from '@/types/meeting.types';
+import type { MeetingFormData } from '@/types/meeting.types';
 
 export function useCachedMeetings() {
   const meetings = useEntityCache((s) => s.meetings);

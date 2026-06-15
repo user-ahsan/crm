@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useEntityCache } from '@/store/entity-cache';
 import { taskService } from '@/services/task.service';
-import type { Task, TaskFormData, TaskPriority, TaskStatus } from '@/types/task.types';
+import type { TaskFormData, TaskPriority, TaskStatus } from '@/types/task.types';
 import { filterTasks, sortTasks, getOverdueTasks, getDueTodayTasks } from '@/modules/tasks/taskUtils';
 
 export function useCachedTasks() {

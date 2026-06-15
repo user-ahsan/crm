@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useEntityCache } from '@/store/entity-cache';
 import { contactService } from '@/services/contact.service';
-import type { Contact, ContactFormData } from '@/types/contact.types';
+import type { ContactFormData } from '@/types/contact.types';
 
 export function useCachedContacts() {
   const contacts = useEntityCache((s) => s.contacts);

@@ -1,4 +1,4 @@
-import type { Lead, LeadStatus, LeadSource } from '@/types/lead.types';
+import type { Lead, LeadSource } from '@/types/lead.types';
 import type { Task } from '@/types/task.types';
 import type { Meeting } from '@/types/meeting.types';
 import { LEAD_STATUSES, LEAD_SOURCES } from '@/lib/constants';

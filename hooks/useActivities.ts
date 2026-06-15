@@ -23,15 +23,9 @@ export function useActivities() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
     (async () => {
       await refresh();
     })();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
   }, [refresh]);
 
   const getByEntity = useCallback(async (entityType: string, entityId: string) => {

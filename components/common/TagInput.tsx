@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { Tag } from '@/types/tag.types';
 import { TagBadge } from '@/components/common/TagBadge';
 import { useTags } from '@/hooks/useTags';
@@ -29,9 +29,9 @@ export function TagInput({
 
   useEffect(() => {
     refresh();
-  }, []);
+  }, [refresh]);
 
-  const selectedIds = new Set(selectedTags.map((t) => t.id));
+  const selectedIds = useMemo(() => new Set(selectedTags.map((t) => t.id)), [selectedTags]);
 
   const filtered = tags.filter(
     (t) =>

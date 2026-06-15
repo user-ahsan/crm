@@ -23,15 +23,9 @@ export function useQuotes() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
     (async () => {
       await refresh();
     })();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
   }, [refresh]);
 
   const createQuote = useCallback(async (data: QuoteFormData) => {

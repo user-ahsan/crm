@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useEntityCache } from '@/store/entity-cache';
 import { leadService } from '@/services/lead.service';
-import type { Lead, LeadFormData, LeadFilters } from '@/types/lead.types';
+import type { LeadFormData, LeadFilters } from '@/types/lead.types';
 import { applyLeadFilters } from '@/modules/leads/leadFilters';
 
 export function useCachedLeads() {

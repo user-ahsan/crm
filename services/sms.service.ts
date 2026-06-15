@@ -19,19 +19,6 @@ function mapRowToSms(row: DbSmsLog): SmsLog {
   };
 }
 
-function mapSmsToDb(data: SmsLog): Partial<SmsLogInsert> {
-  const db: Partial<SmsLogInsert> = {};
-  db.to_number = data.toNumber;
-  db.from_number = data.fromNumber;
-  db.body = data.body;
-  db.direction = data.direction;
-  db.status = data.status;
-  db.created_by = data.createdBy;
-  if (data.relatedToType) db.related_to_type = data.relatedToType;
-  if (data.relatedToId) db.related_to_id = data.relatedToId;
-  return db;
-}
-
 export const smsService = {
   async getLogs(relatedToType?: string, relatedToId?: string): Promise<SmsLog[]> {
     try {

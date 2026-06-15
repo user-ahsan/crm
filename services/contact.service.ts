@@ -1,7 +1,7 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { Contact, ContactFormData } from '@/types/contact.types';
 import type { DbContact, ContactInsert } from '@/types/supabase.types';
-import { findDuplicates, normalizePhone, fuzzyNameMatch } from '@/lib/utils';
+import { findDuplicates } from '@/lib/utils';
 import type { DuplicateGroup } from '@/lib/utils';
 import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';

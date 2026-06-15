@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useEntityCache } from '@/store/entity-cache';
 import { companyService } from '@/services/company.service';
-import type { Company, CompanyFormData } from '@/types/company.types';
+import type { CompanyFormData } from '@/types/company.types';
 
 export function useCachedCompanies() {
   const companies = useEntityCache((s) => s.companies);

@@ -269,7 +269,7 @@ export function ImportDialog({
       setError('Failed to read the file. Please try again.');
     };
     reader.readAsText(selectedFile);
-  }, []);
+  }, [entityType]);
 
   /** File input change handler */
   const handleFileSelect = useCallback(

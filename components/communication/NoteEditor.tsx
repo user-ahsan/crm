@@ -18,10 +18,8 @@ export function NoteEditor({ initialTitle = '', initialBody = '', onSave, onCanc
   const isDirty = title !== initialTitle || body !== initialBody;
 
   useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect */
     setTitle(initialTitle);
     setBody(initialBody);
-    /* eslint-enable react-hooks/set-state-in-effect */
   }, [initialTitle, initialBody]);
 
   const handleSave = async () => {

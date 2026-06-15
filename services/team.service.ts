@@ -1,7 +1,6 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { Team, TeamMember, TeamInvitation, TeamFormData, InviteMemberFormData, TeamRole } from '@/types/team.types';
 import type { DbTeam, DbTeamMember, DbTeamInvitation, TeamInsert } from '@/types/supabase.types';
-import { formatSupabaseError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
 

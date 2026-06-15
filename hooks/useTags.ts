@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Tag, TagFormData } from '@/types/tag.types';
+import type { Tag } from '@/types/tag.types';
 import { tagService } from '@/services/tag.service';
 
 export function useTags() {

@@ -38,7 +38,7 @@ export default function LeadDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [leadId]);
+  }, [leadId, getLeadById]);
 
   useEffect(() => {
     let cancelled = false;

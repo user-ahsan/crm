@@ -125,7 +125,7 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
       });
     });
     return () => { cancelled = true; };
-  }, [leadId]);
+  }, [getLeadById, leadId]);
 
   // Fetch tags for this lead
   useEffect(() => {
@@ -190,7 +190,7 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
     }
 
     return () => { cancelled = true; };
-  }, [leadState, activeTab]);
+  }, [leadState, activeTab, getTasksByEntity, getMeetingsByEntity, getActivitiesByEntity]);
 
   // Loading state
   if (leadState.status === 'loading') {
