@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { ContactTable } from '@/components/contacts/ContactTable';
 import { ContactCreateForm } from '@/components/contacts/ContactCreateForm';
-import { TagBadge } from '@/components/common/TagBadge';
+
 import { useContacts } from '@/hooks/useContacts';
 import { useTags } from '@/hooks/useTags';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -25,7 +25,7 @@ import { BulkActionBar } from '@/components/common/BulkActionBar';
 import { ViewsDropdown } from '@/components/common/ViewsDropdown';
 import { useCsvExport } from '@/hooks/useCsvExport';
 import { contactService } from '@/services/contact.service';
-import { tagService } from '@/services/tag.service';
+
 import { convertToCSV, downloadCSV } from '@/lib/csv-export';
 import { CONTACT_EXPORT_COLUMNS } from '@/lib/csv-export-definitions';
 import type { SavedView } from '@/types/saved-view.types';

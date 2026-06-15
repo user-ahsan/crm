@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { CompanyTable } from '@/components/companies/CompanyTable';
 import { CompanyCreateForm } from '@/components/companies/CompanyCreateForm';
-import { TagBadge } from '@/components/common/TagBadge';
+
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -25,7 +25,7 @@ import { useTags } from '@/hooks/useTags';
 import { useCsvExport } from '@/hooks/useCsvExport';
 import { useDebounce } from '@/hooks/useDebounce';
 import { companyService } from '@/services/company.service';
-import { tagService } from '@/services/tag.service';
+
 import { convertToCSV, downloadCSV } from '@/lib/csv-export';
 import { COMPANY_EXPORT_COLUMNS } from '@/lib/csv-export-definitions';
 import type { SavedView } from '@/types/saved-view.types';

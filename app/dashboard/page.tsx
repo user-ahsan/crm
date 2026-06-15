@@ -3,9 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { Lead } from '@/types/lead.types';
-import type { Task } from '@/types/task.types';
-import type { Meeting } from '@/types/meeting.types';
+
 import { useLeads } from '@/hooks/useLeads';
 import { useTasks } from '@/hooks/useTasks';
 import { useMeetings } from '@/hooks/useMeetings';
@@ -40,25 +38,16 @@ import {
   IconCheck,
   IconCurrencyDollar,
   IconCalendar,
-  IconArrowUpRight,
-  IconArrowDownRight,
   IconArrowRight,
   IconUsersGroup,
   IconMail,
   IconStar,
   IconPlus,
   IconCalendarEvent,
-  IconFileReport,
   IconChartBar,
-  IconSettings,
   IconBuilding,
-  IconTags,
   IconFlag,
   IconTarget,
-  IconBrandTelegram,
-  IconPhone,
-  IconFileDescription,
-  IconLink,
   IconColumns3,
 } from '@tabler/icons-react';
 
@@ -104,44 +93,6 @@ function formatDate(date: Date): string {
     month: 'long',
     day: 'numeric',
   });
-}
-
-/* ── Inline simple bar chart ─────────────────────────────── */
-function SimpleBarChart({
-  data,
-  bars,
-  height = 200,
-}: {
-  data: { label: string; value: number; color?: string }[];
-  bars: { key: string; label: string; color: string }[];
-  height?: number;
-}) {
-  if (data.length === 0) return null;
-  const maxValue = Math.max(...data.map((d) => d.value)) || 1;
-
-  return (
-    <div className="flex items-end gap-3" style={{ height }}>
-      {data.map((item) => (
-        <div
-          key={item.label}
-          className="flex flex-1 flex-col items-center gap-1.5"
-        >
-          <span className="text-xs font-medium tabular-nums">
-            {item.value}
-          </span>
-          <div
-            className="w-full rounded-t-md transition-all"
-            style={{
-              height: `${(item.value / maxValue) * 100}%`,
-              backgroundColor: item.color ?? 'var(--color-primary)',
-              minHeight: 4,
-            }}
-          />
-          <span className="text-xs text-muted-foreground">{item.label}</span>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 /* ── Dashboard Page ─────────────────────────────────────── */

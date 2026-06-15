@@ -12,7 +12,7 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { useTeam } from '@/hooks/useTeam';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
@@ -37,7 +37,7 @@ export default function TeamSettingsPage() {
     createTeam,
   } = useTeam();
 
-  const { canManageTeam, role } = usePermissions(currentMember?.role ?? null);
+  const { canManageTeam } = usePermissions(currentMember?.role ?? null);
   const isAdmin = canManageTeam();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);

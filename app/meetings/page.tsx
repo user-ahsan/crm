@@ -32,10 +32,6 @@ export default function MeetingsPage() {
     [refresh]
   );
 
-  const handleCreateCancel = useCallback(() => {
-    setCreateOpen(false);
-  }, []);
-
   // Loading state — initial data fetch
   if (loading && meetings.length === 0) {
     return (

@@ -54,7 +54,7 @@ export default function PortalSettingsPage() {
   const { users, loading, error, reload, createUser, toggleActive, deleteUser } = usePortalUsers();
   const [portalEnabled, setPortalEnabled] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const { shares, loading: sharesLoading, reload: reloadShares, shareRecord, removeShare } = usePortalShares(selectedUserId);
+  const { shares, loading: sharesLoading, shareRecord, removeShare } = usePortalShares(selectedUserId);
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState('');

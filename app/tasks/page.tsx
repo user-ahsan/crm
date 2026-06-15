@@ -9,7 +9,6 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { useTasks } from '@/hooks/useTasks';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
 import { IconPlus, IconChecklist } from '@tabler/icons-react';
 import { ExportDropdown } from '@/components/common/ExportDropdown';
 import { ImportDialog } from '@/components/common/ImportDialog';
@@ -26,10 +25,6 @@ export default function TasksPage() {
     refresh();
     setCreateOpen(false);
   }, [refresh]);
-
-  const handleCreateCancel = useCallback(() => {
-    setCreateOpen(false);
-  }, []);
 
   // Loading state — initial data fetch
   if (loading && tasks.length === 0) {

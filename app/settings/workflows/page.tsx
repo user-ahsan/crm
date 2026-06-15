@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useWorkflows } from '@/hooks/useWorkflows';
-import type { WorkflowState, WorkflowEntityType, WorkflowTransition } from '@/types/workflow.types';
+import type { WorkflowState, WorkflowEntityType } from '@/types/workflow.types';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   IconHierarchy,

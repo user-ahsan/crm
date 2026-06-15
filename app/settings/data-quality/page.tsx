@@ -185,8 +185,6 @@ export default function DataQualityPage() {
     setSurvivorIds((prev) => ({ ...prev, [groupId]: entityId }));
   }, []);
 
-  const currentGroups = activeTab === 'leads' ? leadGroups : activeTab === 'contacts' ? contactGroups : companyGroups;
-
   const renderGroup = (group: LeadGroup | ContactGroup | CompanyGroup) => {
     const groupId = group.item.id;
     const primary = group.item;

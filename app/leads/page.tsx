@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { LeadTable } from '@/components/leads/LeadTable';
 import { LeadCreateForm } from '@/components/leads/LeadCreateForm';
-import { TagBadge } from '@/components/common/TagBadge';
+
 import { useLeads } from '@/hooks/useLeads';
 import { useTags } from '@/hooks/useTags';
 import { useAllScores } from '@/hooks/useLeadScoring';
@@ -33,7 +33,7 @@ import { BulkActionBar } from '@/components/common/BulkActionBar';
 import { ViewsDropdown } from '@/components/common/ViewsDropdown';
 import { useCsvExport } from '@/hooks/useCsvExport';
 import { leadService } from '@/services/lead.service';
-import { tagService } from '@/services/tag.service';
+
 import { convertToCSV, downloadCSV } from '@/lib/csv-export';
 import { LEAD_EXPORT_COLUMNS } from '@/lib/csv-export-definitions';
 import type { SavedView } from '@/types/saved-view.types';
@@ -44,8 +44,8 @@ const ALL_PRIORITY = '';
 
 function LeadsPageContent() {
   const { leads, loading, error, refresh, getFiltered, deleteLead } = useLeads();
-  const { tags, loading: tagsLoading } = useTags();
-  const { scoresMap, loading: scoresLoading, batchUpdate: batchUpdateScores } = useAllScores();
+  const { tags } = useTags();
+  const { scoresMap } = useAllScores();
 
   const searchParams = useSearchParams();
   const router = useRouter();

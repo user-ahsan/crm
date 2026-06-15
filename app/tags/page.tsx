@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { IconPlus, IconEdit, IconTrash, IconTags } from '@tabler/icons-react';
+import { IconPlus, IconEdit, IconTrash } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import type { Tag } from '@/types/tag.types';
 import { PageHeader } from '@/components/common/PageHeader';

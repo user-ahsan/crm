@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
+
 import { NotesList } from '@/components/communication/NotesList';
 import { EmailHistory } from '@/components/communication/EmailHistory';
 import { TagBadge } from '@/components/common/TagBadge';

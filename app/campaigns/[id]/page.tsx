@@ -42,7 +42,7 @@ export default function CampaignDetailPage() {
   const [sequence, setSequence] = useState<EmailSequence | null>(null);
   const [seqLoading, setSeqLoading] = useState(true);
   const [seqError, setSeqError] = useState<string | null>(null);
-  const { emails, loading: emailsLoading, error: emailsError, refresh: refreshEmails, addEmail, updateEmail, deleteEmail } = useCampaignEmails(id);
+  const { emails, loading: emailsLoading, error: emailsError, addEmail, updateEmail, deleteEmail } = useCampaignEmails(id);
 
   // Sequence info
   const [editingName, setEditingName] = useState(false);

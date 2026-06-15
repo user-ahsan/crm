@@ -18,11 +18,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
   Progress,
-  ProgressLabel,
-  ProgressValue,
   ProgressTrack,
   ProgressIndicator,
 } from '@/components/ui/progress';

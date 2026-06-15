@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { IconBrandGoogle, IconBrandOffice, IconPlugConnected, IconPlugOff, IconTrash, IconRefresh } from '@tabler/icons-react';
+import { IconBrandGoogle, IconBrandOffice, IconPlugConnected, IconPlugOff, IconTrash } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import type { CalendarIntegration, CalendarProvider } from '@/types/integration.types';
 import { useIntegrations } from '@/hooks/useIntegrations';

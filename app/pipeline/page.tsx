@@ -21,7 +21,7 @@ export default function PipelinePage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('leads');
   const [swimlaneGroup, setSwimlaneGroup] = useState<SwimlaneGroup>('none');
-  const { pipeline, leads, loading: leadsLoading, error: leadsError, refresh: refreshLeads, getStageStats, moveLead, swimlaneData } = usePipeline();
+  const { pipeline, leads, loading: leadsLoading, error: leadsError, refresh: refreshLeads, swimlaneData } = usePipeline();
   const { deals, stages, loading: dealsLoading, error: dealsError, refresh: refreshDeals, updateDeal } = useDeals();
 
   const totalValue = useMemo(() => {
