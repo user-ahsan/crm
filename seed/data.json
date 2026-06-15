@@ -1,0 +1,3901 @@
+{
+  "tags": [
+    {
+      "id": "tag-001",
+      "name": "Enterprise",
+      "color": "#6366f1"
+    },
+    {
+      "id": "tag-002",
+      "name": "Mid-Market",
+      "color": "#8b5cf6"
+    },
+    {
+      "id": "tag-003",
+      "name": "Startup",
+      "color": "#06b6d4"
+    },
+    {
+      "id": "tag-004",
+      "name": "Healthcare",
+      "color": "#ec4899"
+    },
+    {
+      "id": "tag-005",
+      "name": "Finance",
+      "color": "#10b981"
+    },
+    {
+      "id": "tag-006",
+      "name": "Technology",
+      "color": "#3b82f6"
+    },
+    {
+      "id": "tag-007",
+      "name": "Manufacturing",
+      "color": "#f59e0b"
+    },
+    {
+      "id": "tag-008",
+      "name": "Hot Lead",
+      "color": "#ef4444"
+    },
+    {
+      "id": "tag-009",
+      "name": "Warm Lead",
+      "color": "#f97316"
+    },
+    {
+      "id": "tag-010",
+      "name": "Cold Lead",
+      "color": "#9ca3af"
+    },
+    {
+      "id": "tag-011",
+      "name": "VIP Client",
+      "color": "#facc15"
+    },
+    {
+      "id": "tag-012",
+      "name": "Compliance",
+      "color": "#a855f7"
+    },
+    {
+      "id": "tag-013",
+      "name": "Integration",
+      "color": "#14b8a6"
+    },
+    {
+      "id": "tag-014",
+      "name": "Renewal Due",
+      "color": "#f43f5e"
+    },
+    {
+      "id": "tag-015",
+      "name": "Decision Maker",
+      "color": "#d946ef"
+    }
+  ],
+  "companies": [
+    {
+      "id": "comp-001",
+      "name": "Meridian Global Group",
+      "industry": "Technology",
+      "size": "201-1000",
+      "revenue": 87500000,
+      "location": "San Francisco, CA",
+      "website": "https://meridianglobal.io",
+      "tags": [
+        "Enterprise",
+        "Technology"
+      ]
+    },
+    {
+      "id": "comp-002",
+      "name": "Pinnacle Financial Corp",
+      "industry": "Finance",
+      "size": "51-200",
+      "revenue": 34000000,
+      "location": "Toronto, ON",
+      "website": "https://pinnacle-fin.com",
+      "tags": [
+        "Mid-Market",
+        "Finance"
+      ]
+    },
+    {
+      "id": "comp-003",
+      "name": "Athena Health Systems",
+      "industry": "Healthcare",
+      "size": "1000+",
+      "revenue": 320000000,
+      "location": "Boston, MA",
+      "website": "https://athenahealth.io",
+      "tags": [
+        "Enterprise",
+        "Healthcare"
+      ]
+    },
+    {
+      "id": "comp-004",
+      "name": "Titan Defense Technologies",
+      "industry": "Technology",
+      "size": "1000+",
+      "revenue": 450000000,
+      "location": "Reston, VA",
+      "website": "https://titandefense.com",
+      "tags": [
+        "Enterprise",
+        "Technology"
+      ]
+    },
+    {
+      "id": "comp-005",
+      "name": "Crown Industries Ltd",
+      "industry": "Manufacturing",
+      "size": "1000+",
+      "revenue": 780000000,
+      "location": "Munich, Germany",
+      "website": "https://crown-industries.de",
+      "tags": [
+        "Enterprise",
+        "Manufacturing"
+      ]
+    },
+    {
+      "id": "comp-006",
+      "name": "Velocity Media Group",
+      "industry": "Media & Entertainment",
+      "size": "201-1000",
+      "revenue": 95000000,
+      "location": "Los Angeles, CA",
+      "website": "https://velocitymedia.com",
+      "tags": [
+        "Enterprise",
+        "Mid-Market"
+      ]
+    },
+    {
+      "id": "comp-007",
+      "name": "NexGen Robotics",
+      "industry": "Technology",
+      "size": "11-50",
+      "revenue": 4200000,
+      "location": "Seoul, South Korea",
+      "website": "https://nexgenrobotics.kr",
+      "tags": [
+        "Startup",
+        "Technology"
+      ]
+    },
+    {
+      "id": "comp-008",
+      "name": "Sage Data Analytics",
+      "industry": "Data & Analytics",
+      "size": "51-200",
+      "revenue": 18500000,
+      "location": "Berlin, Germany",
+      "website": "https://sagedata.de",
+      "tags": [
+        "Mid-Market",
+        "Technology"
+      ]
+    },
+    {
+      "id": "comp-009",
+      "name": "Pioneer Retail Group",
+      "industry": "Retail",
+      "size": "1000+",
+      "revenue": 210000000,
+      "location": "Chicago, IL",
+      "website": "https://pioneerretail.com",
+      "tags": [
+        "Enterprise",
+        "Mid-Market"
+      ]
+    },
+    {
+      "id": "comp-010",
+      "name": "Vitalis Healthcare",
+      "industry": "Healthcare",
+      "size": "201-1000",
+      "revenue": 68000000,
+      "location": "San Diego, CA",
+      "website": "https://vitalishealth.com",
+      "tags": [
+        "Enterprise",
+        "Healthcare"
+      ]
+    },
+    {
+      "id": "comp-011",
+      "name": "Horizon Construction Group",
+      "industry": "Construction",
+      "size": "51-200",
+      "revenue": 22000000,
+      "location": "Mexico City, Mexico",
+      "website": "https://horizonconstruye.mx",
+      "tags": [
+        "Mid-Market"
+      ]
+    },
+    {
+      "id": "comp-012",
+      "name": "Vogue & Co",
+      "industry": "Fashion & Retail",
+      "size": "11-50",
+      "revenue": 8500000,
+      "location": "New York, NY",
+      "website": "https://vogueand.co",
+      "tags": [
+        "Startup",
+        "Mid-Market"
+      ]
+    },
+    {
+      "id": "comp-013",
+      "name": "Omega Research Institute",
+      "industry": "Research & Science",
+      "size": "201-1000",
+      "revenue": 45000000,
+      "location": "Denver, CO",
+      "website": "https://omegaresearch.org",
+      "tags": [
+        "Enterprise",
+        "Healthcare"
+      ]
+    },
+    {
+      "id": "comp-014",
+      "name": "BrightPath Education",
+      "industry": "Education",
+      "size": "51-200",
+      "revenue": 12000000,
+      "location": "Columbus, OH",
+      "website": "https://brightpath.edu",
+      "tags": [
+        "Mid-Market",
+        "Startup"
+      ]
+    },
+    {
+      "id": "comp-015",
+      "name": "NovaTech AI Labs",
+      "industry": "Artificial Intelligence",
+      "size": "11-50",
+      "revenue": 3800000,
+      "location": "Austin, TX",
+      "website": "https://novatechai.io",
+      "tags": [
+        "Startup",
+        "Technology"
+      ]
+    },
+    {
+      "id": "comp-016",
+      "name": "Solara Hospitality Group",
+      "industry": "Hospitality",
+      "size": "201-1000",
+      "revenue": 55000000,
+      "location": "Barcelona, Spain",
+      "website": "https://solarahospitality.es",
+      "tags": [
+        "Enterprise",
+        "Mid-Market"
+      ]
+    },
+    {
+      "id": "comp-017",
+      "name": "Summit Ventures LLC",
+      "industry": "Venture Capital",
+      "size": "11-50",
+      "revenue": 45000000,
+      "location": "San Francisco, CA",
+      "website": "https://summitvc.com",
+      "tags": [
+        "Mid-Market",
+        "Finance"
+      ]
+    },
+    {
+      "id": "comp-018",
+      "name": "Silverline Legal Group",
+      "industry": "Legal",
+      "size": "51-200",
+      "revenue": 28000000,
+      "location": "Washington, DC",
+      "website": "https://silverlinelegal.com",
+      "tags": [
+        "Mid-Market"
+      ]
+    },
+    {
+      "id": "comp-019",
+      "name": "QuantumStar Technologies",
+      "industry": "Technology",
+      "size": "201-1000",
+      "revenue": 185000000,
+      "location": "Detroit, MI",
+      "website": "https://quantumstar.tech",
+      "tags": [
+        "Enterprise",
+        "Technology"
+      ]
+    },
+    {
+      "id": "comp-020",
+      "name": "Evergreen Non-Profit Foundation",
+      "industry": "Non-Profit",
+      "size": "11-50",
+      "revenue": 3500000,
+      "location": "Portland, OR",
+      "website": "https://evergreenfoundation.org",
+      "tags": [
+        "Mid-Market",
+        "Startup"
+      ]
+    }
+  ],
+  "leads": [
+    {
+      "id": "lead-001",
+      "full_name": "Jonathan Reeves",
+      "email": "j.reeves@meridianglobal.io",
+      "phone": "+1 (415) 555-0187",
+      "company_name": "Meridian Global Group",
+      "industry": "Technology",
+      "country": "United States",
+      "source": "website",
+      "status": "qualified",
+      "priority": "high",
+      "assigned_to": "admin-user",
+      "estimated_value": 95000,
+      "tags": [
+        "Enterprise",
+        "Technology",
+        "Hot Lead"
+      ],
+      "notes": "Senior VP of Engineering. Highly interested in enterprise plan. Requested a technical deep-dive demo."
+    },
+    {
+      "id": "lead-003",
+      "full_name": "Dr. Sophia Patel",
+      "email": "spatel@athenahealth.io",
+      "phone": "+1 (617) 555-0345",
+      "company_name": "Athena Health Systems",
+      "industry": "Healthcare",
+      "country": "United States",
+      "source": "ads",
+      "status": "new",
+      "priority": "high",
+      "assigned_to": "admin-user",
+      "estimated_value": 180000,
+      "tags": [
+        "Enterprise",
+        "Healthcare",
+        "Compliance",
+        "Hot Lead"
+      ],
+      "notes": "Chief Medical Informatics Officer. Requires full HIPAA compliance audit and custom integration with Epic EHR."
+    },
+    {
+      "id": "lead-005",
+      "full_name": "Heinrich Weber",
+      "email": "h.weber@crown-industries.de",
+      "phone": null,
+      "company_name": "Crown Industries Ltd",
+      "industry": "Manufacturing",
+      "country": "Germany",
+      "source": "referral",
+      "status": "won",
+      "priority": "high",
+      "assigned_to": "admin-user",
+      "estimated_value": 320000,
+      "tags": [
+        "Enterprise",
+        "Manufacturing",
+        "VIP Client"
+      ],
+      "notes": "Deal closed! Manufacturing execution system integration. 12-month implementation plan approved by board."
+    },
+    {
+      "id": "lead-009",
+      "full_name": "Catherine O'Brien",
+      "email": "c.obrien@pioneerretail.com",
+      "phone": "+1 (312) 555-0912",
+      "company_name": "Pioneer Retail Group",
+      "industry": "Retail",
+      "country": "United States",
+      "source": "ads",
+      "status": "qualified",
+      "priority": "high",
+      "assigned_to": "admin-user",
+      "estimated_value": 125000,
+      "tags": [
+        "Enterprise",
+        "Mid-Market",
+        "Integration"
+      ],
+      "notes": "VP of Digital Transformation. Needs omnichannel inventory management integration with existing ERP."
+    },
+    {
+      "id": "lead-014",
+      "full_name": "Samantha Park",
+      "email": "s.park@brightpath.edu",
+      "phone": "+1 (614) 555-0678",
+      "company_name": "BrightPath Education",
+      "industry": "Education",
+      "country": "United States",
+      "source": "referral",
+      "status": "won",
+      "priority": "high",
+      "assigned_to": "admin-user",
+      "estimated_value": 42000,
+      "tags": [
+        "Mid-Market",
+        "Decision Maker"
+      ],
+      "notes": "Signed annual contract for student lifecycle management module. Implementation starts July 1st."
+    },
+    {
+      "id": "lead-019",
+      "full_name": "Derek Huang",
+      "email": "dhuang@quantumstar.tech",
+      "phone": "+1 (313) 555-0232",
+      "company_name": "QuantumStar Technologies",
+      "industry": "Technology",
+      "country": "United States",
+      "source": "website",
+      "status": "proposal",
+      "priority": "high",
+      "assigned_to": "admin-user",
+      "estimated_value": 195000,
+      "tags": [
+        "Enterprise",
+        "Technology",
+        "Hot Lead",
+        "Integration"
+      ],
+      "notes": "CIO. Extensive proposal with custom API integration sent. Board presentation scheduled for June 28th."
+    },
+    {
+      "id": "lead-024",
+      "full_name": "Oliver Grant",
+      "email": "ogrant@athenahealth.io",
+      "phone": null,
+      "company_name": "Athena Health Systems",
+      "industry": "Healthcare",
+      "country": "United States",
+      "source": "referral",
+      "status": "qualified",
+      "priority": "high",
+      "assigned_to": "admin-user",
+      "estimated_value": 140000,
+      "tags": [
+        "Enterprise",
+        "Healthcare",
+        "Hot Lead"
+      ],
+      "notes": "Director of IT. Second evaluation from Athena — this time for their research division. Scope is larger."
+    },
+    {
+      "id": "lead-002",
+      "full_name": "Maya Chen",
+      "email": "maya.chen@pinnacle-fin.com",
+      "phone": "+1 (416) 555-0234",
+      "company_name": "Pinnacle Financial Corp",
+      "industry": "Finance",
+      "country": "Canada",
+      "source": "referral",
+      "status": "contacted",
+      "priority": "medium",
+      "assigned_to": "manager-user",
+      "estimated_value": 45000,
+      "tags": [
+        "Mid-Market",
+        "Finance",
+        "Warm Lead"
+      ],
+      "notes": "Referred by existing client at TD Bank. Initial discovery call completed. Needs compliance module demo."
+    },
+    {
+      "id": "lead-006",
+      "full_name": "Tessa Nguyen",
+      "email": "tnguyen@velocitymedia.com",
+      "phone": "+1 (310) 555-0678",
+      "company_name": "Velocity Media Group",
+      "industry": "Media & Entertainment",
+      "country": "United States",
+      "source": "social",
+      "status": "lost",
+      "priority": "medium",
+      "assigned_to": "manager-user",
+      "estimated_value": 65000,
+      "tags": [
+        "Enterprise",
+        "Mid-Market",
+        "Cold Lead"
+      ],
+      "notes": "Chose competitor — Adobe Workfront. Reason: better creative workflow integration. Revisit in Q4."
+    },
+    {
+      "id": "lead-010",
+      "full_name": "Dr. James Kim",
+      "email": "jkim@vitalishealth.com",
+      "phone": "+1 (858) 555-0123",
+      "company_name": "Vitalis Healthcare",
+      "industry": "Healthcare",
+      "country": "United States",
+      "source": "referral",
+      "status": "proposal",
+      "priority": "high",
+      "assigned_to": "manager-user",
+      "estimated_value": 110000,
+      "tags": [
+        "Enterprise",
+        "Healthcare",
+        "Compliance"
+      ],
+      "notes": "CTO. Proposal for full digital health platform under board review. Decision expected within 2 weeks."
+    },
+    {
+      "id": "lead-016",
+      "full_name": "Elena Torres",
+      "email": "etorres@solarahospitality.es",
+      "phone": "+34 (93) 555-0890",
+      "company_name": "Solara Hospitality Group",
+      "industry": "Hospitality",
+      "country": "Spain",
+      "source": "ads",
+      "status": "new",
+      "priority": "low",
+      "assigned_to": "manager-user",
+      "estimated_value": 28000,
+      "tags": [
+        "Enterprise",
+        "Mid-Market"
+      ],
+      "notes": "Regional Manager for Southern Europe. Exploring CRM for multi-property management across 12 hotels."
+    },
+    {
+      "id": "lead-020",
+      "full_name": "Grace Thompson",
+      "email": "gthompson@evergreenfoundation.org",
+      "phone": "+1 (503) 555-0343",
+      "company_name": "Evergreen Non-Profit Foundation",
+      "industry": "Non-Profit",
+      "country": "United States",
+      "source": "manual",
+      "status": "new",
+      "priority": "medium",
+      "assigned_to": "manager-user",
+      "estimated_value": 14000,
+      "tags": [
+        "Mid-Market",
+        "Startup"
+      ],
+      "notes": "Executive Director. Seeking donor management and grant tracking solution at non-profit pricing."
+    },
+    {
+      "id": "lead-025",
+      "full_name": "Maria Santos",
+      "email": "msantos@solarahospitality.es",
+      "phone": "+34 (93) 555-0676",
+      "company_name": "Solara Hospitality Group",
+      "industry": "Hospitality",
+      "country": "Spain",
+      "source": "referral",
+      "status": "qualified",
+      "priority": "medium",
+      "assigned_to": "manager-user",
+      "estimated_value": 45000,
+      "tags": [
+        "Enterprise",
+        "Mid-Market"
+      ],
+      "notes": "Revenue Director. Needs integrated booking and CRM platform. Referred by Elena Torres."
+    },
+    {
+      "id": "lead-004",
+      "full_name": "Marcus Williams",
+      "email": "mwilliams@titandefense.com",
+      "phone": "+1 (571) 555-0456",
+      "company_name": "Titan Defense Technologies",
+      "industry": "Technology",
+      "country": "United States",
+      "source": "website",
+      "status": "proposal",
+      "priority": "high",
+      "assigned_to": "agent-user",
+      "estimated_value": 250000,
+      "tags": [
+        "Enterprise",
+        "Technology",
+        "Hot Lead",
+        "Decision Maker"
+      ],
+      "notes": "Director of Operations. Proposal for full classified-environment deployment sent. Board review scheduled next week."
+    },
+    {
+      "id": "lead-008",
+      "full_name": "Lena Fischer",
+      "email": "lfischer@sagedata.de",
+      "phone": null,
+      "company_name": "Sage Data Analytics",
+      "industry": "Data & Analytics",
+      "country": "Germany",
+      "source": "website",
+      "status": "contacted",
+      "priority": "medium",
+      "assigned_to": "agent-user",
+      "estimated_value": 38000,
+      "tags": [
+        "Mid-Market",
+        "Technology",
+        "Warm Lead"
+      ],
+      "notes": "Head of Data Engineering. Interested in analytics pipeline integration. Demo scheduled for next week."
+    },
+    {
+      "id": "lead-013",
+      "full_name": "Prof. Alan Whitfield",
+      "email": "awhitfield@omegaresearch.org",
+      "phone": "+1 (303) 555-0567",
+      "company_name": "Omega Research Institute",
+      "industry": "Research & Science",
+      "country": "United States",
+      "source": "website",
+      "status": "qualified",
+      "priority": "medium",
+      "assigned_to": "agent-user",
+      "estimated_value": 55000,
+      "tags": [
+        "Enterprise",
+        "Healthcare",
+        "Decision Maker"
+      ],
+      "notes": "Research Director. Needs custom laboratory data tracking module with grant management capabilities."
+    },
+    {
+      "id": "lead-017",
+      "full_name": "William Chen",
+      "email": "wchen@summitvc.com",
+      "phone": "+1 (415) 555-0901",
+      "company_name": "Summit Ventures LLC",
+      "industry": "Venture Capital",
+      "country": "United States",
+      "source": "referral",
+      "status": "contacted",
+      "priority": "high",
+      "assigned_to": "agent-user",
+      "estimated_value": 72000,
+      "tags": [
+        "Mid-Market",
+        "Finance",
+        "Hot Lead"
+      ],
+      "notes": "Managing Partner. Needs custom portfolio tracking, investor reporting, and deal flow management."
+    },
+    {
+      "id": "lead-021",
+      "full_name": "Alexei Volkov",
+      "email": "avolkov@meridianglobal.io",
+      "phone": null,
+      "company_name": "Meridian Global Group",
+      "industry": "Technology",
+      "country": "United Kingdom",
+      "source": "referral",
+      "status": "qualified",
+      "priority": "medium",
+      "assigned_to": "agent-user",
+      "estimated_value": 55000,
+      "tags": [
+        "Enterprise",
+        "Technology",
+        "Integration"
+      ],
+      "notes": "European Operations Director. Evaluating additional module for EU data sovereignty compliance."
+    },
+    {
+      "id": "lead-007",
+      "full_name": "Min-Jun Park",
+      "email": "mj.park@nexgenrobotics.kr",
+      "phone": "+82 (2) 555-0890",
+      "company_name": "NexGen Robotics",
+      "industry": "Technology",
+      "country": "South Korea",
+      "source": "referral",
+      "status": "new",
+      "priority": "low",
+      "assigned_to": "viewer-user",
+      "estimated_value": 15000,
+      "tags": [
+        "Startup",
+        "Technology",
+        "Warm Lead"
+      ],
+      "notes": "Fast-growing robotics startup. Looking for lightweight CRM to manage investor relations and partnerships."
+    },
+    {
+      "id": "lead-011",
+      "full_name": "Carlos Rivera",
+      "email": "carlos.r@horizonconstruye.mx",
+      "phone": "+52 (55) 555-0345",
+      "company_name": "Horizon Construction Group",
+      "industry": "Construction",
+      "country": "Mexico",
+      "source": "manual",
+      "status": "new",
+      "priority": "low",
+      "assigned_to": "viewer-user",
+      "estimated_value": 22000,
+      "tags": [
+        "Mid-Market",
+        "Cold Lead"
+      ],
+      "notes": "Operations Director. Exploring CRM options for project management and subcontractor coordination."
+    },
+    {
+      "id": "lead-012",
+      "full_name": "Isabella Rossi",
+      "email": "i.rossi@vogueand.co",
+      "phone": "+1 (212) 555-0456",
+      "company_name": "Vogue & Co",
+      "industry": "Fashion & Retail",
+      "country": "United States",
+      "source": "social",
+      "status": "contacted",
+      "priority": "medium",
+      "assigned_to": "viewer-user",
+      "estimated_value": 18000,
+      "tags": [
+        "Startup",
+        "Mid-Market",
+        "Warm Lead"
+      ],
+      "notes": "Founder & Creative Director. Discovered us through Instagram. Interested in influencer campaign management."
+    },
+    {
+      "id": "lead-015",
+      "full_name": "Vikram Patel",
+      "email": "vikram@novatechai.io",
+      "phone": "+1 (512) 555-0789",
+      "company_name": "NovaTech AI Labs",
+      "industry": "Artificial Intelligence",
+      "country": "United States",
+      "source": "website",
+      "status": "lost",
+      "priority": "high",
+      "assigned_to": "viewer-user",
+      "estimated_value": 75000,
+      "tags": [
+        "Startup",
+        "Technology",
+        "Cold Lead"
+      ],
+      "notes": "Chose HubSpot due to AI-native features. Budget constraints were the deciding factor."
+    },
+    {
+      "id": "lead-018",
+      "full_name": "Rachel Montgomery",
+      "email": "rmontgomery@silverlinelegal.com",
+      "phone": "+1 (202) 555-0121",
+      "company_name": "Silverline Legal Group",
+      "industry": "Legal",
+      "country": "United States",
+      "source": "referral",
+      "status": "qualified",
+      "priority": "low",
+      "assigned_to": "viewer-user",
+      "estimated_value": 16000,
+      "tags": [
+        "Mid-Market",
+        "Cold Lead"
+      ],
+      "notes": "Practice Manager. Evaluating CRM for case management and client communication tracking."
+    },
+    {
+      "id": "lead-022",
+      "full_name": "Yuki Tanaka",
+      "email": "ytanaka@nexgenrobotics.kr",
+      "phone": "+82 (2) 555-0454",
+      "company_name": "NexGen Robotics",
+      "industry": "Technology",
+      "country": "Japan",
+      "source": "website",
+      "status": "new",
+      "priority": "low",
+      "assigned_to": "viewer-user",
+      "estimated_value": 8000,
+      "tags": [
+        "Startup",
+        "Technology"
+      ],
+      "notes": "Head of Business Development for Japan market. Basic CRM needs to start."
+    },
+    {
+      "id": "lead-023",
+      "full_name": "Fatima Al-Rashid",
+      "email": "falrashid@pioneerretail.com",
+      "phone": "+1 (312) 555-0565",
+      "company_name": "Pioneer Retail Group",
+      "industry": "Retail",
+      "country": "United Arab Emirates",
+      "source": "social",
+      "status": "contacted",
+      "priority": "medium",
+      "assigned_to": "viewer-user",
+      "estimated_value": 35000,
+      "tags": [
+        "Enterprise",
+        "Mid-Market",
+        "Warm Lead"
+      ],
+      "notes": "Middle East Expansion Director. Interested in Arabic language support and regional data hosting."
+    }
+  ],
+  "contacts": [
+    {
+      "id": "cont-001",
+      "name": "Jonathan Reeves",
+      "email": "j.reeves@meridianglobal.io",
+      "phone": "+1 (415) 555-0187",
+      "job_title": "SVP of Engineering",
+      "company_id": "comp-001",
+      "lead_ids": [
+        "lead-001"
+      ],
+      "location": "San Francisco, CA",
+      "social_links": [
+        "https://linkedin.com/in/jonathanreeves"
+      ],
+      "tags": [
+        "Decision Maker",
+        "Technology"
+      ],
+      "notes": "Key technical decision maker at Meridian Global."
+    },
+    {
+      "id": "cont-002",
+      "name": "Maya Chen",
+      "email": "maya.chen@pinnacle-fin.com",
+      "phone": "+1 (416) 555-0234",
+      "job_title": "VP of Operations",
+      "company_id": "comp-002",
+      "lead_ids": [
+        "lead-002"
+      ],
+      "location": "Toronto, ON",
+      "social_links": [
+        "https://linkedin.com/in/mayachen"
+      ],
+      "tags": [
+        "Finance",
+        "Decision Maker"
+      ],
+      "notes": "Primary contact at Pinnacle Financial."
+    },
+    {
+      "id": "cont-003",
+      "name": "Dr. Sophia Patel",
+      "email": "spatel@athenahealth.io",
+      "phone": "+1 (617) 555-0345",
+      "job_title": "CMIO",
+      "company_id": "comp-003",
+      "lead_ids": [
+        "lead-003",
+        "lead-024"
+      ],
+      "location": "Boston, MA",
+      "social_links": [
+        "https://linkedin.com/in/sophiapatel"
+      ],
+      "tags": [
+        "Healthcare",
+        "Decision Maker"
+      ],
+      "notes": "Chief Medical Informatics Officer at Athena Health."
+    },
+    {
+      "id": "cont-004",
+      "name": "Marcus Williams",
+      "email": "mwilliams@titandefense.com",
+      "phone": "+1 (571) 555-0456",
+      "job_title": "Director of Operations",
+      "company_id": "comp-004",
+      "lead_ids": [
+        "lead-004"
+      ],
+      "location": "Reston, VA",
+      "social_links": [
+        "https://linkedin.com/in/marcuswilliams"
+      ],
+      "tags": [
+        "Decision Maker",
+        "Technology"
+      ],
+      "notes": "Security clearance holder. All communication must be via secure portal."
+    },
+    {
+      "id": "cont-005",
+      "name": "Heinrich Weber",
+      "email": "h.weber@crown-industries.de",
+      "phone": null,
+      "job_title": "CTO",
+      "company_id": "comp-005",
+      "lead_ids": [
+        "lead-005"
+      ],
+      "location": "Munich, Germany",
+      "social_links": [
+        "https://linkedin.com/in/heinrichweber"
+      ],
+      "tags": [
+        "Decision Maker",
+        "VIP Client"
+      ],
+      "notes": "CTO of Crown Industries. Existing customer and strong advocate."
+    },
+    {
+      "id": "cont-006",
+      "name": "Tessa Nguyen",
+      "email": "tnguyen@velocitymedia.com",
+      "phone": "+1 (310) 555-0678",
+      "job_title": "VP of Technology",
+      "company_id": "comp-006",
+      "lead_ids": [
+        "lead-006"
+      ],
+      "location": "Los Angeles, CA",
+      "social_links": [
+        "https://linkedin.com/in/tessanguyen"
+      ],
+      "tags": [
+        "Media",
+        "Technology"
+      ],
+      "notes": "Went with competitor but maintains good relationship."
+    },
+    {
+      "id": "cont-007",
+      "name": "Min-Jun Park",
+      "email": "mj.park@nexgenrobotics.kr",
+      "phone": "+82 (2) 555-0890",
+      "job_title": "CEO & Founder",
+      "company_id": "comp-007",
+      "lead_ids": [
+        "lead-007",
+        "lead-022"
+      ],
+      "location": "Seoul, South Korea",
+      "social_links": [
+        "https://linkedin.com/in/minjunpark"
+      ],
+      "tags": [
+        "Startup",
+        "CEO",
+        "Technology"
+      ],
+      "notes": "Founder of NexGen Robotics. Fast-growing company."
+    },
+    {
+      "id": "cont-008",
+      "name": "Lena Fischer",
+      "email": "lfischer@sagedata.de",
+      "phone": null,
+      "job_title": "Head of Data Engineering",
+      "company_id": "comp-008",
+      "lead_ids": [
+        "lead-008"
+      ],
+      "location": "Berlin, Germany",
+      "social_links": [
+        "https://linkedin.com/in/lenafischer"
+      ],
+      "tags": [
+        "Data",
+        "Technology"
+      ],
+      "notes": "Technical evaluator at Sage Data."
+    },
+    {
+      "id": "cont-009",
+      "name": "Catherine O'Brien",
+      "email": "c.obrien@pioneerretail.com",
+      "phone": "+1 (312) 555-0912",
+      "job_title": "VP of Digital Transformation",
+      "company_id": "comp-009",
+      "lead_ids": [
+        "lead-009",
+        "lead-023"
+      ],
+      "location": "Chicago, IL",
+      "social_links": [
+        "https://linkedin.com/in/catherineobrien"
+      ],
+      "tags": [
+        "Decision Maker",
+        "Retail"
+      ],
+      "notes": "Driving digital transformation at Pioneer Retail."
+    },
+    {
+      "id": "cont-010",
+      "name": "Dr. James Kim",
+      "email": "jkim@vitalishealth.com",
+      "phone": "+1 (858) 555-0123",
+      "job_title": "Chief Technology Officer",
+      "company_id": "comp-010",
+      "lead_ids": [
+        "lead-010"
+      ],
+      "location": "San Diego, CA",
+      "social_links": [
+        "https://linkedin.com/in/jameskim"
+      ],
+      "tags": [
+        "Healthcare",
+        "Decision Maker"
+      ],
+      "notes": "CTO at Vitalis Healthcare. Driving EHR modernization."
+    },
+    {
+      "id": "cont-011",
+      "name": "Carlos Rivera",
+      "email": "carlos.r@horizonconstruye.mx",
+      "phone": "+52 (55) 555-0345",
+      "job_title": "Operations Director",
+      "company_id": "comp-011",
+      "lead_ids": [
+        "lead-011"
+      ],
+      "location": "Mexico City, Mexico",
+      "social_links": [
+        "https://linkedin.com/in/carlosrivera"
+      ],
+      "tags": [
+        "Construction"
+      ],
+      "notes": "Evaluating CRM options for construction projects."
+    },
+    {
+      "id": "cont-012",
+      "name": "Isabella Rossi",
+      "email": "i.rossi@vogueand.co",
+      "phone": "+1 (212) 555-0456",
+      "job_title": "Founder & Creative Director",
+      "company_id": "comp-012",
+      "lead_ids": [
+        "lead-012"
+      ],
+      "location": "New York, NY",
+      "social_links": [
+        "https://linkedin.com/in/isabellarossi",
+        "https://instagram.com/isabellarossi"
+      ],
+      "tags": [
+        "Fashion",
+        "CEO",
+        "Startup"
+      ],
+      "notes": "Founder of Vogue & Co. Active on social media."
+    },
+    {
+      "id": "cont-013",
+      "name": "Prof. Alan Whitfield",
+      "email": "awhitfield@omegaresearch.org",
+      "phone": "+1 (303) 555-0567",
+      "job_title": "Research Director",
+      "company_id": "comp-013",
+      "lead_ids": [
+        "lead-013"
+      ],
+      "location": "Denver, CO",
+      "social_links": [
+        "https://linkedin.com/in/alanwhitfield"
+      ],
+      "tags": [
+        "Research",
+        "Science"
+      ],
+      "notes": "Leading research institution evaluator."
+    },
+    {
+      "id": "cont-014",
+      "name": "Samantha Park",
+      "email": "s.park@brightpath.edu",
+      "phone": "+1 (614) 555-0678",
+      "job_title": "Chief Academic Officer",
+      "company_id": "comp-014",
+      "lead_ids": [
+        "lead-014"
+      ],
+      "location": "Columbus, OH",
+      "social_links": [
+        "https://linkedin.com/in/samanthapark"
+      ],
+      "tags": [
+        "Education",
+        "Decision Maker"
+      ],
+      "notes": "Signed contract for BrightPath. Implementation in progress."
+    },
+    {
+      "id": "cont-015",
+      "name": "Vikram Patel",
+      "email": "vikram@novatechai.io",
+      "phone": "+1 (512) 555-0789",
+      "job_title": "CEO & Co-Founder",
+      "company_id": "comp-015",
+      "lead_ids": [
+        "lead-015"
+      ],
+      "location": "Austin, TX",
+      "social_links": [
+        "https://linkedin.com/in/vikrampatel"
+      ],
+      "tags": [
+        "AI",
+        "Startup",
+        "CEO"
+      ],
+      "notes": "Co-founder of NovaTech AI. Lost deal but maintains connection."
+    },
+    {
+      "id": "cont-016",
+      "name": "Elena Torres",
+      "email": "etorres@solarahospitality.es",
+      "phone": "+34 (93) 555-0890",
+      "job_title": "Regional Manager",
+      "company_id": "comp-016",
+      "lead_ids": [
+        "lead-016",
+        "lead-025"
+      ],
+      "location": "Barcelona, Spain",
+      "social_links": [
+        "https://linkedin.com/in/elenatorres"
+      ],
+      "tags": [
+        "Hospitality",
+        "Operations"
+      ],
+      "notes": "Regional Manager Southern Europe at Solara Hospitality."
+    },
+    {
+      "id": "cont-017",
+      "name": "William Chen",
+      "email": "wchen@summitvc.com",
+      "phone": "+1 (415) 555-0901",
+      "job_title": "Managing Partner",
+      "company_id": "comp-017",
+      "lead_ids": [
+        "lead-017"
+      ],
+      "location": "San Francisco, CA",
+      "social_links": [
+        "https://linkedin.com/in/williamchen"
+      ],
+      "tags": [
+        "Finance",
+        "Decision Maker"
+      ],
+      "notes": "Managing Partner at Summit Ventures."
+    },
+    {
+      "id": "cont-018",
+      "name": "Rachel Montgomery",
+      "email": "rmontgomery@silverlinelegal.com",
+      "phone": "+1 (202) 555-0121",
+      "job_title": "Practice Manager",
+      "company_id": "comp-018",
+      "lead_ids": [
+        "lead-018"
+      ],
+      "location": "Washington, DC",
+      "social_links": [
+        "https://linkedin.com/in/rachelmontgomery"
+      ],
+      "tags": [
+        "Legal"
+      ],
+      "notes": "Practice manager at Silverline Legal."
+    },
+    {
+      "id": "cont-019",
+      "name": "Derek Huang",
+      "email": "dhuang@quantumstar.tech",
+      "phone": "+1 (313) 555-0232",
+      "job_title": "Chief Information Officer",
+      "company_id": "comp-019",
+      "lead_ids": [
+        "lead-019"
+      ],
+      "location": "Detroit, MI",
+      "social_links": [
+        "https://linkedin.com/in/derekhuang"
+      ],
+      "tags": [
+        "Technology",
+        "Decision Maker"
+      ],
+      "notes": "CIO at QuantumStar Technologies."
+    },
+    {
+      "id": "cont-020",
+      "name": "Grace Thompson",
+      "email": "gthompson@evergreenfoundation.org",
+      "phone": "+1 (503) 555-0343",
+      "job_title": "Executive Director",
+      "company_id": "comp-020",
+      "lead_ids": [
+        "lead-020"
+      ],
+      "location": "Portland, OR",
+      "social_links": [
+        "https://linkedin.com/in/gracethompson"
+      ],
+      "tags": [
+        "Non-Profit"
+      ],
+      "notes": "Executive Director at Evergreen Foundation."
+    }
+  ],
+  "deal_stages": [
+    {
+      "id": "stage-001",
+      "name": "Discovery",
+      "color": "#3b82f6",
+      "probability": 15,
+      "sort_order": 0
+    },
+    {
+      "id": "stage-002",
+      "name": "Qualification",
+      "color": "#8b5cf6",
+      "probability": 30,
+      "sort_order": 1
+    },
+    {
+      "id": "stage-003",
+      "name": "Proposal",
+      "color": "#f59e0b",
+      "probability": 50,
+      "sort_order": 2
+    },
+    {
+      "id": "stage-004",
+      "name": "Negotiation",
+      "color": "#f97316",
+      "probability": 70,
+      "sort_order": 3
+    },
+    {
+      "id": "stage-005",
+      "name": "Closed Won",
+      "color": "#10b981",
+      "probability": 100,
+      "sort_order": 4
+    },
+    {
+      "id": "stage-006",
+      "name": "Closed Lost",
+      "color": "#ef4444",
+      "probability": 0,
+      "sort_order": 5
+    }
+  ],
+  "deals": [
+    {
+      "id": "deal-001",
+      "title": "Meridian Global Enterprise Platform",
+      "description": "Full enterprise license for 800 users including advanced analytics and API access",
+      "value": 180000,
+      "currency": "USD",
+      "stage_id": "stage-002",
+      "lead_id": "lead-001",
+      "contact_id": "cont-001",
+      "company_id": "comp-001",
+      "assigned_to": "admin-user",
+      "close_date": "2026-08-15",
+      "win_loss_reason": "",
+      "tags": [
+        "Enterprise",
+        "Technology",
+        "Platform"
+      ],
+      "created_by": "admin-user"
+    },
+    {
+      "id": "deal-002",
+      "title": "Pinnacle Financial Compliance Module",
+      "description": "Regulatory compliance module with audit trail and reporting",
+      "value": 45000,
+      "currency": "USD",
+      "stage_id": "stage-001",
+      "lead_id": "lead-002",
+      "contact_id": "cont-002",
+      "company_id": "comp-002",
+      "assigned_to": "manager-user",
+      "close_date": "2026-09-01",
+      "win_loss_reason": "",
+      "tags": [
+        "Mid-Market",
+        "Finance",
+        "Compliance"
+      ],
+      "created_by": "manager-user"
+    },
+    {
+      "id": "deal-003",
+      "title": "Athena Health Full Suite Epic Integration",
+      "description": "Enterprise-wide deployment including HIPAA-compliant modules and Epic EHR integration",
+      "value": 320000,
+      "currency": "USD",
+      "stage_id": "stage-001",
+      "lead_id": "lead-003",
+      "contact_id": "cont-003",
+      "company_id": "comp-003",
+      "assigned_to": "admin-user",
+      "close_date": "2026-10-30",
+      "win_loss_reason": "",
+      "tags": [
+        "Enterprise",
+        "Healthcare",
+        "Integration"
+      ],
+      "created_by": "admin-user"
+    },
+    {
+      "id": "deal-004",
+      "title": "Titan Defense Classified Deployment",
+      "description": "Air-gapped, classified-environment deployment with security audit",
+      "value": 425000,
+      "currency": "USD",
+      "stage_id": "stage-003",
+      "lead_id": "lead-004",
+      "contact_id": "cont-004",
+      "company_id": "comp-004",
+      "assigned_to": "agent-user",
+      "close_date": "2026-09-15",
+      "win_loss_reason": "",
+      "tags": [
+        "Enterprise",
+        "Technology",
+        "Hot Lead"
+      ],
+      "created_by": "agent-user"
+    },
+    {
+      "id": "deal-005",
+      "title": "Crown Industries MES Integration",
+      "description": "Manufacturing Execution System integration with IoT sensor data pipeline",
+      "value": 320000,
+      "currency": "EUR",
+      "stage_id": "stage-005",
+      "lead_id": "lead-005",
+      "contact_id": "cont-005",
+      "company_id": "comp-005",
+      "assigned_to": "admin-user",
+      "close_date": "2026-05-15",
+      "win_loss_reason": "Superior manufacturing capabilities and EU data residency compliance",
+      "tags": [
+        "Enterprise",
+        "Manufacturing",
+        "Integration"
+      ],
+      "created_by": "admin-user"
+    },
+    {
+      "id": "deal-006",
+      "title": "Pioneer Retail Omnichannel Platform",
+      "description": "Omnichannel inventory and customer management platform with existing ERP integration",
+      "value": 150000,
+      "currency": "USD",
+      "stage_id": "stage-002",
+      "lead_id": "lead-009",
+      "contact_id": "cont-009",
+      "company_id": "comp-009",
+      "assigned_to": "admin-user",
+      "close_date": "2026-08-30",
+      "win_loss_reason": "",
+      "tags": [
+        "Enterprise",
+        "Retail",
+        "Integration"
+      ],
+      "created_by": "admin-user"
+    },
+    {
+      "id": "deal-007",
+      "title": "Vitalis Healthcare Digital Platform",
+      "description": "Digital transformation platform with patient engagement and analytics modules",
+      "value": 110000,
+      "currency": "USD",
+      "stage_id": "stage-003",
+      "lead_id": "lead-010",
+      "contact_id": "cont-010",
+      "company_id": "comp-010",
+      "assigned_to": "manager-user",
+      "close_date": "2026-08-20",
+      "win_loss_reason": "",
+      "tags": [
+        "Enterprise",
+        "Healthcare",
+        "Digital"
+      ],
+      "created_by": "manager-user"
+    },
+    {
+      "id": "deal-008",
+      "title": "Summit Ventures Portfolio Management Suite",
+      "description": "Custom portfolio tracking, investor reporting, and deal flow management platform",
+      "value": 72000,
+      "currency": "USD",
+      "stage_id": "stage-001",
+      "lead_id": "lead-017",
+      "contact_id": "cont-017",
+      "company_id": "comp-017",
+      "assigned_to": "agent-user",
+      "close_date": "2026-09-15",
+      "win_loss_reason": "",
+      "tags": [
+        "Mid-Market",
+        "Finance",
+        "Custom"
+      ],
+      "created_by": "agent-user"
+    },
+    {
+      "id": "deal-009",
+      "title": "BrightPath Education Student Lifecycle Mgmt",
+      "description": "Student lifecycle management covering admissions, attendance, and alumni tracking",
+      "value": 42000,
+      "currency": "USD",
+      "stage_id": "stage-005",
+      "lead_id": "lead-014",
+      "contact_id": "cont-014",
+      "company_id": "comp-014",
+      "assigned_to": "admin-user",
+      "close_date": "2026-06-01",
+      "win_loss_reason": "Best fit for educational institution needs and competitive pricing",
+      "tags": [
+        "Mid-Market",
+        "Education"
+      ],
+      "created_by": "admin-user"
+    },
+    {
+      "id": "deal-010",
+      "title": "QuantumStar API and Analytics Platform",
+      "description": "Enterprise API management platform with real-time analytics and ML pipeline integration",
+      "value": 195000,
+      "currency": "USD",
+      "stage_id": "stage-004",
+      "lead_id": "lead-019",
+      "contact_id": "cont-019",
+      "company_id": "comp-019",
+      "assigned_to": "admin-user",
+      "close_date": "2026-08-01",
+      "win_loss_reason": "",
+      "tags": [
+        "Enterprise",
+        "Technology",
+        "Hot Lead"
+      ],
+      "created_by": "admin-user"
+    },
+    {
+      "id": "deal-011",
+      "title": "Sage Data Analytics Data Pipeline Module",
+      "description": "Advanced analytics pipeline module with real-time data visualization capabilities",
+      "value": 38000,
+      "currency": "EUR",
+      "stage_id": "stage-001",
+      "lead_id": "lead-008",
+      "contact_id": "cont-008",
+      "company_id": "comp-008",
+      "assigned_to": "agent-user",
+      "close_date": "2026-10-01",
+      "win_loss_reason": "",
+      "tags": [
+        "Mid-Market",
+        "Technology",
+        "Data"
+      ],
+      "created_by": "agent-user"
+    },
+    {
+      "id": "deal-012",
+      "title": "Omega Research Lab Management Module",
+      "description": "Custom laboratory information management system with grant tracking",
+      "value": 55000,
+      "currency": "USD",
+      "stage_id": "stage-002",
+      "lead_id": "lead-013",
+      "contact_id": "cont-013",
+      "company_id": "comp-013",
+      "assigned_to": "agent-user",
+      "close_date": "2026-10-15",
+      "win_loss_reason": "",
+      "tags": [
+        "Enterprise",
+        "Science",
+        "Research"
+      ],
+      "created_by": "agent-user"
+    }
+  ],
+  "lead_scores": [
+    {
+      "lead_id": "lead-001",
+      "score": 87,
+      "factors": {
+        "email_engagement": 0.9,
+        "website_visits": 0.85,
+        "demo_requested": true,
+        "budget_adequate": true,
+        "timeline_short": true,
+        "industry_fit": 0.95
+      }
+    },
+    {
+      "lead_id": "lead-002",
+      "score": 65,
+      "factors": {
+        "email_engagement": 0.7,
+        "website_visits": 0.6,
+        "budget_adequate": true,
+        "timeline_medium": true,
+        "industry_fit": 0.8
+      }
+    },
+    {
+      "lead_id": "lead-003",
+      "score": 92,
+      "factors": {
+        "email_engagement": 0.95,
+        "website_visits": 0.9,
+        "demo_requested": true,
+        "budget_adequate": true,
+        "timeline_short": true,
+        "industry_fit": 1.0,
+        "decision_maker": true
+      }
+    },
+    {
+      "lead_id": "lead-004",
+      "score": 90,
+      "factors": {
+        "email_engagement": 0.85,
+        "website_visits": 0.8,
+        "demo_requested": true,
+        "budget_adequate": true,
+        "timeline_short": true,
+        "industry_fit": 0.9,
+        "decision_maker": true
+      }
+    },
+    {
+      "lead_id": "lead-005",
+      "score": 95,
+      "factors": {
+        "email_engagement": 0.9,
+        "website_visits": 0.7,
+        "deal_won": true,
+        "budget_adequate": true,
+        "decision_maker": true,
+        "advocate_score": 1.0
+      }
+    },
+    {
+      "lead_id": "lead-006",
+      "score": 25,
+      "factors": {
+        "email_engagement": 0.3,
+        "website_visits": 0.2,
+        "deal_lost": true,
+        "budget_adequate": false
+      }
+    },
+    {
+      "lead_id": "lead-007",
+      "score": 40,
+      "factors": {
+        "email_engagement": 0.5,
+        "website_visits": 0.4,
+        "budget_constrained": true,
+        "timeline_long": true
+      }
+    },
+    {
+      "lead_id": "lead-008",
+      "score": 60,
+      "factors": {
+        "email_engagement": 0.75,
+        "website_visits": 0.65,
+        "demo_requested": true,
+        "budget_adequate": true,
+        "timeline_medium": true
+      }
+    },
+    {
+      "lead_id": "lead-009",
+      "score": 82,
+      "factors": {
+        "email_engagement": 0.85,
+        "website_visits": 0.8,
+        "demo_requested": true,
+        "budget_adequate": true,
+        "timeline_short": true,
+        "industry_fit": 0.9
+      }
+    },
+    {
+      "lead_id": "lead-010",
+      "score": 78,
+      "factors": {
+        "email_engagement": 0.8,
+        "website_visits": 0.75,
+        "demo_requested": true,
+        "budget_adequate": true,
+        "timeline_medium": true,
+        "decision_maker": true
+      }
+    },
+    {
+      "lead_id": "lead-013",
+      "score": 55,
+      "factors": {
+        "email_engagement": 0.6,
+        "website_visits": 0.5,
+        "budget_adequate": true,
+        "timeline_long": true,
+        "industry_fit": 0.85
+      }
+    },
+    {
+      "lead_id": "lead-017",
+      "score": 75,
+      "factors": {
+        "email_engagement": 0.8,
+        "website_visits": 0.7,
+        "demo_requested": true,
+        "budget_adequate": true,
+        "timeline_short": true,
+        "decision_maker": true
+      }
+    },
+    {
+      "lead_id": "lead-019",
+      "score": 85,
+      "factors": {
+        "email_engagement": 0.9,
+        "website_visits": 0.85,
+        "proposal_sent": true,
+        "budget_adequate": true,
+        "timeline_short": true,
+        "decision_maker": true,
+        "board_approval_pending": true
+      }
+    },
+    {
+      "lead_id": "lead-024",
+      "score": 88,
+      "factors": {
+        "email_engagement": 0.85,
+        "website_visits": 0.9,
+        "demo_requested": true,
+        "budget_adequate": true,
+        "timeline_short": true,
+        "industry_fit": 1.0,
+        "existing_client": true
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-001",
+      "title": "Prepare technical deep-dive for Meridian Global",
+      "description": "Create custom demo environment showcasing API capabilities and advanced analytics for Jonathan Reeves.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-001",
+      "assigned_to": "admin-user",
+      "due_date": "2026-06-20T17:00:00Z",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "id": "task-002",
+      "title": "Send compliance documentation to Pinnacle Financial",
+      "description": "Package SOC2 and FINRA compliance documentation for Maya Chen.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-002",
+      "assigned_to": "manager-user",
+      "due_date": "2026-06-18T17:00:00Z",
+      "priority": "medium",
+      "status": "pending"
+    },
+    {
+      "id": "task-003",
+      "title": "Schedule Epic integration workshop",
+      "description": "Coordinate with Athena Health IT team for technical workshop on Epic EHR integration.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-003",
+      "assigned_to": "admin-user",
+      "due_date": "2026-06-25T14:00:00Z",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "id": "task-004",
+      "title": "Review Titan Defense security requirements",
+      "description": "Review classified deployment security requirements document and prepare compliance checklist.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-004",
+      "assigned_to": "agent-user",
+      "due_date": "2026-06-22T17:00:00Z",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "id": "task-005",
+      "title": "Crown Industries kickoff meeting prep",
+      "description": "Prepare implementation kickoff deck and resource allocation plan for Crown Industries MES integration.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-005",
+      "assigned_to": "admin-user",
+      "due_date": "2026-06-30T09:00:00Z",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "id": "task-006",
+      "title": "Analyze Velocity Media loss -- lessons learned",
+      "description": "Document competitive loss analysis for Velocity Media. Identify key objections and improvement areas.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-006",
+      "assigned_to": "manager-user",
+      "due_date": "2026-06-15T17:00:00Z",
+      "priority": "medium",
+      "status": "completed"
+    },
+    {
+      "id": "task-007",
+      "title": "Introductory call with NexGen Robotics",
+      "description": "First discovery call with Min-Jun Park to understand their investor relations CRM needs.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-007",
+      "assigned_to": "viewer-user",
+      "due_date": "2026-06-19T11:00:00Z",
+      "priority": "low",
+      "status": "pending"
+    },
+    {
+      "id": "task-008",
+      "title": "Send Sage Data demo environment",
+      "description": "Provision and share personalized demo environment for Lena Fischer with data pipeline focus.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-008",
+      "assigned_to": "agent-user",
+      "due_date": "2026-06-16T17:00:00Z",
+      "priority": "medium",
+      "status": "completed"
+    },
+    {
+      "id": "task-009",
+      "title": "Prepare Pioneer Retail ERP integration spec",
+      "description": "Document technical requirements for omnichannel inventory management and ERP integration.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-009",
+      "assigned_to": "admin-user",
+      "due_date": "2026-06-21T17:00:00Z",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "id": "task-010",
+      "title": "Follow up on Vitalis proposal",
+      "description": "Check in with Dr. James Kim on proposal status and see if they have any additional questions.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-010",
+      "assigned_to": "manager-user",
+      "due_date": "2026-06-17T15:00:00Z",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "id": "task-011",
+      "title": "Prepare portfolio demo for Summit Ventures",
+      "description": "Build customized portfolio tracking and investor reporting demo for William Chen.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-017",
+      "assigned_to": "agent-user",
+      "due_date": "2026-06-23T17:00:00Z",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "id": "task-012",
+      "title": "QuantumStar board presentation prep",
+      "description": "Prepare board-level presentation materials for Derek Huang's June 28th board meeting.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-019",
+      "assigned_to": "admin-user",
+      "due_date": "2026-06-26T17:00:00Z",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "id": "task-013",
+      "title": "Quarterly pipeline review",
+      "description": "Compile Q2 pipeline data, win/loss analysis, and forecast adjustments for leadership.",
+      "assigned_to": "viewer-user",
+      "due_date": "2026-06-28T17:00:00Z",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "id": "task-014",
+      "title": "Contact Pioneer Retail Middle East expansion",
+      "description": "Follow up with Fatima Al-Rashid regarding Arabic language support and regional data hosting.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-023",
+      "assigned_to": "viewer-user",
+      "due_date": "2026-06-20T17:00:00Z",
+      "priority": "medium",
+      "status": "pending"
+    },
+    {
+      "id": "task-015",
+      "title": "Onboard BrightPath Education",
+      "description": "Begin implementation of student lifecycle management module for Samantha Park.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-014",
+      "assigned_to": "admin-user",
+      "due_date": "2026-07-01T09:00:00Z",
+      "priority": "high",
+      "status": "pending"
+    },
+    {
+      "id": "task-016",
+      "title": "Update CRM contact records",
+      "description": "Review and enrich contact records with latest job title changes and social profiles.",
+      "assigned_to": "viewer-user",
+      "due_date": "2026-06-18T17:00:00Z",
+      "priority": "low",
+      "status": "overdue"
+    },
+    {
+      "id": "task-017",
+      "title": "Solara Hospitality multi-property demo prep",
+      "description": "Prepare demo showing multi-property management capabilities for Elena Torres.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-016",
+      "assigned_to": "manager-user",
+      "due_date": "2026-06-24T17:00:00Z",
+      "priority": "medium",
+      "status": "pending"
+    },
+    {
+      "id": "task-018",
+      "title": "June sales report compilation",
+      "description": "Gather June metrics: new leads, conversions, revenue, and team performance data.",
+      "assigned_to": "viewer-user",
+      "due_date": "2026-07-02T17:00:00Z",
+      "priority": "medium",
+      "status": "pending"
+    },
+    {
+      "id": "task-019",
+      "title": "Follow up on NovaTech AI re-engagement",
+      "description": "Touch base with Vikram Patel. They chose HubSpot but may need specialized features we offer.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-015",
+      "assigned_to": "viewer-user",
+      "due_date": "2026-06-30T17:00:00Z",
+      "priority": "low",
+      "status": "pending"
+    },
+    {
+      "id": "task-020",
+      "title": "Review Evergreen Foundation proposal",
+      "description": "Prepare non-profit pricing proposal for Grace Thompson at Evergreen Foundation.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-020",
+      "assigned_to": "manager-user",
+      "due_date": "2026-06-22T17:00:00Z",
+      "priority": "medium",
+      "status": "pending"
+    }
+  ],
+  "meetings": [
+    {
+      "id": "meet-001",
+      "title": "Technical Deep-Dive Meridian Global",
+      "participants": [
+        "Jonathan Reeves",
+        "Alice Johnson",
+        "David Brown"
+      ],
+      "related_to_type": "lead",
+      "related_to_id": "lead-001",
+      "date_time": "2026-06-20T10:00:00Z",
+      "duration": 90,
+      "type": "online",
+      "notes": "Deep-dive into API architecture, scalability, and advanced analytics.",
+      "outcome": "Scheduled"
+    },
+    {
+      "id": "meet-002",
+      "title": "Discovery Call Pinnacle Financial",
+      "participants": [
+        "Maya Chen",
+        "Bob Smith"
+      ],
+      "related_to_type": "lead",
+      "related_to_id": "lead-002",
+      "date_time": "2026-06-17T14:00:00Z",
+      "duration": 30,
+      "type": "call",
+      "notes": "Initial discovery to understand compliance requirements.",
+      "outcome": "Scheduled"
+    },
+    {
+      "id": "meet-003",
+      "title": "Epic Integration Workshop Athena Health",
+      "participants": [
+        "Dr. Sophia Patel",
+        "Alice Johnson",
+        "Carol Williams"
+      ],
+      "related_to_type": "lead",
+      "related_to_id": "lead-003",
+      "date_time": "2026-06-25T11:00:00Z",
+      "duration": 120,
+      "type": "online",
+      "notes": "Technical workshop to map Epic EHR integration points.",
+      "outcome": "Scheduled"
+    },
+    {
+      "id": "meet-004",
+      "title": "Security Review Titan Defense",
+      "participants": [
+        "Marcus Williams",
+        "Carol Williams"
+      ],
+      "related_to_type": "lead",
+      "related_to_id": "lead-004",
+      "date_time": "2026-06-22T13:00:00Z",
+      "duration": 60,
+      "type": "online",
+      "notes": "Review classified deployment requirements and security checklist.",
+      "outcome": "Scheduled"
+    },
+    {
+      "id": "meet-005",
+      "title": "Implementation Kickoff Crown Industries",
+      "participants": [
+        "Heinrich Weber",
+        "Alice Johnson",
+        "Eva Martinez"
+      ],
+      "related_to_type": "lead",
+      "related_to_id": "lead-005",
+      "date_time": "2026-07-01T09:00:00Z",
+      "duration": 120,
+      "type": "online",
+      "notes": "Kickoff meeting for MES integration project. 12-month plan.",
+      "outcome": "Scheduled"
+    },
+    {
+      "id": "meet-006",
+      "title": "Demo Sage Data Analytics",
+      "participants": [
+        "Lena Fischer",
+        "Carol Williams"
+      ],
+      "related_to_type": "lead",
+      "related_to_id": "lead-008",
+      "date_time": "2026-06-16T13:00:00Z",
+      "duration": 45,
+      "type": "online",
+      "notes": "Product demo focusing on data pipeline integration and visualization.",
+      "outcome": "Completed - Positive feedback"
+    },
+    {
+      "id": "meet-007",
+      "title": "Integration Planning Pioneer Retail",
+      "participants": [
+        "Catherine O'Brien",
+        "Alice Johnson"
+      ],
+      "related_to_type": "lead",
+      "related_to_id": "lead-009",
+      "date_time": "2026-06-21T10:00:00Z",
+      "duration": 90,
+      "type": "online",
+      "notes": "Technical workshop to plan ERP integration and omnichannel inventory.",
+      "outcome": "Scheduled"
+    },
+    {
+      "id": "meet-008",
+      "title": "Strategy Session Vitalis Healthcare",
+      "participants": [
+        "Dr. James Kim",
+        "Bob Smith"
+      ],
+      "related_to_type": "lead",
+      "related_to_id": "lead-010",
+      "date_time": "2026-06-18T10:00:00Z",
+      "duration": 60,
+      "type": "online",
+      "notes": "Discuss proposal terms, implementation timeline, and integration.",
+      "outcome": "Completed - Moving forward"
+    },
+    {
+      "id": "meet-009",
+      "title": "Portfolio Demo Summit Ventures",
+      "participants": [
+        "William Chen",
+        "Carol Williams"
+      ],
+      "related_to_type": "lead",
+      "related_to_id": "lead-017",
+      "date_time": "2026-06-23T14:00:00Z",
+      "duration": 45,
+      "type": "online",
+      "notes": "Custom demo of portfolio tracking, investor reporting, and deal flow.",
+      "outcome": "Scheduled"
+    },
+    {
+      "id": "meet-010",
+      "title": "Weekly Sales Team Sync",
+      "participants": [
+        "Alice Johnson",
+        "Bob Smith",
+        "Carol Williams",
+        "David Brown",
+        "Eva Martinez"
+      ],
+      "date_time": "2026-06-15T09:00:00Z",
+      "duration": 30,
+      "type": "online",
+      "notes": "Weekly sync to discuss pipeline progress and blockers.",
+      "outcome": ""
+    },
+    {
+      "id": "meet-011",
+      "title": "Board Prep QuantumStar Technologies",
+      "participants": [
+        "Derek Huang",
+        "Alice Johnson"
+      ],
+      "related_to_type": "lead",
+      "related_to_id": "lead-019",
+      "date_time": "2026-06-26T15:00:00Z",
+      "duration": 60,
+      "type": "online",
+      "notes": "Pre-meeting to align on board presentation strategy.",
+      "outcome": "Scheduled"
+    },
+    {
+      "id": "meet-012",
+      "title": "Introductory Call NexGen Robotics",
+      "participants": [
+        "Min-Jun Park",
+        "David Brown"
+      ],
+      "related_to_type": "lead",
+      "related_to_id": "lead-007",
+      "date_time": "2026-06-19T11:00:00Z",
+      "duration": 30,
+      "type": "call",
+      "notes": "First call to understand their CRM needs for investor relations.",
+      "outcome": "Scheduled"
+    },
+    {
+      "id": "meet-013",
+      "title": "Deal Review Q2 Pipeline",
+      "participants": [
+        "Alice Johnson",
+        "Bob Smith",
+        "Carol Williams"
+      ],
+      "date_time": "2026-06-28T14:00:00Z",
+      "duration": 60,
+      "type": "online",
+      "notes": "Quarter-end deal review. Review all active opportunities.",
+      "outcome": ""
+    },
+    {
+      "id": "meet-014",
+      "title": "Product Roadmap Review",
+      "participants": [
+        "Alice Johnson",
+        "Eva Martinez"
+      ],
+      "date_time": "2026-06-30T10:00:00Z",
+      "duration": 60,
+      "type": "online",
+      "notes": "Review Q3 product roadmap and customer-requested features.",
+      "outcome": ""
+    },
+    {
+      "id": "meet-015",
+      "title": "Middle East Strategy Pioneer Retail",
+      "participants": [
+        "Fatima Al-Rashid",
+        "Eva Martinez"
+      ],
+      "related_to_type": "lead",
+      "related_to_id": "lead-023",
+      "date_time": "2026-06-20T10:00:00Z",
+      "duration": 45,
+      "type": "online",
+      "notes": "Discuss Arabic language support and regional hosting requirements.",
+      "outcome": "Scheduled"
+    }
+  ],
+  "users": [
+    {
+      "id": "admin-user",
+      "name": "Alice Johnson",
+      "email": "alice@nexuscrmdemo.com",
+      "role": "admin",
+      "password": "DemoUser123"
+    },
+    {
+      "id": "manager-user",
+      "name": "Bob Smith",
+      "email": "bob@nexuscrmdemo.com",
+      "role": "manager",
+      "password": "DemoUser123"
+    },
+    {
+      "id": "agent-user",
+      "name": "Carol Williams",
+      "email": "carol@nexuscrmdemo.com",
+      "role": "agent",
+      "password": "DemoUser123"
+    },
+    {
+      "id": "viewer-user",
+      "name": "David Brown",
+      "email": "david@nexuscrmdemo.com",
+      "role": "viewer",
+      "password": "DemoUser123"
+    }
+  ],
+  "activities": [
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-001",
+      "type": "created",
+      "description": "Lead created: Jonathan Reeves from Meridian Global Group",
+      "timestamp": "2026-06-01T10:00:00Z",
+      "metadata": {
+        "source": "website",
+        "value": 95000
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-001",
+      "type": "status_changed",
+      "description": "Status changed: New to Contacted",
+      "timestamp": "2026-06-03T14:00:00Z",
+      "metadata": {
+        "from": "new",
+        "to": "contacted"
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-001",
+      "type": "status_changed",
+      "description": "Status changed: Contacted to Qualified",
+      "timestamp": "2026-06-08T11:00:00Z",
+      "metadata": {
+        "from": "contacted",
+        "to": "qualified"
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-003",
+      "type": "created",
+      "description": "Lead created: Dr. Sophia Patel from Athena Health Systems",
+      "timestamp": "2026-05-20T08:00:00Z",
+      "metadata": {
+        "source": "ads",
+        "value": 180000
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-005",
+      "type": "status_changed",
+      "description": "Status changed: Proposal to Won",
+      "timestamp": "2026-05-15T16:00:00Z",
+      "metadata": {
+        "from": "proposal",
+        "to": "won",
+        "value": 320000
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-004",
+      "type": "status_changed",
+      "description": "Status changed: Qualified to Proposal",
+      "timestamp": "2026-06-10T15:00:00Z",
+      "metadata": {
+        "from": "qualified",
+        "to": "proposal"
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-009",
+      "type": "created",
+      "description": "Lead created: Catherine O'Brien from Pioneer Retail Group",
+      "timestamp": "2026-05-18T09:30:00Z",
+      "metadata": {
+        "source": "ads",
+        "value": 125000
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-009",
+      "type": "status_changed",
+      "description": "Status changed: New to Contacted",
+      "timestamp": "2026-05-25T11:00:00Z",
+      "metadata": {
+        "from": "new",
+        "to": "contacted"
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-009",
+      "type": "status_changed",
+      "description": "Status changed: Contacted to Qualified",
+      "timestamp": "2026-06-05T14:00:00Z",
+      "metadata": {
+        "from": "contacted",
+        "to": "qualified"
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-010",
+      "type": "created",
+      "description": "Lead created: Dr. James Kim from Vitalis Healthcare",
+      "timestamp": "2026-05-10T10:00:00Z",
+      "metadata": {
+        "source": "referral",
+        "value": 110000
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-010",
+      "type": "status_changed",
+      "description": "Status changed: Contacted to Qualified",
+      "timestamp": "2026-05-20T14:00:00Z",
+      "metadata": {
+        "from": "contacted",
+        "to": "qualified"
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-010",
+      "type": "status_changed",
+      "description": "Status changed: Qualified to Proposal",
+      "timestamp": "2026-06-01T09:00:00Z",
+      "metadata": {
+        "from": "qualified",
+        "to": "proposal"
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-017",
+      "type": "created",
+      "description": "Lead created: William Chen from Summit Ventures LLC",
+      "timestamp": "2026-05-28T11:00:00Z",
+      "metadata": {
+        "source": "referral",
+        "value": 72000
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-019",
+      "type": "created",
+      "description": "Lead created: Derek Huang from QuantumStar Technologies",
+      "timestamp": "2026-05-05T10:00:00Z",
+      "metadata": {
+        "source": "website",
+        "value": 195000
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-019",
+      "type": "status_changed",
+      "description": "Status changed: Qualified to Proposal",
+      "timestamp": "2026-05-25T16:00:00Z",
+      "metadata": {
+        "from": "qualified",
+        "to": "proposal"
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-006",
+      "type": "status_changed",
+      "description": "Status changed: Proposal to Lost",
+      "timestamp": "2026-05-20T10:00:00Z",
+      "metadata": {
+        "from": "proposal",
+        "to": "lost",
+        "reason": "competitor"
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-015",
+      "type": "status_changed",
+      "description": "Status changed: Proposal to Lost",
+      "timestamp": "2026-06-01T10:00:00Z",
+      "metadata": {
+        "from": "proposal",
+        "to": "lost",
+        "reason": "budget"
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-014",
+      "type": "status_changed",
+      "description": "Status changed: Proposal to Won",
+      "timestamp": "2026-06-01T10:00:00Z",
+      "metadata": {
+        "from": "proposal",
+        "to": "won",
+        "value": 42000
+      }
+    },
+    {
+      "entity_type": "meeting",
+      "entity_id": "meet-006",
+      "type": "meeting_completed",
+      "description": "Meeting completed: Demo with Sage Data Analytics",
+      "timestamp": "2026-06-16T14:00:00Z",
+      "metadata": {
+        "leadId": "lead-008",
+        "outcome": "Positive feedback"
+      }
+    },
+    {
+      "entity_type": "meeting",
+      "entity_id": "meet-008",
+      "type": "meeting_completed",
+      "description": "Meeting completed: Strategy Session with Vitalis Healthcare",
+      "timestamp": "2026-06-18T11:00:00Z",
+      "metadata": {
+        "leadId": "lead-010",
+        "outcome": "Moving forward"
+      }
+    },
+    {
+      "entity_type": "task",
+      "entity_id": "task-006",
+      "type": "task_completed",
+      "description": "Task completed: Analyze Velocity Media loss",
+      "timestamp": "2026-06-14T16:00:00Z",
+      "metadata": {
+        "leadId": "lead-006"
+      }
+    },
+    {
+      "entity_type": "task",
+      "entity_id": "task-008",
+      "type": "task_completed",
+      "description": "Task completed: Send Sage Data demo environment",
+      "timestamp": "2026-06-15T15:00:00Z",
+      "metadata": {
+        "leadId": "lead-008"
+      }
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-003",
+      "type": "note_added",
+      "description": "Note added: Dr. Patel requested additional integration documentation",
+      "timestamp": "2026-06-12T10:00:00Z"
+    },
+    {
+      "entity_type": "lead",
+      "entity_id": "lead-019",
+      "type": "note_added",
+      "description": "Note added: Board meeting rescheduled to June 28th",
+      "timestamp": "2026-06-14T09:00:00Z"
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-001",
+      "name": "NexusCRM Enterprise Sales",
+      "description": "Enterprise sales team handling high-value leads and strategic accounts",
+      "created_by": "admin-user"
+    },
+    {
+      "id": "team-002",
+      "name": "Customer Success",
+      "description": "Customer onboarding, training, and ongoing success management",
+      "created_by": "manager-user"
+    },
+    {
+      "id": "team-003",
+      "name": "Solutions Engineering",
+      "description": "Technical demonstrations, integrations, and proof-of-concept delivery",
+      "created_by": "agent-user"
+    }
+  ],
+  "team_members": [
+    {
+      "team_id": "team-001",
+      "user_id": "admin-user",
+      "role": "admin"
+    },
+    {
+      "team_id": "team-001",
+      "user_id": "manager-user",
+      "role": "manager"
+    },
+    {
+      "team_id": "team-001",
+      "user_id": "agent-user",
+      "role": "agent"
+    },
+    {
+      "team_id": "team-001",
+      "user_id": "viewer-user",
+      "role": "viewer"
+    },
+    {
+      "team_id": "team-002",
+      "user_id": "manager-user",
+      "role": "admin"
+    },
+    {
+      "team_id": "team-002",
+      "user_id": "agent-user",
+      "role": "agent"
+    },
+    {
+      "team_id": "team-003",
+      "user_id": "agent-user",
+      "role": "admin"
+    },
+    {
+      "team_id": "team-003",
+      "user_id": "admin-user",
+      "role": "manager"
+    }
+  ],
+  "team_invitations": [
+    {
+      "team_id": "team-001",
+      "email": "eva.martinez@example.com",
+      "role": "agent",
+      "invited_by": "admin-user",
+      "status": "pending",
+      "expires_at": "2026-06-28T12:00:00Z"
+    },
+    {
+      "team_id": "team-001",
+      "email": "frank.wilson@example.com",
+      "role": "viewer",
+      "invited_by": "admin-user",
+      "status": "expired",
+      "expires_at": "2026-05-01T12:00:00Z"
+    },
+    {
+      "team_id": "team-002",
+      "email": "grace.lee@example.com",
+      "role": "agent",
+      "invited_by": "manager-user",
+      "status": "pending",
+      "expires_at": "2026-07-05T12:00:00Z"
+    }
+  ],
+  "automation_rules": [
+    {
+      "id": "auto-001",
+      "name": "Hot Lead Notification",
+      "description": "Notify the sales team when a high-priority lead is created",
+      "trigger_event": "lead.created",
+      "conditions": [
+        {
+          "field": "priority",
+          "operator": "equals",
+          "value": "high"
+        }
+      ],
+      "actions": [
+        {
+          "type": "send_notification",
+          "config": {
+            "channel": "slack",
+            "message": "New high-priority lead created!"
+          }
+        },
+        {
+          "type": "assign_user",
+          "config": {
+            "strategy": "round_robin"
+          }
+        }
+      ],
+      "enabled": true,
+      "created_by": "admin-user"
+    },
+    {
+      "id": "auto-002",
+      "name": "Welcome Email Sequence",
+      "description": "Send welcome email automatically when a new lead comes in",
+      "trigger_event": "lead.created",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "send_email",
+          "config": {
+            "templateId": "welcome",
+            "recipient": "{{lead.email}}"
+          }
+        }
+      ],
+      "enabled": true,
+      "created_by": "admin-user"
+    },
+    {
+      "id": "auto-003",
+      "name": "Won Deal Celebration",
+      "description": "Notify team and create onboarding task when a deal is won",
+      "trigger_event": "deal.stage_changed",
+      "conditions": [
+        {
+          "field": "stage",
+          "operator": "equals",
+          "value": "closed_won"
+        }
+      ],
+      "actions": [
+        {
+          "type": "send_notification",
+          "config": {
+            "channel": "email",
+            "message": "Deal won! Start onboarding process."
+          }
+        },
+        {
+          "type": "change_status",
+          "config": {
+            "status": "onboarding"
+          }
+        }
+      ],
+      "enabled": true,
+      "created_by": "admin-user"
+    },
+    {
+      "id": "auto-004",
+      "name": "Overdue Task Escalation",
+      "description": "Escalate overdue tasks to the manager",
+      "trigger_event": "task.overdue",
+      "conditions": [
+        {
+          "field": "priority",
+          "operator": "equals",
+          "value": "high"
+        }
+      ],
+      "actions": [
+        {
+          "type": "send_notification",
+          "config": {
+            "channel": "email",
+            "message": "High-priority task overdue!"
+          }
+        }
+      ],
+      "enabled": true,
+      "created_by": "manager-user"
+    },
+    {
+      "id": "auto-005",
+      "name": "Meeting Follow-Up",
+      "description": "Create follow-up task after a meeting is completed",
+      "trigger_event": "meeting.completed",
+      "conditions": [],
+      "actions": [
+        {
+          "type": "send_notification",
+          "config": {
+            "message": "Meeting completed. Remember to send follow-up."
+          }
+        }
+      ],
+      "enabled": false,
+      "created_by": "agent-user"
+    },
+    {
+      "id": "auto-006",
+      "name": "Lead Scoring Update",
+      "description": "Re-score lead when status changes to qualified",
+      "trigger_event": "lead.status_changed",
+      "conditions": [
+        {
+          "field": "status",
+          "operator": "equals",
+          "value": "qualified"
+        }
+      ],
+      "actions": [
+        {
+          "type": "add_tag",
+          "config": {
+            "tag": "qualified"
+          }
+        },
+        {
+          "type": "send_notification",
+          "config": {
+            "message": "Lead qualified -- move to active pipeline."
+          }
+        }
+      ],
+      "enabled": true,
+      "created_by": "admin-user"
+    },
+    {
+      "id": "auto-007",
+      "name": "New Company Auto-Tag",
+      "description": "Automatically tag new companies based on industry",
+      "trigger_event": "company.created",
+      "conditions": [
+        {
+          "field": "industry",
+          "operator": "equals",
+          "value": "Healthcare"
+        }
+      ],
+      "actions": [
+        {
+          "type": "add_tag",
+          "config": {
+            "tag": "Healthcare"
+          }
+        },
+        {
+          "type": "add_tag",
+          "config": {
+            "tag": "Compliance"
+          }
+        }
+      ],
+      "enabled": true,
+      "created_by": "agent-user"
+    }
+  ],
+  "email_sequences": [
+    {
+      "id": "seq-001",
+      "name": "Welcome Series",
+      "description": "Automated welcome sequence for newly created leads from all sources",
+      "status": "active",
+      "created_by": "admin-user"
+    },
+    {
+      "id": "seq-002",
+      "name": "Demo Follow-Up",
+      "description": "Sequence triggered after a product demonstration is completed",
+      "status": "active",
+      "created_by": "agent-user"
+    },
+    {
+      "id": "seq-003",
+      "name": "Re-engagement Campaign",
+      "description": "Target cold leads that haven't been contacted in over 30 days",
+      "status": "paused",
+      "created_by": "admin-user"
+    },
+    {
+      "id": "seq-004",
+      "name": "Enterprise Onboarding",
+      "description": "Multi-step onboarding sequence for new enterprise customers",
+      "status": "draft",
+      "created_by": "manager-user"
+    },
+    {
+      "id": "seq-005",
+      "name": "Quarterly Product Newsletter",
+      "description": "Quarterly newsletter highlighting new features and product updates",
+      "status": "completed",
+      "created_by": "manager-user"
+    },
+    {
+      "id": "seq-006",
+      "name": "Abandoned Signup Recovery",
+      "description": "Re-engage potential customers who started but didn't complete signup",
+      "status": "active",
+      "created_by": "admin-user"
+    },
+    {
+      "id": "seq-007",
+      "name": "Customer Satisfaction Survey",
+      "description": "Post-purchase NPS survey sent 30 days after deal close",
+      "status": "draft",
+      "created_by": "viewer-user"
+    }
+  ],
+  "campaign_emails": [
+    {
+      "sequence_id": "seq-001",
+      "subject": "Welcome to NexusCRM!",
+      "body": "Hi {{lead.name}},\n\nWelcome to NexusCRM! We are excited to have you on board.\n\nHere is what you can expect:\n- A personalized onboarding call\n- Access to our knowledge base\n- Weekly product tips\n\nBest,\nThe NexusCRM Team",
+      "delay_days": 0,
+      "sort_order": 0
+    },
+    {
+      "sequence_id": "seq-001",
+      "subject": "Getting Started with NexusCRM",
+      "body": "Hi {{lead.name}},\n\nHere are some resources to help you get started:\n- Quick Start Guide\n- Video Tutorials\n- Community Forum\n\nLet us know if you have any questions!",
+      "delay_days": 3,
+      "sort_order": 1
+    },
+    {
+      "sequence_id": "seq-002",
+      "subject": "Thanks for attending the demo!",
+      "body": "Hi {{lead.name}},\n\nThank you for your time during the demo. Here is a link to the recording and additional resources.\n\nNext steps:\n- Try our interactive sandbox\n- Schedule a technical deep-dive\n\nBest,\n{{assigned_to.name}}",
+      "delay_days": 0,
+      "sort_order": 0
+    },
+    {
+      "sequence_id": "seq-002",
+      "subject": "Did you have any follow-up questions?",
+      "body": "Hi {{lead.name}},\n\nI wanted to follow up on our demo last week. Do you have any questions about the features we discussed?\n\nHappy to schedule another call!\n\nBest,\n{{assigned_to.name}}",
+      "delay_days": 3,
+      "sort_order": 1
+    },
+    {
+      "sequence_id": "seq-003",
+      "subject": "We haven't spoken in a while...",
+      "body": "Hi {{lead.name}},\n\nIt has been a while since we last connected. We have launched several new features since we last spoke:\n- Advanced Analytics Dashboard\n- Mobile App\n- API Access\n\nWould you be open to a quick catch-up call?\n\nBest,\n{{assigned_to.name}}",
+      "delay_days": 0,
+      "sort_order": 0
+    },
+    {
+      "sequence_id": "seq-006",
+      "subject": "You left something behind!",
+      "body": "Hi there,\n\nWe noticed you started the signup process but did not complete it. We are here to help if you have any questions!\n\nClick here to continue: {{resume_link}}\n\nBest,\nThe NexusCRM Team",
+      "delay_days": 1,
+      "sort_order": 0
+    },
+    {
+      "sequence_id": "seq-006",
+      "subject": "Still thinking about NexusCRM?",
+      "body": "Hi there,\n\nJust checking in! If timing is not right, we understand. But if you have questions, we would love to chat.\n\nSchedule a quick call: {{calendly_link}}\n\nBest,\nThe NexusCRM Team",
+      "delay_days": 5,
+      "sort_order": 1
+    }
+  ],
+  "quotes": [
+    {
+      "id": "quote-001",
+      "title": "Meridian Global Enterprise License Q3",
+      "deal_id": "deal-001",
+      "lead_id": "lead-001",
+      "contact_id": "cont-001",
+      "company_id": "comp-001",
+      "status": "draft",
+      "subtotal": 180000,
+      "discount": 15000,
+      "total": 165000,
+      "notes": "Annual enterprise license for 800 users. Includes premium support and API access.",
+      "valid_until": "2026-08-15",
+      "created_by": "admin-user"
+    },
+    {
+      "id": "quote-002",
+      "title": "Athena Health Full Suite Quote",
+      "deal_id": "deal-003",
+      "lead_id": "lead-003",
+      "contact_id": "cont-003",
+      "company_id": "comp-003",
+      "status": "draft",
+      "subtotal": 320000,
+      "discount": 25000,
+      "total": 295000,
+      "notes": "Enterprise full-suite deployment with Epic EHR integration. 3-year term.",
+      "valid_until": "2026-10-30",
+      "created_by": "admin-user"
+    },
+    {
+      "id": "quote-003",
+      "title": "Titan Defense Classified Deployment",
+      "deal_id": "deal-004",
+      "lead_id": "lead-004",
+      "contact_id": "cont-004",
+      "company_id": "comp-004",
+      "status": "sent",
+      "subtotal": 425000,
+      "discount": 35000,
+      "total": 390000,
+      "notes": "Air-gapped deployment with security audit and compliance certification.",
+      "valid_until": "2026-09-15",
+      "created_by": "agent-user"
+    },
+    {
+      "id": "quote-004",
+      "title": "Crown Industries MES Integration",
+      "deal_id": "deal-005",
+      "lead_id": "lead-005",
+      "contact_id": "cont-005",
+      "company_id": "comp-005",
+      "status": "accepted",
+      "subtotal": 320000,
+      "discount": 20000,
+      "total": 300000,
+      "notes": "Accepted. MES integration with IoT sensor pipeline. Payment terms: Net60.",
+      "valid_until": "2026-07-01",
+      "created_by": "admin-user"
+    },
+    {
+      "id": "quote-005",
+      "title": "Pioneer Retail Omnichannel Platform",
+      "deal_id": "deal-006",
+      "lead_id": "lead-009",
+      "contact_id": "cont-009",
+      "company_id": "comp-009",
+      "status": "draft",
+      "subtotal": 150000,
+      "discount": 12000,
+      "total": 138000,
+      "notes": "Omnichannel platform with ERP integration. 500 user licenses.",
+      "valid_until": "2026-08-30",
+      "created_by": "admin-user"
+    },
+    {
+      "id": "quote-006",
+      "title": "Vitalis Healthcare Digital Platform",
+      "deal_id": "deal-007",
+      "lead_id": "lead-010",
+      "contact_id": "cont-010",
+      "company_id": "comp-010",
+      "status": "sent",
+      "subtotal": 110000,
+      "discount": 8000,
+      "total": 102000,
+      "notes": "Digital health platform with patient engagement and analytics modules.",
+      "valid_until": "2026-08-20",
+      "created_by": "manager-user"
+    },
+    {
+      "id": "quote-007",
+      "title": "QuantumStar API and Analytics Platform",
+      "deal_id": "deal-010",
+      "lead_id": "lead-019",
+      "contact_id": "cont-019",
+      "company_id": "comp-019",
+      "status": "sent",
+      "subtotal": 195000,
+      "discount": 15000,
+      "total": 180000,
+      "notes": "Enterprise API management platform with real-time analytics and ML pipeline.",
+      "valid_until": "2026-08-01",
+      "created_by": "admin-user"
+    },
+    {
+      "id": "quote-008",
+      "title": "BrightPath Education Student Mgmt",
+      "deal_id": "deal-009",
+      "lead_id": "lead-014",
+      "contact_id": "cont-014",
+      "company_id": "comp-014",
+      "status": "accepted",
+      "subtotal": 42000,
+      "discount": 3000,
+      "total": 39000,
+      "notes": "Accepted. Student lifecycle management. Implementation starts July 1st.",
+      "valid_until": "2026-07-15",
+      "created_by": "admin-user"
+    }
+  ],
+  "quote_items": [
+    {
+      "quote_id": "quote-001",
+      "description": "Enterprise License (800 seats)",
+      "quantity": 1,
+      "unit_price": 120000,
+      "total": 120000,
+      "sort_order": 0
+    },
+    {
+      "quote_id": "quote-001",
+      "description": "Premium Support (Annual)",
+      "quantity": 1,
+      "unit_price": 40000,
+      "total": 40000,
+      "sort_order": 1
+    },
+    {
+      "quote_id": "quote-001",
+      "description": "API Access Add-on",
+      "quantity": 1,
+      "unit_price": 20000,
+      "total": 20000,
+      "sort_order": 2
+    },
+    {
+      "quote_id": "quote-002",
+      "description": "Enterprise License (1500 seats)",
+      "quantity": 1,
+      "unit_price": 180000,
+      "total": 180000,
+      "sort_order": 0
+    },
+    {
+      "quote_id": "quote-002",
+      "description": "Epic EHR Integration Package",
+      "quantity": 1,
+      "unit_price": 80000,
+      "total": 80000,
+      "sort_order": 1
+    },
+    {
+      "quote_id": "quote-002",
+      "description": "HIPAA Compliance Module",
+      "quantity": 1,
+      "unit_price": 35000,
+      "total": 35000,
+      "sort_order": 2
+    },
+    {
+      "quote_id": "quote-002",
+      "description": "Implementation and Training",
+      "quantity": 1,
+      "unit_price": 25000,
+      "total": 25000,
+      "sort_order": 3
+    },
+    {
+      "quote_id": "quote-003",
+      "description": "Classified Deployment Setup",
+      "quantity": 1,
+      "unit_price": 200000,
+      "total": 200000,
+      "sort_order": 0
+    },
+    {
+      "quote_id": "quote-003",
+      "description": "Enterprise License (600 seats)",
+      "quantity": 1,
+      "unit_price": 130000,
+      "total": 130000,
+      "sort_order": 1
+    },
+    {
+      "quote_id": "quote-003",
+      "description": "Security Audit and Certification",
+      "quantity": 1,
+      "unit_price": 60000,
+      "total": 60000,
+      "sort_order": 2
+    },
+    {
+      "quote_id": "quote-003",
+      "description": "Annual Maintenance and Support",
+      "quantity": 1,
+      "unit_price": 35000,
+      "total": 35000,
+      "sort_order": 3
+    },
+    {
+      "quote_id": "quote-004",
+      "description": "MES Integration Platform",
+      "quantity": 1,
+      "unit_price": 180000,
+      "total": 180000,
+      "sort_order": 0
+    },
+    {
+      "quote_id": "quote-004",
+      "description": "IoT Sensor Data Pipeline",
+      "quantity": 1,
+      "unit_price": 80000,
+      "total": 80000,
+      "sort_order": 1
+    },
+    {
+      "quote_id": "quote-004",
+      "description": "Enterprise License (2000 seats)",
+      "quantity": 1,
+      "unit_price": 60000,
+      "total": 60000,
+      "sort_order": 2
+    },
+    {
+      "quote_id": "quote-005",
+      "description": "Enterprise License (500 seats)",
+      "quantity": 1,
+      "unit_price": 75000,
+      "total": 75000,
+      "sort_order": 0
+    },
+    {
+      "quote_id": "quote-005",
+      "description": "ERP Integration Package",
+      "quantity": 1,
+      "unit_price": 45000,
+      "total": 45000,
+      "sort_order": 1
+    },
+    {
+      "quote_id": "quote-005",
+      "description": "Omnichannel Inventory Module",
+      "quantity": 1,
+      "unit_price": 30000,
+      "total": 30000,
+      "sort_order": 2
+    },
+    {
+      "quote_id": "quote-006",
+      "description": "Digital Health Platform License",
+      "quantity": 1,
+      "unit_price": 65000,
+      "total": 65000,
+      "sort_order": 0
+    },
+    {
+      "quote_id": "quote-006",
+      "description": "Patient Engagement Module",
+      "quantity": 1,
+      "unit_price": 25000,
+      "total": 25000,
+      "sort_order": 1
+    },
+    {
+      "quote_id": "quote-006",
+      "description": "Analytics Dashboard",
+      "quantity": 1,
+      "unit_price": 20000,
+      "total": 20000,
+      "sort_order": 2
+    },
+    {
+      "quote_id": "quote-007",
+      "description": "Enterprise License (1000 seats)",
+      "quantity": 1,
+      "unit_price": 100000,
+      "total": 100000,
+      "sort_order": 0
+    },
+    {
+      "quote_id": "quote-007",
+      "description": "Real-Time Analytics Module",
+      "quantity": 1,
+      "unit_price": 50000,
+      "total": 50000,
+      "sort_order": 1
+    },
+    {
+      "quote_id": "quote-007",
+      "description": "ML Pipeline Integration",
+      "quantity": 1,
+      "unit_price": 45000,
+      "total": 45000,
+      "sort_order": 2
+    },
+    {
+      "quote_id": "quote-008",
+      "description": "Student Lifecycle Management License",
+      "quantity": 1,
+      "unit_price": 28000,
+      "total": 28000,
+      "sort_order": 0
+    },
+    {
+      "quote_id": "quote-008",
+      "description": "Implementation and Training",
+      "quantity": 1,
+      "unit_price": 10000,
+      "total": 10000,
+      "sort_order": 1
+    },
+    {
+      "quote_id": "quote-008",
+      "description": "First Year Support",
+      "quantity": 1,
+      "unit_price": 4000,
+      "total": 4000,
+      "sort_order": 2
+    }
+  ],
+  "forecasts": [
+    {
+      "year": 2026,
+      "month": 1,
+      "target": 500000,
+      "actual": 425000,
+      "created_by": "admin-user"
+    },
+    {
+      "year": 2026,
+      "month": 2,
+      "target": 550000,
+      "actual": 510000,
+      "created_by": "admin-user"
+    },
+    {
+      "year": 2026,
+      "month": 3,
+      "target": 600000,
+      "actual": 580000,
+      "created_by": "admin-user"
+    },
+    {
+      "year": 2026,
+      "month": 4,
+      "target": 650000,
+      "actual": 620000,
+      "created_by": "admin-user"
+    },
+    {
+      "year": 2026,
+      "month": 5,
+      "target": 700000,
+      "actual": 720000,
+      "created_by": "admin-user"
+    },
+    {
+      "year": 2026,
+      "month": 6,
+      "target": 750000,
+      "actual": 0,
+      "created_by": "admin-user"
+    },
+    {
+      "year": 2026,
+      "month": 7,
+      "target": 800000,
+      "actual": 0,
+      "created_by": "admin-user"
+    },
+    {
+      "year": 2026,
+      "month": 8,
+      "target": 850000,
+      "actual": 0,
+      "created_by": "admin-user"
+    },
+    {
+      "year": 2026,
+      "month": 9,
+      "target": 900000,
+      "actual": 0,
+      "created_by": "admin-user"
+    },
+    {
+      "year": 2026,
+      "month": 10,
+      "target": 950000,
+      "actual": 0,
+      "created_by": "admin-user"
+    },
+    {
+      "year": 2026,
+      "month": 11,
+      "target": 1000000,
+      "actual": 0,
+      "created_by": "admin-user"
+    },
+    {
+      "year": 2026,
+      "month": 12,
+      "target": 1100000,
+      "actual": 0,
+      "created_by": "admin-user"
+    },
+    {
+      "year": 2026,
+      "month": 1,
+      "target": 300000,
+      "actual": 280000,
+      "created_by": "manager-user"
+    },
+    {
+      "year": 2026,
+      "month": 2,
+      "target": 350000,
+      "actual": 310000,
+      "created_by": "manager-user"
+    },
+    {
+      "year": 2026,
+      "month": 3,
+      "target": 400000,
+      "actual": 390000,
+      "created_by": "manager-user"
+    },
+    {
+      "year": 2026,
+      "month": 4,
+      "target": 450000,
+      "actual": 440000,
+      "created_by": "manager-user"
+    },
+    {
+      "year": 2026,
+      "month": 5,
+      "target": 500000,
+      "actual": 485000,
+      "created_by": "manager-user"
+    },
+    {
+      "year": 2026,
+      "month": 6,
+      "target": 550000,
+      "actual": 0,
+      "created_by": "manager-user"
+    }
+  ],
+  "goals": [
+    {
+      "id": "goal-001",
+      "title": "Q2 2026 Revenue Target",
+      "description": "Total revenue target for Q2 2026 across all enterprise deals",
+      "type": "revenue",
+      "target": 2500000,
+      "current": 1850000,
+      "period": "quarterly",
+      "start_date": "2026-04-01",
+      "end_date": "2026-06-30",
+      "assigned_to": "admin-user",
+      "created_by": "admin-user"
+    },
+    {
+      "id": "goal-002",
+      "title": "Monthly New Leads -- June",
+      "description": "Number of new leads generated in June 2026",
+      "type": "leads_created",
+      "target": 80,
+      "current": 52,
+      "period": "monthly",
+      "start_date": "2026-06-01",
+      "end_date": "2026-06-30",
+      "assigned_to": "manager-user",
+      "created_by": "admin-user"
+    },
+    {
+      "id": "goal-003",
+      "title": "Deals Closed -- Q2 2026",
+      "description": "Number of deals closed in Q2 2026",
+      "type": "deals_count",
+      "target": 15,
+      "current": 12,
+      "period": "quarterly",
+      "start_date": "2026-04-01",
+      "end_date": "2026-06-30",
+      "assigned_to": "agent-user",
+      "created_by": "admin-user"
+    },
+    {
+      "id": "goal-004",
+      "title": "Weekly Tasks Completed",
+      "description": "Target for number of tasks completed each week by the team",
+      "type": "tasks_completed",
+      "target": 50,
+      "current": 38,
+      "period": "weekly",
+      "start_date": "2026-06-08",
+      "end_date": "2026-06-14",
+      "assigned_to": "viewer-user",
+      "created_by": "manager-user"
+    },
+    {
+      "id": "goal-005",
+      "title": "June 2026 Revenue -- Bob Smith",
+      "description": "Monthly revenue target for Bob Smith's pipeline",
+      "type": "revenue",
+      "target": 550000,
+      "current": 320000,
+      "period": "monthly",
+      "start_date": "2026-06-01",
+      "end_date": "2026-06-30",
+      "assigned_to": "manager-user",
+      "created_by": "manager-user"
+    },
+    {
+      "id": "goal-006",
+      "title": "Client Outreach Calls -- June",
+      "description": "Number of outreach calls made to leads in June",
+      "type": "calls_made",
+      "target": 100,
+      "current": 64,
+      "period": "monthly",
+      "start_date": "2026-06-01",
+      "end_date": "2026-06-30",
+      "assigned_to": "viewer-user",
+      "created_by": "viewer-user"
+    }
+  ],
+  "saved_views": [
+    {
+      "name": "My Hot Leads",
+      "entity_type": "lead",
+      "filters": {
+        "priority": "high",
+        "status": {
+          "neq": "lost"
+        }
+      },
+      "sort_by": "created_at",
+      "sort_order": "desc",
+      "created_by": "admin-user"
+    },
+    {
+      "name": "This Week's Tasks",
+      "entity_type": "task",
+      "filters": {
+        "due_date": {
+          "range": "this_week"
+        }
+      },
+      "sort_by": "due_date",
+      "sort_order": "asc",
+      "created_by": "admin-user"
+    },
+    {
+      "name": "Upcoming Meetings",
+      "entity_type": "meeting",
+      "filters": {
+        "date_time": {
+          "gte": "now"
+        }
+      },
+      "sort_by": "date_time",
+      "sort_order": "asc",
+      "created_by": "manager-user"
+    },
+    {
+      "name": "Active Deals Pipeline",
+      "entity_type": "deal",
+      "filters": {
+        "stage_id": {
+          "neq": "stage-005",
+          "neq2": "stage-006"
+        }
+      },
+      "sort_by": "value",
+      "sort_order": "desc",
+      "created_by": "admin-user"
+    },
+    {
+      "name": "Enterprise Companies",
+      "entity_type": "company",
+      "filters": {
+        "size": "1000+"
+      },
+      "sort_by": "revenue",
+      "sort_order": "desc",
+      "created_by": "agent-user"
+    },
+    {
+      "name": "My Contacts",
+      "entity_type": "contact",
+      "filters": {},
+      "sort_by": "name",
+      "sort_order": "asc",
+      "created_by": "viewer-user"
+    }
+  ],
+  "email_history": [
+    {
+      "from_address": "alice@nexuscrmdemo.com",
+      "to_address": "j.reeves@meridianglobal.io",
+      "subject": "Enterprise Demo - Follow Up",
+      "body": "Hi Jonathan,\n\nThanks again for your time during the demo. As promised, here is the link to our API documentation and the recording.\n\nLet me know if you have any questions!\n\nBest,\nAlice",
+      "direction": "outbound",
+      "status": "sent",
+      "related_to_type": "lead",
+      "related_to_id": "lead-001",
+      "sent_at": "2026-06-10T14:00:00Z"
+    },
+    {
+      "from_address": "bob@nexuscrmdemo.com",
+      "to_address": "maya.chen@pinnacle-fin.com",
+      "subject": "Compliance Documentation",
+      "body": "Dear Maya,\n\nPlease find attached our SOC2 and FINRA compliance documentation as requested.\n\nWe are available to schedule a call to review anything that needs clarification.\n\nBest,\nBob",
+      "direction": "outbound",
+      "status": "sent",
+      "related_to_type": "lead",
+      "related_to_id": "lead-002",
+      "sent_at": "2026-06-12T10:00:00Z"
+    },
+    {
+      "from_address": "alice@nexuscrmdemo.com",
+      "to_address": "spatel@athenahealth.io",
+      "subject": "Epic Integration - Workshop Confirmation",
+      "body": "Dear Dr. Patel,\n\nConfirmed: Epic Integration Workshop on June 25th at 11:00 AM EST.\n\nWe have prepared a detailed agenda covering:\n- Data mapping requirements\n- HL7 FHIR compatibility\n- Security protocols\n\nLooking forward to it!\n\nBest,\nAlice",
+      "direction": "outbound",
+      "status": "sent",
+      "related_to_type": "lead",
+      "related_to_id": "lead-003",
+      "sent_at": "2026-06-14T09:00:00Z"
+    },
+    {
+      "from_address": "carol@nexuscrmdemo.com",
+      "to_address": "mwilliams@titandefense.com",
+      "subject": "Secure Portal - Access Instructions",
+      "body": "Dear Marcus,\n\nAs requested, here are the instructions to access our secure portal for sharing classified specifications.\n\nPlease let me know once you have successfully logged in.\n\nBest,\nCarol",
+      "direction": "outbound",
+      "status": "sent",
+      "related_to_type": "lead",
+      "related_to_id": "lead-004",
+      "sent_at": "2026-06-11T11:00:00Z"
+    },
+    {
+      "from_address": "lena.fischer@sagedata.de",
+      "to_address": "carol@nexuscrmdemo.com",
+      "subject": "Re: Demo - Follow Up",
+      "body": "Hi Carol,\n\nThe demo was very impressive. My team was particularly interested in the real-time data pipeline capabilities.\n\nCould you share the pricing for the analytics module?\n\nThanks,\nLena",
+      "direction": "inbound",
+      "status": "sent",
+      "related_to_type": "lead",
+      "related_to_id": "lead-008",
+      "sent_at": "2026-06-16T15:00:00Z"
+    },
+    {
+      "from_address": "alice@nexuscrmdemo.com",
+      "to_address": "dhuang@quantumstar.tech",
+      "subject": "Board Presentation Materials",
+      "body": "Dear Derek,\n\nAttached are the board presentation materials as discussed. Please review and let me know if any changes are needed before the June 28th meeting.\n\nBest,\nAlice",
+      "direction": "outbound",
+      "status": "sent",
+      "related_to_type": "lead",
+      "related_to_id": "lead-019",
+      "sent_at": "2026-06-21T09:00:00Z"
+    }
+  ],
+  "call_logs": [
+    {
+      "direction": "outbound",
+      "duration": 18,
+      "caller": "Alice Johnson",
+      "callee": "Jonathan Reeves",
+      "notes": "Initial outreach. Very positive conversation. Interested in technical deep-dive.",
+      "call_result": "completed",
+      "related_to_type": "lead",
+      "related_to_id": "lead-001",
+      "created_by": "admin-user"
+    },
+    {
+      "direction": "outbound",
+      "duration": 12,
+      "caller": "Bob Smith",
+      "callee": "Maya Chen",
+      "notes": "Follow-up call. She received the compliance docs. Reviewing with team.",
+      "call_result": "completed",
+      "related_to_type": "lead",
+      "related_to_id": "lead-002",
+      "created_by": "manager-user"
+    },
+    {
+      "direction": "inbound",
+      "duration": 25,
+      "caller": "Catherine O'Brien",
+      "callee": "Alice Johnson",
+      "notes": "Called with questions about ERP integration capabilities. Very interested.",
+      "call_result": "completed",
+      "related_to_type": "lead",
+      "related_to_id": "lead-009",
+      "created_by": "admin-user"
+    },
+    {
+      "direction": "outbound",
+      "duration": 8,
+      "caller": "David Brown",
+      "callee": "Min-Jun Park",
+      "notes": "Attempted to reach for introductory call. Went to voicemail. Left message.",
+      "call_result": "no_answer",
+      "related_to_type": "lead",
+      "related_to_id": "lead-007",
+      "created_by": "viewer-user"
+    },
+    {
+      "direction": "inbound",
+      "duration": 32,
+      "caller": "William Chen",
+      "callee": "Carol Williams",
+      "notes": "Called to discuss portfolio tracking requirements. Very specific needs.",
+      "call_result": "completed",
+      "related_to_type": "lead",
+      "related_to_id": "lead-017",
+      "created_by": "agent-user"
+    },
+    {
+      "direction": "outbound",
+      "duration": 15,
+      "caller": "Bob Smith",
+      "callee": "Grace Thompson",
+      "notes": "Intro call with Evergreen Foundation. Interested but needs non-profit pricing.",
+      "call_result": "completed",
+      "related_to_type": "lead",
+      "related_to_id": "lead-020",
+      "created_by": "manager-user"
+    },
+    {
+      "direction": "outbound",
+      "duration": 22,
+      "caller": "Alice Johnson",
+      "callee": "Dr. James Kim",
+      "notes": "Followed up on proposal status. Board meeting scheduled for next week. Positive.",
+      "call_result": "completed",
+      "related_to_type": "lead",
+      "related_to_id": "lead-010",
+      "created_by": "manager-user"
+    }
+  ],
+  "sms_logs": [
+    {
+      "to_number": "+1 (415) 555-0187",
+      "from_number": "+1 (800) 555-0199",
+      "body": "Hi Jonathan, just sent over the API docs. Let me know if you have any questions! -- Alice",
+      "direction": "outbound",
+      "status": "delivered",
+      "related_to_type": "lead",
+      "related_to_id": "lead-001",
+      "created_by": "admin-user"
+    },
+    {
+      "to_number": "+1 (312) 555-0912",
+      "from_number": "+1 (800) 555-0199",
+      "body": "Catherine, thanks for the call! Sending the ERP integration spec over now.",
+      "direction": "outbound",
+      "status": "sent",
+      "related_to_type": "lead",
+      "related_to_id": "lead-009",
+      "created_by": "admin-user"
+    },
+    {
+      "to_number": "+1 (858) 555-0123",
+      "from_number": "+1 (800) 555-0199",
+      "body": "Dr. Kim, confirmed our strategy session for Friday at 10am. See you then! -- Bob",
+      "direction": "outbound",
+      "status": "delivered",
+      "related_to_type": "lead",
+      "related_to_id": "lead-010",
+      "created_by": "manager-user"
+    },
+    {
+      "to_number": "+1 (415) 555-0901",
+      "from_number": "+1 (800) 555-0199",
+      "body": "William, I've prepared the portfolio demo for our meeting. Looking forward to it! -- Carol",
+      "direction": "outbound",
+      "status": "delivered",
+      "related_to_type": "lead",
+      "related_to_id": "lead-017",
+      "created_by": "agent-user"
+    }
+  ],
+  "notes": [
+    {
+      "title": "Meridian Global -- Technical Requirements",
+      "body": "Jonathan needs:\n1. API rate limits of 10,000 req/min\n2. Custom SSO/SAML integration\n3. Multi-region data residency (US, EU, APAC)\n4. Audit log retention of 7 years\n\nHe is comparing us with Salesforce. Our API flexibility is our key advantage.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-001",
+      "created_by": "admin-user"
+    },
+    {
+      "title": "Athena Health -- Integration Complexity",
+      "body": "Epic EHR integration requires:\n- HL7 FHIR R4 compliance\n- HIPAA BA agreement signed\n- On-site security review\n- Data migration from legacy system\n\nThis is a complex but high-value deal. Estimated 6-month implementation.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-003",
+      "created_by": "admin-user"
+    },
+    {
+      "title": "Titan Defense -- Security Clearance Notes",
+      "body": "All team members working on this deployment need:\n- Active security clearance (Secret level minimum)\n- NDAs signed and on file\n- Access to secure facility for deployment\n\nCarol is coordinating clearance verification.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-004",
+      "created_by": "agent-user"
+    },
+    {
+      "title": "Pioneer Retail -- ERP Integration Notes",
+      "body": "Current ERP: SAP S/4HANA\nIntegration points:\n- Inventory synchronization (real-time)\n- Order management\n- Customer data\n- Pricing and promotions\n\nTheir IT team prefers REST APIs over file-based integration.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-009",
+      "created_by": "admin-user"
+    },
+    {
+      "title": "Crown Industries -- Post-Sale Notes",
+      "body": "Deal closed! Key contacts:\n- Heinrich Weber (CTO) -- primary stakeholder\n- Klaus Schmidt (Plant Manager) -- implementation lead\n\nNext steps:\n- Kickoff meeting July 1st\n- Phase 1: MES integration (months 1-6)\n- Phase 2: IoT pipeline (months 4-8)",
+      "related_to_type": "lead",
+      "related_to_id": "lead-005",
+      "created_by": "admin-user"
+    },
+    {
+      "title": "Summit Ventures -- Custom Requirements",
+      "body": "William needs:\n1. Deal flow tracking with pipeline stages\n2. Investor reporting with PDF generation\n3. Portfolio company performance dashboard\n4. Cap table management\n\nThis could expand to a firm-wide deployment if successful.",
+      "related_to_type": "lead",
+      "related_to_id": "lead-017",
+      "created_by": "agent-user"
+    }
+  ],
+  "api_keys": [
+    {
+      "name": "Production API Key",
+      "key_prefix": "sk_prod",
+      "key_hash": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
+      "scopes": [
+        "read",
+        "write",
+        "admin"
+      ],
+      "created_by": "admin-user"
+    },
+    {
+      "name": "Staging Integration Key",
+      "key_prefix": "sk_stag",
+      "key_hash": "b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1",
+      "scopes": [
+        "read",
+        "write"
+      ],
+      "created_by": "agent-user"
+    },
+    {
+      "name": "Read-Only Analytics Key",
+      "key_prefix": "sk_read",
+      "key_hash": "c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2",
+      "scopes": [
+        "read"
+      ],
+      "created_by": "viewer-user"
+    }
+  ],
+  "workflow_states": [
+    {
+      "id": "ws-001",
+      "name": "Backlog",
+      "color": "#9ca3af",
+      "entity_type": "task",
+      "sort_order": 0,
+      "created_by": "admin-user"
+    },
+    {
+      "id": "ws-002",
+      "name": "In Progress",
+      "color": "#3b82f6",
+      "entity_type": "task",
+      "sort_order": 1,
+      "created_by": "admin-user"
+    },
+    {
+      "id": "ws-003",
+      "name": "In Review",
+      "color": "#f59e0b",
+      "entity_type": "task",
+      "sort_order": 2,
+      "created_by": "admin-user"
+    },
+    {
+      "id": "ws-004",
+      "name": "Done",
+      "color": "#10b981",
+      "entity_type": "task",
+      "sort_order": 3,
+      "created_by": "admin-user"
+    },
+    {
+      "id": "ws-005",
+      "name": "New Lead",
+      "color": "#3b82f6",
+      "entity_type": "lead",
+      "sort_order": 0,
+      "created_by": "admin-user"
+    },
+    {
+      "id": "ws-006",
+      "name": "Contacted",
+      "color": "#8b5cf6",
+      "entity_type": "lead",
+      "sort_order": 1,
+      "created_by": "admin-user"
+    },
+    {
+      "id": "ws-007",
+      "name": "Qualified",
+      "color": "#f59e0b",
+      "entity_type": "lead",
+      "sort_order": 2,
+      "created_by": "admin-user"
+    },
+    {
+      "id": "ws-008",
+      "name": "Negotiation",
+      "color": "#f97316",
+      "entity_type": "deal",
+      "sort_order": 3,
+      "created_by": "admin-user"
+    }
+  ],
+  "workflow_transitions": [
+    {
+      "from_state_num": 0,
+      "to_state_num": 1,
+      "label": "Start Working"
+    },
+    {
+      "from_state_num": 1,
+      "to_state_num": 2,
+      "label": "Request Review"
+    },
+    {
+      "from_state_num": 2,
+      "to_state_num": 3,
+      "label": "Approve"
+    },
+    {
+      "from_state_num": 1,
+      "to_state_num": 0,
+      "label": "Move to Backlog"
+    },
+    {
+      "from_state_num": 2,
+      "to_state_num": 1,
+      "label": "Reopen"
+    }
+  ],
+  "calendar_integrations": [
+    {
+      "provider": "google",
+      "email": "alice@nexuscrmdemo.com",
+      "access_token": "mock_google_token_alice",
+      "sync_enabled": true,
+      "created_by": "admin-user"
+    },
+    {
+      "provider": "google",
+      "email": "bob@nexuscrmdemo.com",
+      "access_token": "mock_google_token_bob",
+      "sync_enabled": true,
+      "created_by": "manager-user"
+    },
+    {
+      "provider": "outlook",
+      "email": "carol@nexuscrmdemo.com",
+      "access_token": "mock_outlook_token_carol",
+      "sync_enabled": false,
+      "created_by": "agent-user"
+    }
+  ],
+  "portal_users": [
+    {
+      "id": "pu-001",
+      "email": "heinrich.weber@crown-industries.de",
+      "name": "Heinrich Weber",
+      "password_hash": "$2b$10$mock_hash_placeholder_1",
+      "active": true
+    },
+    {
+      "id": "pu-002",
+      "email": "samantha.park@brightpath.edu",
+      "name": "Samantha Park",
+      "password_hash": "$2b$10$mock_hash_placeholder_2",
+      "active": true
+    },
+    {
+      "id": "pu-003",
+      "email": "marcus.williams@titandefense.com",
+      "name": "Marcus Williams",
+      "password_hash": "$2b$10$mock_hash_placeholder_3",
+      "active": true
+    }
+  ],
+  "portal_shares": [
+    {
+      "portal_user_email": "heinrich.weber@crown-industries.de",
+      "related_to_type": "deal",
+      "related_to_id": "deal-005",
+      "permission": "edit"
+    },
+    {
+      "portal_user_email": "heinrich.weber@crown-industries.de",
+      "related_to_type": "quote",
+      "related_to_id": "quote-004",
+      "permission": "view"
+    },
+    {
+      "portal_user_email": "samantha.park@brightpath.edu",
+      "related_to_type": "deal",
+      "related_to_id": "deal-009",
+      "permission": "view"
+    },
+    {
+      "portal_user_email": "marcus.williams@titandefense.com",
+      "related_to_type": "deal",
+      "related_to_id": "deal-004",
+      "permission": "view"
+    }
+  ],
+  "file_attachments": [
+    {
+      "filename": "compliance-soc2-report.pdf",
+      "original_name": "SOC_2_Type_II_Report_2026.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 2450000,
+      "storage_path": "attachments/compliance-soc2-report.pdf",
+      "related_to_type": "lead",
+      "related_to_id": "lead-002",
+      "uploaded_by": "manager-user"
+    },
+    {
+      "filename": "proposal-titan-defense.pdf",
+      "original_name": "Titan_Defense_Proposal_v2.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 3800000,
+      "storage_path": "attachments/proposal-titan-defense.pdf",
+      "related_to_type": "lead",
+      "related_to_id": "lead-004",
+      "uploaded_by": "agent-user"
+    },
+    {
+      "filename": "integration-spec-meridian.docx",
+      "original_name": "Meridian_API_Integration_Spec.docx",
+      "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "size_bytes": 1200000,
+      "storage_path": "attachments/integration-spec-meridian.docx",
+      "related_to_type": "lead",
+      "related_to_id": "lead-001",
+      "uploaded_by": "admin-user"
+    },
+    {
+      "filename": "pitch-deck-q2-2026.pptx",
+      "original_name": "NexusCRM_Q2_Pitch_Deck.pptx",
+      "mime_type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "size_bytes": 5200000,
+      "storage_path": "attachments/pitch-deck-q2-2026.pptx",
+      "related_to_type": "lead",
+      "related_to_id": "lead-019",
+      "uploaded_by": "admin-user"
+    },
+    {
+      "filename": "hipaa-ba-agreement.pdf",
+      "original_name": "HIPAA_Business_Associate_Agreement.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 890000,
+      "storage_path": "attachments/hipaa-ba-agreement.pdf",
+      "related_to_type": "lead",
+      "related_to_id": "lead-003",
+      "uploaded_by": "admin-user"
+    },
+    {
+      "filename": "onboarding-guide-brightpath.pdf",
+      "original_name": "BrightPath_Onboarding_Guide.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 1500000,
+      "storage_path": "attachments/onboarding-guide-brightpath.pdf",
+      "related_to_type": "lead",
+      "related_to_id": "lead-014",
+      "uploaded_by": "admin-user"
+    }
+  ]
+}
