@@ -151,8 +151,38 @@ def auth_admin_headers(service_key):
     }
 
 
+def _parse_user_list(body):
+    """Parse Supabase admin users list response (handles both flat array and {users: [...]} formats)."""
+    parsed = json.loads(body)
+    if isinstance(parsed, list):
+        return parsed
+    if isinstance(parsed, dict) and "users" in parsed:
+        return parsed["users"]
+    return []
+
+
+def find_user_by_email(auth_url, headers, email):
+    """Find a user by email using the list endpoint with client-side filtering."""
+    code, body = _http_request("GET", auth_url, headers, timeout=10)
+    if code != 200:
+        return None
+    users = _parse_user_list(body)
+    for u in users:
+        if u.get("email", "").lower() == email.lower():
+            return u["id"]
+    return None
+
+
 def create_auth_user(auth_url, headers, email, password):
-    """Create a single Supabase Auth user. Returns (user_id, is_new)."""
+    """Create a single Supabase Auth user. Returns (user_id, is_new).
+    Handles 409 (duplicate), 422 (already exists), and existing users."""
+
+    # Try to find existing user first
+    existing = find_user_by_email(auth_url, headers, email)
+    if existing:
+        return existing, False
+
+    # Not found — create new user
     payload = json.dumps({
         "email": email,
         "password": password,
@@ -165,14 +195,11 @@ def create_auth_user(auth_url, headers, email, password):
         user_data = json.loads(body)
         return user_data["id"], True
 
-    # If conflict, look up existing user
-    if code == 409:
-        get_url = "{}?email={}".format(auth_url, email)
-        code2, body2 = _http_request("GET", get_url, headers, timeout=10)
-        if code2 == 200:
-            users = json.loads(body2)
-            if isinstance(users, list) and len(users) > 0:
-                return users[0]["id"], False
+    # If conflict/duplicate (409 or 422), try lookup again
+    if code in (409, 422):
+        existing = find_user_by_email(auth_url, headers, email)
+        if existing:
+            return existing, False
 
     print("  WARNING: Could not create/find user {} (HTTP {})".format(email, code))
     return None, False
