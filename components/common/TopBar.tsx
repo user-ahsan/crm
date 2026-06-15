@@ -17,6 +17,7 @@ import { useThemeStore } from '@/store/theme';
 import { useCallback } from 'react';
 import { useTeamContext } from '@/context/TeamContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAuthStore } from '@/store/auth';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -52,20 +53,45 @@ export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notif
 
   const handleSignOut = useCallback(async () => {
     try {
-      const { createClient } = await import('@/lib/supabase/client');
-      const supabase = await createClient();
-      await supabase.auth.signOut();
-    } catch {
-      // Proceed with local cleanup even if Supabase call fails
+      // 1. Sign out from Supabase (this properly clears @supabase/ssr cookies)
+      const { getSupabaseClient } = await import('@/lib/supabase/client');
+      await getSupabaseClient().auth.signOut();
+    } catch (err) {
+      console.error('Sign-out error:', err);
+      // Fall through — still clear local state below
     }
-    document.cookie = 'sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    document.cookie = 'sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    document.cookie = 'sb-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    localStorage.removeItem('nexuscrm-auth');
-    localStorage.removeItem('sb-access-token');
-    localStorage.removeItem('sb-refresh-token');
-    router.push('/login');
-  }, [router]);
+
+    // 2. Clear the shared auth user cache
+    const { clearCachedUser } = await import('@/lib/cached-user');
+    clearCachedUser();
+
+    // 3. Reset Zustand auth store so all components see the signed-out state
+    useAuthStore.getState().signOut();
+
+    // 3. Clear ALL sb-* cookies (catches any naming variations from @supabase/ssr)
+    const cookies = document.cookie.split('; ');
+    for (const cookie of cookies) {
+      const eqPos = cookie.indexOf('=');
+      const name = eqPos > -1 ? cookie.substring(0, eqPos) : cookie;
+      if (name.startsWith('sb-')) {
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+        document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+      }
+    }
+
+    // 4. Clear all Supabase-related localStorage items
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('sb-') || key.startsWith('nexuscrm-'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+
+    // 5. Full-page navigation to login (ensures clean state vs router.push)
+    window.location.href = '/login';
+  }, []);
 
   return (
     <header

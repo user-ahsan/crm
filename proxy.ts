@@ -1,73 +1,55 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import type { Database } from '@/types/supabase.types';
 
 /**
- * ─── Auth Routing Logic ─────────────────────────────────────────────
+ * ─── Auth Routing Logic (Rate-Limit Safe) ─────────────────────────────
+ *
+ * Strategy to avoid Supabase Auth rate limits (30 req/hr on free tier):
+ *   1. Check for Supabase session cookies FIRST — skip getUser() if absent
+ *   2. Only call getUser() on protected routes where auth is required
+ *   3. Skip getUser() entirely on auth routes (/login, /signup) — just redirect if cookies exist
+ *   4. Landing page (/) never calls getUser()
  *
  * Route categories:
- *
- *   Public routes       ['/', '/login', '/signup']
- *     - Landing page (/) is always allowed — no redirect ever.
- *     - /login and /signup are allowed for unauthenticated users.
- *
- *   Auth routes         ['/login', '/signup']
- *     - If the user already has a session, redirect them to /dashboard.
- *       These pages make no sense for an already-logged-in user.
- *
- *   Protected routes    ['/dashboard', '/leads', '/contacts', …]
- *     - If the user has NO session, redirect to /login?redirect={path}
- *       so they come right back after signing in.
- *
- * Session check:
- *   We create a Supabase server client from the request cookies and
- *   call supabase.auth.getUser() to validate the actual session.
- *   This is far more reliable than guessing cookie names, because
- *   @supabase/ssr v0.12 uses cookie names like sb-{ref}-auth-token
- *   rather than the sb-access-token / sb-refresh-token convention.
- *
- * Session refresh:
- *   Every response goes through the same server client so Supabase
- *   silently refreshes the session cookies on each navigation.
+ *   Public       '/'               — always allowed, no auth call
+ *   Auth         '/login','/signup' — redirect to dashboard if cookies exist (no getUser)
+ *   Protected    all other routes   — redirect to /login if no user found
  * ─────────────────────────────────────────────────────────────────────
  */
 
 const protectedRoutes = [
-  '/dashboard',
-  '/leads',
-  '/contacts',
-  '/companies',
-  '/pipeline',
-  '/tasks',
-  '/meetings',
-  '/analytics',
-  '/settings',
-  '/onboarding',
+  '/dashboard', '/leads', '/contacts', '/companies',
+  '/pipeline', '/tasks', '/meetings', '/analytics',
+  '/settings', '/onboarding', '/deals', '/quotes',
+  '/campaigns', '/goals', '/tags',
 ] as const;
 
 const authRoutes = ['/login', '/signup'] as const;
 
 /**
- * Creates a Supabase server client for the middleware and performs
- * the auth check + cookie refresh in one call.
- *
- * @returns [supabaseResponse, isAuthenticated]
+ * Quick check: does the request have any Supabase session cookies?
+ * This is a local check — NO API call to Supabase.
  */
-async function checkSession(request: NextRequest) {
+function hasSessionCookie(request: NextRequest): boolean {
+  const cookies = request.cookies.getAll();
+  return cookies.some((c) => c.name.startsWith('sb-'));
+}
+
+/**
+ * Full auth check — calls Supabase getUser() (1 API call).
+ * Only invoke this when we HAVE session cookies and NEED to verify.
+ */
+async function verifySession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
-  const supabase = createServerClient<Database>(
+  const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
+        getAll() { return request.cookies.getAll(); },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value),
-          );
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options),
@@ -77,42 +59,51 @@ async function checkSession(request: NextRequest) {
     },
   );
 
-  // This validates the session with Supabase (not just cookie existence)
   const { data: { user } } = await supabase.auth.getUser();
-
   return [supabaseResponse, user !== null] as const;
 }
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ── Landing page (/) — always allow, no redirect ever ─────────────
+  // ── Landing page — always allow, NO auth calls ever ──────────────
   if (pathname === '/') {
-    const [response] = await checkSession(request);
+    return NextResponse.next({ request });
+  }
+
+  const isAuthRoute = authRoutes.some((r) => pathname === r);
+  const isProtectedRoute = protectedRoutes.some((r) => pathname.startsWith(r));
+  const hasCookies = hasSessionCookie(request);
+
+  // ── Auth routes — redirect to dashboard if cookies exist (no getUser) ─
+  if (isAuthRoute) {
+    if (hasCookies) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+    return NextResponse.next({ request }); // No session, show login/signup
+  }
+
+  // ── Protected routes — redirect to /login if no session ──────────
+  if (isProtectedRoute) {
+    // Fast path: no cookies at all → definitely not authenticated
+    if (!hasCookies) {
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // Cookies exist → verify with Supabase (1 API call per navigation)
+    const [response, isAuthenticated] = await verifySession(request);
+    if (!isAuthenticated) {
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
     return response;
   }
 
-  // ── Check auth for all other routes ──────────────────────────────
-  const [supabaseResponse, isAuthenticated] = await checkSession(request);
-
-  // ── Auth routes (/login, /signup) — redirect to dashboard if session exists ─
-  const isAuthRoute = authRoutes.some((route) => pathname === route);
-  if (isAuthRoute && isAuthenticated) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  // ── Protected routes — redirect to /login if no session ───────────
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    pathname.startsWith(route),
-  );
-
-  if (isProtectedRoute && !isAuthenticated) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  return supabaseResponse;
+  // ── Other routes (campaigns/leads/etc catch-all) — pass through ─────
+  return NextResponse.next({ request });
 }
 
 export const config = {

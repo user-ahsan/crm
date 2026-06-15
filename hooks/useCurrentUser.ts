@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { AuthChangeEvent } from '@supabase/supabase-js';
 import type { CurrentUser } from '@/types/account.types';
+import { getCachedUser, clearCachedUser } from '@/lib/cached-user';
+
 /**
  * Derives initials from a full name (max 2 characters).
  * "Alice Johnson" → "AJ", "Bob" → "B", "" → "?"
@@ -17,14 +19,24 @@ function deriveInitials(name: string): string {
   return parts[0].slice(0, 1).toUpperCase() || '?';
 }
 
+function mapUser(user: import('@supabase/supabase-js').User): CurrentUser {
+  const meta = user.user_metadata ?? {};
+  const fullName: string = typeof meta.full_name === 'string'
+    ? meta.full_name
+    : user.email ?? 'Unknown';
+  return {
+    id: user.id,
+    email: user.email ?? '',
+    fullName,
+    initials: deriveInitials(fullName),
+    avatarUrl: meta.avatar_url ?? null,
+  };
+}
+
 /**
  * Returns the currently authenticated user from Supabase Auth.
- *
- * - Reads `user.user_metadata.full_name` (set during signup).
- * - Derives initials automatically.
- * - Returns `null` while loading.
- * - Returns `CurrentUser` once available.
- * - Never returns mock data.
+ * Uses a shared in-memory cache so multiple consumers (useCurrentUser,
+ * useTeamData, etc.) make only ONE API call per page load.
  */
 export function useCurrentUser() {
   const [user, setUser] = useState<CurrentUser | null>(null);
@@ -35,33 +47,8 @@ export function useCurrentUser() {
     setLoading(true);
     setError(null);
     try {
-      const supabase = await createClient();
-      const { data, error: authError } = await supabase.auth.getUser();
-
-      if (authError) {
-        setError(authError.message);
-        setUser(null);
-        return;
-      }
-
-      if (!data.user) {
-        setUser(null);
-        return;
-      }
-
-      const meta = data.user.user_metadata ?? {};
-      const fullName: string = typeof meta.full_name === 'string'
-        ? meta.full_name
-        : data.user.email ?? 'Unknown';
-      const initials = deriveInitials(fullName);
-
-      setUser({
-        id: data.user.id,
-        email: data.user.email ?? '',
-        fullName,
-        initials,
-        avatarUrl: meta.avatar_url ?? null,
-      });
+      const supabaseUser = await getCachedUser();
+      setUser(supabaseUser ? mapUser(supabaseUser) : null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to fetch user');
       setUser(null);
@@ -80,8 +67,12 @@ export function useCurrentUser() {
 
       const supabase = await createClient();
       const { data: { subscription: sub } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent) => {
-        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        if (event === 'SIGNED_IN') {
+          clearCachedUser();
           refresh();
+        } else if (event === 'SIGNED_OUT') {
+          clearCachedUser();
+          setUser(null);
         }
       });
       subscription = sub;

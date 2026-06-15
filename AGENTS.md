@@ -147,7 +147,7 @@ If ANY answer is NO → feature is NOT complete.
 
 # 4. PROJECT DIRECTORY STRUCTURE (MANDATORY)
 
-All agents MUST follow this structure strictly:
+All agents MUST follow this structure strictly. See [docs/architecture/ARCHITECTURE.md](./docs/architecture/ARCHITECTURE.md) for the full directory tree.
 
 ```
 

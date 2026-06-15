@@ -47,11 +47,6 @@ create table if not exists public.calendar_integrations (
   unique(provider, created_by)
 );
 alter table public.calendar_integrations enable row level security;
-drop policy if_exists "Enable all for authenticated" on public.calendar_integrations;
-create policy "Enable all for authenticated" on public.calendar_integrations for all to authenticated using (true) with check (true);
--- Drop the policy if_exists since we used it above — just use drop policy if exists
-
--- Actually clean this up
 drop policy if exists "Enable all for authenticated" on public.calendar_integrations;
 create policy "Enable all for authenticated" on public.calendar_integrations for all to authenticated using (true) with check (true);
 

@@ -24,33 +24,6 @@ begin
 end;
 $$;
 
--- 2. TEAM MEMBERSHIP HELPERS (security definer — bypass RLS to avoid recursion)
-create or replace function public.is_team_member(team_id_input uuid)
-returns boolean
-language sql
-security definer
-set search_path = ''
-stable
-as $$
-  select exists (
-    select 1 from public.team_members
-    where team_id = team_id_input and user_id = auth.uid()::text
-  );
-$$;
-
-create or replace function public.is_team_admin(team_id_input uuid)
-returns boolean
-language sql
-security definer
-set search_path = ''
-stable
-as $$
-  select exists (
-    select 1 from public.team_members
-    where team_id = team_id_input and user_id = auth.uid()::text and role = 'admin'
-  );
-$$;
-
 -- 3. LEADS TABLE
 create table if not exists public.leads (
   id              uuid         primary key default gen_random_uuid(),
@@ -241,6 +214,36 @@ create table if not exists public.team_invitations (
 create index if not exists idx_team_invitations_team_id on public.team_invitations(team_id);
 create index if not exists idx_team_invitations_email on public.team_invitations(email);
 create index if not exists idx_team_invitations_status on public.team_invitations(status);
+
+-- ── TEAM MEMBERSHIP HELPERS ───────────────────────────────────
+-- (placed AFTER team_members table to avoid "relation does not exist"
+--  errors when check_function_bodies is on — Postgres default)
+
+create or replace function public.is_team_member(team_id_input uuid)
+returns boolean
+language sql
+security definer
+set search_path = ''
+stable
+as $$
+  select exists (
+    select 1 from public.team_members
+    where team_id = team_id_input and user_id = auth.uid()::text
+  );
+$$;
+
+create or replace function public.is_team_admin(team_id_input uuid)
+returns boolean
+language sql
+security definer
+set search_path = ''
+stable
+as $$
+  select exists (
+    select 1 from public.team_members
+    where team_id = team_id_input and user_id = auth.uid()::text and role = 'admin'
+  );
+$$;
 
 -- 11. RLS POLICIES (all use drop if exists for idempotency)
 alter table public.leads enable row level security;

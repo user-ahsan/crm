@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Team, TeamMember } from '@/types/team.types';
 import { teamService } from '@/services/team.service';
-import { createClient } from '@/lib/supabase/client';
+import { getCachedUser } from '@/lib/cached-user';
 
 export interface TeamDataState {
   /** The current team (null if no team exists for the user). */
@@ -40,9 +40,8 @@ export function useTeamData(): TeamDataState {
       setLoading(true);
       setError(null);
 
-      /* 1. Get the real user ID from Supabase Auth */
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      /* 1. Get the real user ID from Supabase Auth (shared cache) */
+      const user = await getCachedUser();
       const uid = user?.id ?? null;
       setUserId(uid);
 
