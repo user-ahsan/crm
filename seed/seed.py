@@ -285,9 +285,9 @@ def menu_status():
     print(f"  Project: {SUPABASE_URL}")
     print(f"  Service key: {'Yes' if SUPABASE_SERVICE_KEY else 'No'}")
     for t in ['leads','contacts','companies','tasks','meetings','teams','deals']:
-        r = api('GET', f'/rest/v1/{t}?select=id&limit=5', use_service_key=False)
+        r = api('GET', f'/rest/v1/{t}?select=id&limit=100', use_service_key=True)
         if r is not None:
-            print(f"  {t}: {len(r)} rows (sample)")
+            print(f"  {t}: {len(r)} rows")
 
 def main():
     print(f"\n{hr()}\n  NEXUSCRM - Seed Script\n  Reads real .env\n{hr()}")
