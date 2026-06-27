@@ -1,8 +1,0 @@
-# NexusCRM - Python Seed Script Dependencies
-# The seed script uses ONLY Python standard library (urllib, json, uuid).
-# No pip install needed.
-#
-# To run:
-#   cd D:\Projects\crm
-#   python seed/seed.py
-
