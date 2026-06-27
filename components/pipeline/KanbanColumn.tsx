@@ -73,7 +73,7 @@ export function KanbanColumn({ stage, accentColor, onDrop, onLeadClick }: Kanban
       role="region"
     >
       {/* Column Header */}
-      <CardHeader className="px-4 pt-3 pb-2">
+      <CardHeader className="px-3 pt-2.5 pb-1.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
             <CardTitle className="text-sm font-semibold truncate">
@@ -92,40 +92,33 @@ export function KanbanColumn({ stage, accentColor, onDrop, onLeadClick }: Kanban
         </div>
       </CardHeader>
 
-      {/* Card List */}
-      <CardContent className="p-2 pt-0 flex-1 min-h-0">
+        {/* Card List */}
+      <CardContent className="p-1.5 pt-0 flex-1 min-h-0 overflow-hidden">
         {stage.leads.length > 0 ? (
-          <ScrollArea className="h-full max-h-[calc(100vh-16rem)]">
-            <div className="flex flex-col gap-2 pr-2">
-              {stage.leads.map((lead) => (
-                <PipelineCard
-                  key={lead.id}
-                  lead={lead}
-                  onClick={onLeadClick}
-                />
-              ))}
-            </div>
-          </ScrollArea>
+          <div className="h-full overflow-y-auto overscroll-contain pr-1 space-y-1.5">
+            {stage.leads.map((lead) => (
+              <PipelineCard
+                key={lead.id}
+                lead={lead}
+                onClick={onLeadClick}
+              />
+            ))}
+          </div>
         ) : (
           <div
             className={cn(
-              'flex flex-col items-center justify-center gap-2 py-8 text-center',
+              'flex flex-col items-center justify-center py-6 text-center',
               'transition-opacity duration-200',
               isDragOver ? 'opacity-100' : 'opacity-60'
             )}
           >
             {isDragOver ? (
               <>
-                <IconArrowDown size={24} className="text-primary" />
-                <span className="text-xs font-medium text-primary">Drop here</span>
+                <IconArrowDown size={20} className="text-primary" />
+                <span className="text-xs font-medium text-primary mt-1">Drop here</span>
               </>
             ) : (
-              <>
-                <div className="size-8 rounded-full bg-muted flex items-center justify-center">
-                  <IconArrowDown size={16} className="text-muted-foreground" />
-                </div>
-                <span className="text-xs text-muted-foreground">No leads</span>
-              </>
+              <span className="text-xs text-muted-foreground">No leads</span>
             )}
           </div>
         )}

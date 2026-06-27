@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import { IconPlus } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import type { Quote, QuoteStatus } from '@/types/quote.types';
@@ -100,6 +101,12 @@ function QuotesPageContent() {
     [updateStatus],
   );
 
+  const router = useRouter();
+
+  const handleGenerateInvoice = useCallback((quote: Quote) => {
+    router.push(`/invoices/new?quoteId=${quote.id}`);
+  }, [router]);
+
   const handleDialogOpenChange = useCallback((open: boolean) => {
     setDialogOpen(open);
     if (!open) {
@@ -187,6 +194,7 @@ function QuotesPageContent() {
           onEdit={handleEdit}
           onDelete={handleDelete}
           onStatusChange={handleStatusChange}
+          onGenerateInvoice={handleGenerateInvoice}
         />
       )}
 

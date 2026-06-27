@@ -107,10 +107,10 @@ export function SwimlaneBoard({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {lanes.map((lane) => (
         <div key={lane.id} className="rounded-xl border">
-          <div className="flex items-center gap-3 border-b bg-muted/30 px-4 py-3">
+          <div className="flex items-center gap-2 border-b bg-muted/30 px-3 py-2">
             {groupBy === 'assigned_to' && <LaneAvatar laneId={lane.id} label={lane.label} />}
             {groupBy === 'priority' && (
               <span
@@ -139,7 +139,7 @@ export function SwimlaneBoard({
             </span>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto p-4">
+          <div className="flex gap-3 overflow-x-auto p-3 [mask-image:linear-gradient(to_right,black_0%,black_95%,transparent_100%)]">
             {type === 'leads' && lane.leads && onLeadDrop && onLeadClick && (
               <LeadLaneColumns leads={lane.leads} onDrop={onLeadDrop} onLeadClick={onLeadClick} />
             )}

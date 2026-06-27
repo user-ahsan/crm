@@ -109,13 +109,13 @@ export function KanbanBoard({ swimlaneGroup, swimlaneData }: KanbanBoardProps = 
     }
 
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         {swimlaneData.map((entry) => {
           const allEmpty = entry.pipeline.every((s) => s.count === 0);
           return (
             <div key={entry.id} className="rounded-xl border">
               {/* Swimlane section header */}
-              <div className="flex items-center gap-3 border-b bg-muted/30 px-4 py-3">
+              <div className="flex items-center gap-2 border-b bg-muted/30 px-3 py-2">
                 {/* Assignee avatar */}
                 {swimlaneGroup === 'assigned_to' && (
                   <LaneAvatar laneId={entry.id} label={entry.label} />
@@ -152,9 +152,9 @@ export function KanbanBoard({ swimlaneGroup, swimlaneData }: KanbanBoardProps = 
               </div>
 
               {/* Kanban columns for this swimlane section */}
-              <div className="flex gap-3 overflow-x-auto p-4">
+              <div className="flex gap-3 overflow-x-auto p-3 [mask-image:linear-gradient(to_right,black_0%,black_95%,transparent_100%)]">
                 {allEmpty ? (
-                  <div className="flex w-full items-center justify-center py-8 text-center">
+                  <div className="flex w-full items-center justify-center py-6 text-center">
                     <p className="text-xs text-muted-foreground">No leads in this group</p>
                   </div>
                 ) : (
@@ -201,28 +201,7 @@ export function KanbanBoard({ swimlaneGroup, swimlaneData }: KanbanBoardProps = 
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Header with refresh button */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">Pipeline</h2>
-          {!loading && (
-            <span className="text-xs text-muted-foreground">
-              {totalLeads} leads
-            </span>
-          )}
-        </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={refresh}
-          disabled={loading}
-          aria-label="Refresh pipeline"
-        >
-          <IconRefresh size={16} className={loading ? 'animate-spin' : ''} />
-        </Button>
-      </div>
-
+    <div className="flex flex-col gap-3">
       {/* Loading skeleton */}
       {loading ? (
         <div className="flex gap-3 overflow-x-auto pb-4">
@@ -248,7 +227,7 @@ export function KanbanBoard({ swimlaneGroup, swimlaneData }: KanbanBoardProps = 
         </div>
       ) : (
         /* Kanban columns in horizontal scroll */
-        <div className="flex gap-3 overflow-x-auto pb-4">
+        <div className="flex gap-3 overflow-x-auto pb-2 [mask-image:linear-gradient(to_right,black_0%,black_95%,transparent_100%)]">
           {pipeline.map((stage) => {
             const stageConfig = PIPELINE_STAGES.find((s) => s.key === stage.key);
             return (

@@ -10,6 +10,7 @@ import type { ActivityType } from '@/types/activity.types';
 import type { AutomationTriggerEvent, AutomationCondition, AutomationAction } from '@/types/automation.types';
 import type { CallDirection, CallResult } from '@/types/communication.types';
 import type { QuoteStatus } from '@/types/quote.types';
+import type { InvoiceStatus } from '@/types/invoice.types';
 import type { GoalType, GoalPeriod } from '@/types/goal.types';
 import type { WorkflowEntityType } from '@/types/workflow.types';
 
@@ -119,6 +120,16 @@ export interface Database {
         Row: QuoteItemRow;
         Insert: QuoteItemInsert;
         Update: QuoteItemUpdate;
+      };
+      invoices: {
+        Row: InvoiceRow;
+        Insert: InvoiceInsert;
+        Update: InvoiceUpdate;
+      };
+      invoice_items: {
+        Row: InvoiceItemRow;
+        Insert: InvoiceItemInsert;
+        Update: InvoiceItemUpdate;
       };
       forecasts: {
         Row: ForecastRow;
@@ -1011,6 +1022,125 @@ export interface QuoteItemUpdate {
 
 export type DbQuote = QuoteRow;
 export type DbQuoteItem = QuoteItemRow;
+
+// ── Invoice types ─────────────────────────────────────────────
+
+export interface InvoiceRow {
+  id: string;
+  quote_id: string | null;
+  invoice_number: string;
+  title: string;
+  deal_id: string | null;
+  lead_id: string | null;
+  contact_id: string | null;
+  company_id: string | null;
+  status: InvoiceStatus;
+  subtotal: number;
+  discount: number;
+  tax_rate: number;
+  tax: number;
+  total: number;
+  notes: string;
+  due_date: string;
+  paid_at: string | null;
+  payment_terms: string;
+  company_name: string;
+  company_address: string;
+  company_email: string;
+  company_phone: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvoiceInsert {
+  id?: string;
+  quote_id?: string | null;
+  invoice_number: string;
+  title: string;
+  deal_id?: string | null;
+  lead_id?: string | null;
+  contact_id?: string | null;
+  company_id?: string | null;
+  status?: InvoiceStatus;
+  subtotal?: number;
+  discount?: number;
+  tax_rate?: number;
+  tax?: number;
+  total?: number;
+  notes?: string;
+  due_date?: string | null;
+  paid_at?: string | null;
+  payment_terms?: string;
+  company_name?: string;
+  company_address?: string;
+  company_email?: string;
+  company_phone?: string;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface InvoiceUpdate {
+  id?: string;
+  quote_id?: string | null;
+  invoice_number?: string;
+  title?: string;
+  deal_id?: string | null;
+  lead_id?: string | null;
+  contact_id?: string | null;
+  company_id?: string | null;
+  status?: InvoiceStatus;
+  subtotal?: number;
+  discount?: number;
+  tax_rate?: number;
+  tax?: number;
+  total?: number;
+  notes?: string;
+  due_date?: string | null;
+  paid_at?: string | null;
+  payment_terms?: string;
+  company_name?: string;
+  company_address?: string;
+  company_email?: string;
+  company_phone?: string;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface InvoiceItemRow {
+  id: string;
+  invoice_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+  sort_order: number;
+}
+
+export interface InvoiceItemInsert {
+  id?: string;
+  invoice_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+  sort_order?: number;
+}
+
+export interface InvoiceItemUpdate {
+  id?: string;
+  invoice_id?: string;
+  description?: string;
+  quantity?: number;
+  unit_price?: number;
+  total?: number;
+  sort_order?: number;
+}
+
+export type DbInvoice = InvoiceRow;
+export type DbInvoiceItem = InvoiceItemRow;
 
 // ── Workflow types ────────────────────────────────────────────
 

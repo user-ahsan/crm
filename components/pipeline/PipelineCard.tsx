@@ -1,13 +1,13 @@
 'use client';
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { Lead } from '@/types/lead.types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { PRIORITY_COLORS } from '@/lib/constants';
 import { formatCurrency, getInitials } from '@/lib/formatters';
-import { IconGripVertical, IconUser } from '@tabler/icons-react';
+import { IconUser } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 
 interface PipelineCardProps {
@@ -18,6 +18,7 @@ interface PipelineCardProps {
 
 export function PipelineCard({ lead, onDragStart, onClick }: PipelineCardProps) {
   const dragImageRef = useRef<HTMLDivElement | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleDragStart = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -30,10 +31,7 @@ export function PipelineCard({ lead, onDragStart, onClick }: PipelineCardProps) 
       }
 
       // Add a small delay to show the dragging state
-      const target = e.currentTarget;
-      requestAnimationFrame(() => {
-        target.classList.add('opacity-50', 'scale-[0.97]');
-      });
+      setIsDragging(true);
 
       onDragStart?.(lead);
     },
@@ -41,8 +39,7 @@ export function PipelineCard({ lead, onDragStart, onClick }: PipelineCardProps) 
   );
 
   const handleDragEnd = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    const target = e.currentTarget;
-    target.classList.remove('opacity-50', 'scale-[0.97]');
+    setIsDragging(false);
   }, []);
 
   const handleClick = useCallback(() => {
@@ -59,7 +56,8 @@ export function PipelineCard({ lead, onDragStart, onClick }: PipelineCardProps) 
       className={cn(
         'cursor-grab active:cursor-grabbing transition-all duration-200 select-none',
         'hover:shadow-lg hover:ring-2 hover:ring-primary/20',
-        'active:shadow-sm'
+        'active:shadow-sm',
+        isDragging && 'opacity-50 scale-[0.97] z-50 relative'
       )}
       role="button"
       tabIndex={0}
@@ -71,22 +69,14 @@ export function PipelineCard({ lead, onDragStart, onClick }: PipelineCardProps) 
         }
       }}
     >
-      <CardContent className="flex flex-col gap-2 p-3">
-        {/* Drag handle + Title row */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span
-              className="flex-shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
-              aria-hidden="true"
-            >
-              <IconGripVertical size={16} />
-            </span>
-            <span className="font-medium text-sm truncate">{lead.fullName}</span>
-          </div>
+      <CardContent className="flex flex-col gap-1 p-2.5">
+        {/* Title row */}
+        <div className="flex items-start justify-between gap-1.5">
+          <span className="text-sm font-medium truncate">{lead.fullName}</span>
           <Badge
             variant="outline"
             className={cn(
-              'flex-shrink-0 text-[10px] px-1.5 py-0',
+              'flex-shrink-0 text-[10px] px-1.5 py-0 leading-3',
               PRIORITY_COLORS[lead.priority]
             )}
           >
@@ -94,26 +84,30 @@ export function PipelineCard({ lead, onDragStart, onClick }: PipelineCardProps) 
           </Badge>
         </div>
 
-        {/* Company name */}
-        {lead.companyName && (
-          <span className="text-xs text-muted-foreground truncate pl-6">
-            {lead.companyName}
-          </span>
-        )}
+        {/* Company name + value + avatar in one row */}
+        <div className="flex items-center justify-between gap-1.5">
+          {lead.companyName ? (
+            <span className="text-xs text-muted-foreground truncate min-w-0 flex-1">
+              {lead.companyName}
+            </span>
+          ) : (
+            <span className="text-xs font-semibold text-primary">
+              {formatCurrency(lead.estimatedValue)}
+            </span>
+          )}
 
-        {/* Bottom row: value + avatar */}
-        <div className="flex items-center justify-between gap-2 pl-6">
-          <span className="text-sm font-semibold text-primary">
-            {formatCurrency(lead.estimatedValue)}
-          </span>
+          {lead.companyName && (
+            <span className="text-xs font-semibold text-primary flex-shrink-0">
+              {formatCurrency(lead.estimatedValue)}
+            </span>
+          )}
 
-          {/* Assigned user avatar with initials */}
+          {/* Assigned user avatar */}
           {lead.assignedTo ? (
-            <Avatar size="sm" className="flex-shrink-0">
-              <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-medium">
+            <Avatar className="size-5 flex-shrink-0">
+              <AvatarFallback className="text-[8px] bg-primary/10 text-primary font-medium">
                 {getInitials(
                   lead.assignedTo
-                    // Parse user name from assignedTo ID — show first 2 chars as fallback
                     .replace(/^user-\d+-?/, '')
                     .replace(/-/g, ' ')
                     .trim() || lead.assignedTo.slice(0, 2)
@@ -121,9 +115,9 @@ export function PipelineCard({ lead, onDragStart, onClick }: PipelineCardProps) 
               </AvatarFallback>
             </Avatar>
           ) : (
-            <Avatar size="sm" className="flex-shrink-0 opacity-40">
+            <Avatar className="size-5 flex-shrink-0 opacity-40">
               <AvatarFallback>
-                <IconUser size={12} />
+                <IconUser size={10} />
               </AvatarFallback>
             </Avatar>
           )}
@@ -133,15 +127,13 @@ export function PipelineCard({ lead, onDragStart, onClick }: PipelineCardProps) 
       {/* Hidden drag image reference */}
       <div
         ref={dragImageRef}
-        className="fixed -top-full -left-full w-64 rounded-2xl bg-card p-4 shadow-2xl ring-1 ring-foreground/10 text-sm"
+        className="fixed -top-full -left-full w-72 rounded-xl bg-card p-3 shadow-2xl ring-1 ring-foreground/10 text-sm"
         aria-hidden="true"
       >
-        <div className="font-medium">{lead.fullName}</div>
-        {lead.companyName && (
-          <div className="text-muted-foreground text-xs">{lead.companyName}</div>
-        )}
-        <div className="text-primary font-semibold mt-1">
-          {formatCurrency(lead.estimatedValue)}
+        <div className="font-medium text-sm">{lead.fullName}</div>
+        <div className="flex items-center justify-between mt-1">
+          <span className="text-xs text-muted-foreground">{lead.companyName || 'No company'}</span>
+          <span className="text-xs font-semibold text-primary">{formatCurrency(lead.estimatedValue)}</span>
         </div>
       </div>
     </Card>

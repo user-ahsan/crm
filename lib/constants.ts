@@ -6,6 +6,26 @@ import type { ActivityType } from '@/types/activity.types';
 import type { GoalType, GoalPeriod } from '@/types/goal.types';
 export const QUOTE_STATUSES = ['draft', 'sent', 'accepted', 'rejected'] as const;
 
+export const INVOICE_STATUSES = ['draft', 'paid', 'overdue', 'cancelled', 'refunded'] as const;
+
+export const PAYMENT_TERMS = ['Net-15', 'Net-30', 'Net-45', 'Net-60', 'Due on Receipt'] as const;
+
+export const INVOICE_STATUS_LABELS: Record<string, string> = {
+  draft: 'Draft',
+  paid: 'Paid',
+  overdue: 'Overdue',
+  cancelled: 'Cancelled',
+  refunded: 'Refunded',
+};
+
+export const INVOICE_STATUS_COLORS: Record<string, string> = {
+  draft: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
+  paid: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  overdue: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  cancelled: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  refunded: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+};
+
 
 export const LEAD_STATUSES: LeadStatus[] = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'];
 export const LEAD_SOURCES: LeadSource[] = ['manual', 'website', 'referral', 'ads', 'social'];
@@ -115,6 +135,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Meetings', href: '/meetings', icon: 'calendar' },
       { label: 'Campaigns', href: '/campaigns', icon: 'mail-forward' },
       { label: 'Quotes', href: '/quotes', icon: 'file-invoice' },
+      { label: 'Invoices', href: '/invoices', icon: 'receipt' },
     ],
   },
   {
@@ -134,6 +155,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Integrations', href: '/settings/integrations', icon: 'calendar-share' },
       { label: 'Portal', href: '/settings/portal', icon: 'world' },
       { label: 'API Keys', href: '/settings/api-keys', icon: 'api-key' },
+      { label: 'Invoice Templates', href: '/settings/invoice-templates', icon: 'file-invoice' },
       { label: 'Settings', href: '/settings', icon: 'settings' },
     ],
   },

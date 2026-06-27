@@ -1,5 +1,5 @@
 import type { Lead, LeadStatus } from '@/types/lead.types';
-import { LEAD_STATUSES } from '@/lib/constants';
+import { LEAD_STATUSES, PIPELINE_STAGES } from '@/lib/constants';
 
 export interface PipelineStage {
   key: LeadStatus;
@@ -18,11 +18,12 @@ export function buildPipeline(leads: Lead[]): PipelineStage[] {
     const list = stageMap.get(lead.status);
     if (list) list.push(lead);
   }
+  const labelMap = new Map(PIPELINE_STAGES.map(s => [s.key, s.label]));
   return LEAD_STATUSES.map((key) => {
     const stageLeads = stageMap.get(key) ?? [];
     return {
       key,
-      label: key.charAt(0).toUpperCase() + key.slice(1),
+      label: labelMap.get(key) ?? key.charAt(0).toUpperCase() + key.slice(1),
       leads: stageLeads,
       totalValue: stageLeads.reduce((sum, l) => sum + l.estimatedValue, 0),
       count: stageLeads.length,

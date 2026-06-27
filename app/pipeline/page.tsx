@@ -55,18 +55,18 @@ export default function PipelinePage() {
   return (
     <PermissionGuard action="read" entity="lead" fallback={<EmptyState title="Access Denied" description="You don't have permission to view the pipeline." />}>
       {loading && (activeTab === 'leads' ? leads.length === 0 : deals.length === 0) ? (
-        <div className="flex flex-col gap-6 p-6">
+        <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div>
-              <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
-              <div className="mt-1 h-4 w-64 animate-pulse rounded-md bg-muted" />
+              <div className="h-7 w-48 animate-pulse rounded-md bg-muted" />
+              <div className="mt-0.5 h-3.5 w-64 animate-pulse rounded-md bg-muted" />
             </div>
-            <div className="h-9 w-24 animate-pulse rounded-lg bg-muted" />
+            <div className="h-8 w-20 animate-pulse rounded-lg bg-muted" />
           </div>
           <LoadingSkeleton type="card" count={3} />
         </div>
       ) : error && (activeTab === 'leads' ? leads.length === 0 : deals.length === 0) ? (
-        <div className="flex flex-col gap-6 p-6">
+        <div className="flex flex-col gap-4">
           <PageHeader title="Sales Pipeline" />
           <ErrorState
             title="Failed to load pipeline"
@@ -75,7 +75,7 @@ export default function PipelinePage() {
           />
         </div>
       ) : empty ? (
-        <div className="flex flex-col gap-6 p-6">
+        <div className="flex flex-col gap-4">
           <PageHeader title="Sales Pipeline">
             <Button variant="outline" size="sm" onClick={refresh} aria-label="Refresh pipeline">
               <IconRefresh size={16} />
@@ -84,13 +84,13 @@ export default function PipelinePage() {
           </PageHeader>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
-              <TabsTrigger value="leads">
-                <IconColumns size={16} />
-                Leads Pipeline
+              <TabsTrigger value="leads" className="h-8 text-xs gap-1.5 px-3">
+                <IconColumns size={14} />
+                Leads
               </TabsTrigger>
-              <TabsTrigger value="deals">
-                <IconCurrencyDollar size={16} />
-                Deals Pipeline
+              <TabsTrigger value="deals" className="h-8 text-xs gap-1.5 px-3">
+                <IconCurrencyDollar size={14} />
+                Deals
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -102,7 +102,7 @@ export default function PipelinePage() {
           />
         </div>
       ) : (
-        <div className="flex flex-col gap-6 p-6">
+        <div className="flex flex-col gap-4">
           <PageHeader
             title="Sales Pipeline"
             description={
@@ -120,59 +120,58 @@ export default function PipelinePage() {
           </PageHeader>
 
           <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setSwimlaneGroup('none'); }}>
-            <TabsList>
-              <TabsTrigger value="leads">
-                <IconColumns size={16} />
-                Leads Pipeline
-              </TabsTrigger>
-              <TabsTrigger value="deals">
-                <IconCurrencyDollar size={16} />
-                Deals Pipeline
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex items-center justify-between gap-3">
+              <TabsList>
+                <TabsTrigger value="leads" className="h-8 text-xs gap-1.5 px-3">
+                  <IconColumns size={14} />
+                  Leads
+                </TabsTrigger>
+                <TabsTrigger value="deals" className="h-8 text-xs gap-1.5 px-3">
+                  <IconCurrencyDollar size={14} />
+                  Deals
+                </TabsTrigger>
+              </TabsList>
 
-            <div className="flex items-center justify-end mb-3 mt-3">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground mr-1">Swimlanes</span>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-muted-foreground">Swim:</span>
                 <Button
                   variant={swimlaneGroup === 'none' ? 'secondary' : 'ghost'}
                   size="sm"
-                  className="h-8 px-2.5 text-xs gap-1.5"
+                  className="h-7 px-2 text-[10px]"
                   onClick={() => setSwimlaneGroup('none')}
                 >
-                  <IconColumns3 size={14} />
-                  None
+                  Off
                 </Button>
                 <Button
                   variant={swimlaneGroup === 'assigned_to' ? 'secondary' : 'ghost'}
                   size="sm"
-                  className="h-8 px-2.5 text-xs gap-1.5"
+                  className="h-7 px-2 text-[10px]"
                   onClick={() => setSwimlaneGroup('assigned_to')}
                 >
-                  <IconUser size={14} />
-                  Assignee
+                  <IconUser size={12} />
+                  User
                 </Button>
                 {activeTab === 'leads' && (
                   <Button
                     variant={swimlaneGroup === 'priority' ? 'secondary' : 'ghost'}
                     size="sm"
-                    className="h-8 px-2.5 text-xs gap-1.5"
+                    className="h-7 px-2 text-[10px]"
                     onClick={() => setSwimlaneGroup('priority')}
                   >
-                    <IconFlag size={14} />
+                    <IconFlag size={12} />
                     Priority
                   </Button>
                 )}
               </div>
             </div>
 
-            <TabsContent value="leads" className="pt-4">
+            <TabsContent value="leads">
               {!leadsLoading && (
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-4">
-                  <StatCard label="Total Leads" value={totalLeads} />
-                  <StatCard label="Total Value" value={formatCurrency(totalValue)} variant="primary" />
-                  <StatCard label="Won Value" value={formatCurrency(wonValue)} variant="success" />
-                  <StatCard
+                <div className="flex items-center gap-3 mb-3 flex-wrap">
+                  <MiniStat label="Leads" value={totalLeads} />
+                  <MiniStat label="Total" value={formatCurrency(totalValue)} variant="primary" />
+                  <MiniStat label="Won" value={formatCurrency(wonValue)} variant="success" />
+                  <MiniStat
                     label="Win Rate"
                     value={
                       totalLeads > 0
@@ -188,20 +187,17 @@ export default function PipelinePage() {
               />
             </TabsContent>
 
-            <TabsContent value="deals" className="pt-4">
+            <TabsContent value="deals">
               {!dealsLoading && (
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-4">
-                  <StatCard label="Total Deals" value={deals.length} />
-                  <StatCard label="Total Value" value={formatCurrency(dealTotalValue)} variant="primary" />
-                  <StatCard
-                    label="Avg Deal Size"
+                <div className="flex items-center gap-3 mb-3 flex-wrap">
+                  <MiniStat label="Deals" value={deals.length} />
+                  <MiniStat label="Total" value={formatCurrency(dealTotalValue)} variant="primary" />
+                  <MiniStat
+                    label="Avg"
                     value={deals.length > 0 ? formatCurrency(Math.round(dealTotalValue / deals.length)) : formatCurrency(0)}
                     variant="primary"
                   />
-                  <StatCard
-                    label="Stages"
-                    value={stages.length}
-                  />
+                  <MiniStat label="Stages" value={stages.length} />
                 </div>
               )}
               <SwimlaneBoard
@@ -226,7 +222,7 @@ export default function PipelinePage() {
   );
 }
 
-function StatCard({
+function MiniStat({
   label,
   value,
   variant = 'default',
@@ -236,15 +232,15 @@ function StatCard({
   variant?: 'default' | 'primary' | 'success';
 }) {
   const colorMap: Record<string, string> = {
-    default: 'bg-card text-card-foreground',
-    primary: 'bg-primary/5 text-primary border-primary/20',
-    success: 'bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800',
+    default: 'text-muted-foreground',
+    primary: 'text-primary',
+    success: 'text-green-600 dark:text-green-400',
   };
 
   return (
-    <div className={`rounded-xl border p-4 ${colorMap[variant]}`}>
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p>
+    <div className="flex items-baseline gap-1.5 rounded-lg border px-2.5 py-1.5">
+      <span className="text-[10px] font-medium text-muted-foreground">{label}</span>
+      <span className={`text-xs font-semibold ${colorMap[variant]}`}>{value}</span>
     </div>
   );
 }

@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { IconDotsVertical, IconEdit, IconTrash } from '@tabler/icons-react';
+import { IconDotsVertical, IconEdit, IconFileInvoice, IconTrash } from '@tabler/icons-react';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 
 const STATUS_COLORS: Record<QuoteStatus, string> = {
@@ -32,9 +32,10 @@ interface QuoteTableProps {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: QuoteStatus) => void;
+  onGenerateInvoice?: (quote: Quote) => void;
 }
 
-export function QuoteTable({ quotes, onEdit, onDelete, onStatusChange }: QuoteTableProps) {
+export function QuoteTable({ quotes, onEdit, onDelete, onStatusChange, onGenerateInvoice }: QuoteTableProps) {
   return (
     <div className="rounded-lg border">
       <Table>
@@ -85,6 +86,12 @@ export function QuoteTable({ quotes, onEdit, onDelete, onStatusChange }: QuoteTa
                     {quote.status === 'draft' && (
                       <DropdownMenuItem onClick={() => onStatusChange(quote.id, 'sent')}>
                         Mark as Sent
+                      </DropdownMenuItem>
+                    )}
+                    {quote.status === 'accepted' && onGenerateInvoice && (
+                      <DropdownMenuItem onClick={() => onGenerateInvoice(quote)}>
+                        <IconFileInvoice className="mr-2 size-4" />
+                        Generate Invoice
                       </DropdownMenuItem>
                     )}
                     {quote.status === 'sent' && (
