@@ -64,13 +64,14 @@ def load_env():
     print(green(f"{OK} Loaded .env -- {SUPABASE_URL}"))
 
 # -- API -------------------------------------------------------------
-def api(method, path, body=None, use_service_key=True):
+def api(method, path, body=None, use_service_key=True, prefer='return=representation'):
     url = f"{SUPABASE_URL}{path}"
     key = SUPABASE_SERVICE_KEY if use_service_key else SUPABASE_ANON_KEY
     headers = {
         'Content-Type': 'application/json',
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': f'Bearer {key}',
+        'Prefer': prefer,
     }
     data = json.dumps(body).encode('utf-8') if body else None
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
@@ -79,7 +80,7 @@ def api(method, path, body=None, use_service_key=True):
             raw = resp.read().decode('utf-8')
             return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as e:
-        err = e.read().decode('utf-8')[:300] if e.fp else ''
+        err = e.read().decode('utf-8')[:500] if e.fp else ''
         print(red(f"{FAIL} {e.code}: {e.reason}"))
         if err: print(red(f"  {err}"))
         return None
@@ -123,10 +124,17 @@ def seed_user_data(user_id):
         'created_by': user_id,
     })
     if team_result is None:
-        print(red(f"{FAIL} Team creation failed - check RLS/service key"))
+        print(red(f"{FAIL} Team creation failed"))
         return
 
-    team_id = team_result[0]['id'] if isinstance(team_result, list) else team_result.get('id')
+    # Response can be [{...}] or {...} depending on endpoint
+    if isinstance(team_result, list):
+        team_id = team_result[0]['id'] if len(team_result) > 0 else None
+    else:
+        team_id = team_result.get('id')
+    if not team_id:
+        print(red(f"{FAIL} Could not extract team ID from: {team_result}"))
+        return
     print(green(f"{OK} Team: {team_id}"))
 
     # TEAM MEMBERS: user_id is text, role check constraint
@@ -136,33 +144,31 @@ def seed_user_data(user_id):
         'role': 'admin',
     }])
 
-    # LEADS: full_name required, has owner_id(uuid) not created_by
+    # LEADS: all rows must have IDENTICAL keys for batch insert
     print(f"\n{bold('Seeding leads...')}")
+    def lead(fn, email=None, phone=None, company=None, industry=None, country=None,
+             source='manual', status='new', priority='medium', value=0, owner=None):
+        return {'full_name': fn, 'email': email, 'phone': phone,
+                'company_name': company, 'industry': industry, 'country': country,
+                'source': source, 'status': status, 'priority': priority,
+                'estimated_value': value, 'owner_id': owner}
     leads = [
-        {'full_name': 'Sarah Johnson', 'email': 'sarah@acme.com', 'phone': '+1-555-0101',
-         'company_name': 'Acme Corp', 'industry': 'Technology', 'source': 'website',
-         'status': 'new', 'priority': 'high', 'estimated_value': 50000, 'owner_id': user_id},
-        {'full_name': 'Mike Chen', 'email': 'mike@techstart.io', 'phone': '+1-555-0102',
-         'company_name': 'TechStart Inc', 'industry': 'SaaS', 'source': 'referral',
-         'status': 'qualified', 'priority': 'high', 'estimated_value': 120000, 'owner_id': user_id},
-        {'full_name': 'Emily Davis', 'email': 'emily@greenco.net', 'phone': '+1-555-0103',
-         'company_name': 'GreenCo Solutions', 'industry': 'Clean Energy', 'source': 'conference',
-         'status': 'proposal', 'priority': 'medium', 'estimated_value': 75000, 'owner_id': user_id},
-        {'full_name': 'James Wilson', 'email': 'james@datawise.com', 'phone': '+1-555-0104',
-         'company_name': 'DataWise Analytics', 'industry': 'Analytics', 'source': 'website',
-         'status': 'new', 'priority': 'low', 'estimated_value': 25000, 'owner_id': user_id},
-        {'full_name': 'Lisa Brown', 'email': 'lisa@cloudnine.com', 'phone': '+1-555-0105',
-         'source': 'email', 'status': 'lost', 'priority': 'low', 'estimated_value': 10000,
-         'owner_id': user_id},
-        {'full_name': 'Alex Rivera', 'email': 'alex@buildcore.com', 'phone': '+1-555-0106',
-         'company_name': 'BuildCore Ltd', 'industry': 'Construction', 'source': 'referral',
-         'status': 'qualified', 'priority': 'medium', 'estimated_value': 90000, 'owner_id': user_id},
-        {'full_name': 'Priya Patel', 'email': 'priya@finwise.co', 'phone': '+1-555-0107',
-         'company_name': 'FinWise Consulting', 'industry': 'Finance', 'source': 'conference',
-         'status': 'proposal', 'priority': 'high', 'estimated_value': 200000, 'owner_id': user_id},
-        {'full_name': 'Tom Harrison', 'email': 'tom@medtech.com', 'phone': '+1-555-0108',
-         'company_name': 'MedTech Innovations', 'industry': 'Healthcare', 'source': 'website',
-         'status': 'new', 'priority': 'medium', 'estimated_value': 60000, 'owner_id': user_id},
+        lead('Sarah Johnson', 'sarah@acme.com', '+1-555-0101', 'Acme Corp', 'Technology',
+             source='website', status='new', priority='high', value=50000, owner=user_id),
+        lead('Mike Chen', 'mike@techstart.io', '+1-555-0102', 'TechStart Inc', 'SaaS',
+             source='referral', status='qualified', priority='high', value=120000, owner=user_id),
+        lead('Emily Davis', 'emily@greenco.net', '+1-555-0103', 'GreenCo Solutions', 'Clean Energy',
+             source='referral', status='proposal', priority='medium', value=75000, owner=user_id),
+        lead('James Wilson', 'james@datawise.com', '+1-555-0104', 'DataWise Analytics', 'Analytics',
+             source='website', status='new', priority='low', value=25000, owner=user_id),
+        lead('Lisa Brown', 'lisa@cloudnine.com', '+1-555-0105',
+             source='ads', status='lost', priority='low', value=10000, owner=user_id),
+        lead('Alex Rivera', 'alex@buildcore.com', '+1-555-0106', 'BuildCore Ltd', 'Construction',
+             source='referral', status='qualified', priority='medium', value=90000, owner=user_id),
+        lead('Priya Patel', 'priya@finwise.co', '+1-555-0107', 'FinWise Consulting', 'Finance',
+             source='referral', status='proposal', priority='high', value=200000, owner=user_id),
+        lead('Tom Harrison', 'tom@medtech.com', '+1-555-0108', 'MedTech Innovations', 'Healthcare',
+             source='website', status='new', priority='medium', value=60000, owner=user_id),
     ]
     insert('leads', leads)
 
@@ -192,19 +198,20 @@ def seed_user_data(user_id):
          'job_title': 'Product Manager', 'location': 'New York, NY'},
     ])
 
-    # TASKS: has assigned_to(text), priority, status; no created_by
+    # TASKS: all rows must have IDENTICAL keys
     print(f"\n{bold('Seeding tasks...')}")
+    due = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
     insert('tasks', [
         {'title': 'Follow up with Sarah Johnson', 'description': 'Call to discuss proposal',
-         'status': 'pending', 'priority': 'high', 'assigned_to': user_id, 'due_date': tomorrow},
+         'status': 'pending', 'priority': 'high', 'assigned_to': user_id, 'due_date': due},
         {'title': 'Prepare demo for TechStart', 'description': 'Create custom demo environment',
-         'status': 'pending', 'priority': 'high', 'assigned_to': user_id, 'due_date': tomorrow},
+         'status': 'pending', 'priority': 'high', 'assigned_to': user_id, 'due_date': due},
         {'title': 'Send contract to GreenCo', 'description': 'Finalize and send the contract',
-         'status': 'pending', 'priority': 'medium', 'assigned_to': user_id, 'due_date': tomorrow},
+         'status': 'pending', 'priority': 'medium', 'assigned_to': user_id, 'due_date': due},
         {'title': 'Review DataWise requirements', 'description': 'Go through the RFP document',
-         'status': 'completed', 'priority': 'low', 'assigned_to': user_id},
+         'status': 'completed', 'priority': 'low', 'assigned_to': user_id, 'due_date': None},
         {'title': 'Quarterly review meeting', 'description': 'Prepare Q3 review presentation',
-         'status': 'pending', 'priority': 'medium', 'assigned_to': user_id, 'due_date': tomorrow},
+         'status': 'pending', 'priority': 'medium', 'assigned_to': user_id, 'due_date': due},
     ])
 
     # MEETINGS: has date_time, duration, type; no created_by/owner
