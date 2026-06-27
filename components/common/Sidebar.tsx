@@ -224,7 +224,7 @@ export function Sidebar({
                 </Avatar>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={8}>
-                {currentUser.user?.fullName ?? 'Loading…'}
+                {currentUser.loading ? 'Loading…' : (currentUser.user?.fullName ?? 'User')}
               </TooltipContent>
             </Tooltip>
 
@@ -255,7 +255,7 @@ export function Sidebar({
 
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">
-                {currentUser.user?.fullName ?? 'Loading…'}
+                {currentUser.loading ? 'Loading…' : (currentUser.user?.fullName ?? 'User')}
               </p>
               <div className="mt-0.5">
                 {role ? (

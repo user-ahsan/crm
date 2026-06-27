@@ -203,9 +203,9 @@ export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notif
                     </AvatarFallback>
                   )}
                 </Avatar>
-                <span className="hidden max-w-[100px] truncate text-sm font-medium md:inline">
-                  {currentUser.user?.fullName ?? 'Loading…'}
-                </span>
+                  <span className="hidden max-w-[100px] truncate text-sm font-medium md:inline">
+                    {currentUser.loading ? '…' : (currentUser.user?.fullName ?? 'User')}
+                  </span>
                 <IconChevronDown className="hidden size-3.5 text-muted-foreground md:block" />
               </Button>
             }
@@ -226,7 +226,7 @@ export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notif
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">
-                      {currentUser.user?.fullName ?? 'Loading…'}
+                      {currentUser.loading ? 'Loading…' : (currentUser.user?.fullName ?? 'User')}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
                       {currentUser.user?.email ?? ''}

@@ -36,8 +36,8 @@ export async function getCachedUser(): Promise<User | null> {
   _fetchPromise = (async (): Promise<User | null> => {
     try {
       const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      _cachedUser = user ?? null;
+      const { data } = await supabase.auth.getUser();
+      _cachedUser = data?.user ?? null;
       _cachedUserLoaded = true;
       return _cachedUser;
     } catch {

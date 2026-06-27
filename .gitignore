@@ -42,3 +42,10 @@ next-env.d.ts
 
 # temp session files
 .tmp/
+
+# python / seed script cache
+__pycache__/
+seed/__pycache__/
+seed/data.json
+seed/*.pyc
+*.pyc

@@ -61,8 +61,9 @@ def load_env():
 
     if not os.path.exists(ENV_FILE):
         print(red(f"FAIL .env not found at: {ENV_FILE}"))
-        print(yellow("  Make sure you're running from the project root:"))
-        print(yellow("  cd D:\\Projects\\crm && python seed/seed.py"))
+        print(yellow("  Run this script from the project root:"))
+        print(yellow("    cd D:\\Projects\\crm"))
+        print(yellow("    python seed/seed.py"))
         sys.exit(1)
 
     with open(ENV_FILE, 'r') as f:
