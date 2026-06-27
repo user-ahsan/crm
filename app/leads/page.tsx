@@ -254,7 +254,7 @@ function LeadsPageContent() {
       toast.error('No leads to export');
       return;
     }
-    const csv = convertToCSV(selected, LEAD_EXPORT_COLUMNS);
+    const csv = convertToCSV(selected as any, LEAD_EXPORT_COLUMNS);
     const filename = `leads-export-${new Date().toISOString().slice(0, 10)}.csv`;
     downloadCSV(csv, filename);
     toast.success(`Exported ${selected.length} lead${selected.length !== 1 ? 's' : ''}`);

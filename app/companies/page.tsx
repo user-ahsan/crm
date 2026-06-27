@@ -174,7 +174,7 @@ function CompaniesPageContent() {
       toast.error('No companies to export');
       return;
     }
-    const csv = convertToCSV(selected, COMPANY_EXPORT_COLUMNS);
+    const csv = convertToCSV(selected as any, COMPANY_EXPORT_COLUMNS);
     const filename = `companies-export-${new Date().toISOString().slice(0, 10)}.csv`;
     downloadCSV(csv, filename);
     toast.success(`Exported ${selected.length} compan${selected.length !== 1 ? 'ies' : 'y'}`);

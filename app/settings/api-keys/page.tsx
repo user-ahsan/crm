@@ -81,7 +81,7 @@ export default function ApiKeysPage() {
     let cancelled = false;
     (async () => {
       try {
-        const data = await apiKeyService.getAll();
+        const data = await apiKeyService.getKeys();
         if (!cancelled) setKeys(data);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load API keys');

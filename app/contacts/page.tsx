@@ -183,7 +183,7 @@ function ContactsPageContent() {
       toast.error('No contacts to export');
       return;
     }
-    const csv = convertToCSV(selected, CONTACT_EXPORT_COLUMNS);
+    const csv = convertToCSV(selected as any, CONTACT_EXPORT_COLUMNS);
     const filename = `contacts-export-${new Date().toISOString().slice(0, 10)}.csv`;
     downloadCSV(csv, filename);
     toast.success(`Exported ${selected.length} contact${selected.length !== 1 ? 's' : ''}`);
