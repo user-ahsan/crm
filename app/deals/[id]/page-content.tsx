@@ -4,7 +4,9 @@ import { useState, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { IconEdit, IconArrowLeft, IconCurrencyDollar, IconCalendarEvent, IconUser, IconTags, IconNote, IconMail, IconPaperclip, IconDeviceMobileMessage } from '@tabler/icons-react';
 import type { Deal, DealStage } from '@/types/deal.types';
+import type { Activity } from '@/types/activity.types';
 import { dealService } from '@/services/deal.service';
+import { activityService } from '@/services/activity.service';
 import { DealCreateForm } from '@/components/deals/DealCreateForm';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ErrorState } from '@/components/common/ErrorState';
@@ -41,6 +43,7 @@ export default function DealDetailPage() {
 
   const { emails, loading: emailsLoading, sendEmail, refresh: refreshEmails } = useEmail('deal', dealId);
   const { smsLogs, loading: smsLoading, sendSms, refresh: refreshSms } = useSms('deal', dealId);
+  const [activities, setActivities] = useState<Activity[]>([]);
 
   const loadDeal = useCallback(async () => {
     setLoading(true);
@@ -81,6 +84,14 @@ export default function DealDetailPage() {
       }
     })();
     return () => { cancelled = true; };
+  }, [dealId]);
+
+  // Load activities when deal is loaded
+  useEffect(() => {
+    if (!dealId) return;
+    activityService.getByEntity('deal', dealId)
+      .then(setActivities)
+      .catch(() => setActivities([]));
   }, [dealId]);
 
   const handleSuccess = useCallback(() => { loadDeal(); }, [loadDeal]);
@@ -299,7 +310,7 @@ export default function DealDetailPage() {
               <CardTitle className="text-base">Activity Timeline</CardTitle>
             </CardHeader>
             <CardContent>
-              <ActivityTimeline relatedToType="deal" relatedToId={params.id} />
+              <ActivityTimeline activities={activities} />
             </CardContent>
           </Card>
         </TabsContent>

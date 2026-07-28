@@ -31,6 +31,7 @@ export function useContacts() {
     // P8: Skip fetch if cache is fresh
     const store = useEntityCache.getState();
     if (!isCacheStale(store, 'contacts') && store.contacts.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setContacts(store.contacts);
       setLoading(false);
       return;
@@ -41,7 +42,7 @@ export function useContacts() {
   const getById = useCallback(async (id: string) => {
     try {
       return await contactService.getById(id);
-    } catch (err) {
+    } catch {
       // Error preserved in error state
       return undefined;
     }
@@ -50,7 +51,7 @@ export function useContacts() {
   const getByCompanyId = useCallback(async (companyId: string) => {
     try {
       return await contactService.getByCompanyId(companyId);
-    } catch (err) {
+    } catch {
       // Error preserved in error state
       return [];
     }

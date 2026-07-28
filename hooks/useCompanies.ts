@@ -31,6 +31,7 @@ export function useCompanies() {
     // P8: Skip fetch if cache is fresh
     const store = useEntityCache.getState();
     if (!isCacheStale(store, 'companies') && store.companies.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCompanies(store.companies);
       setLoading(false);
       return;
@@ -41,7 +42,7 @@ export function useCompanies() {
   const getById = useCallback(async (id: string) => {
     try {
       return await companyService.getById(id);
-    } catch (err) {
+    } catch {
       // Error preserved in error state
       return undefined;
     }

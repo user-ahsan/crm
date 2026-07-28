@@ -3,8 +3,9 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { Lead, LeadStatus, LeadPriority } from '@/types/lead.types';
 import type { SwimlaneGroup } from '@/types/swimlane.types';
+import type { WorkflowEntityType } from '@/types/workflow.types';
 import { leadService } from '@/services/lead.service';
-import { buildPipeline, type PipelineStage } from '@/modules/pipeline/pipelineUtils';
+import { buildPipeline, getWorkflowStages, type PipelineStage, type StageDefinition } from '@/modules/pipeline/pipelineUtils';
 import { LEAD_PRIORITIES, PIPELINE_STAGES } from '@/lib/constants';
 
 /** A single swimlane entry — a group with its own filtered pipeline stages */
@@ -16,11 +17,37 @@ export interface SwimlaneEntry {
   totalValue: number;
 }
 
-export function usePipeline() {
+export function usePipeline(entityType: WorkflowEntityType = 'lead') {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [swimlaneGroup, setSwimlaneGroup] = useState<SwimlaneGroup>('none');
+
+  // ── Workflow stages state ───────────────────────────────────────
+  const [workflowStages, setWorkflowStages] = useState<StageDefinition[]>(PIPELINE_STAGES);
+  const [workflowStagesLoading, setWorkflowStagesLoading] = useState(true);
+
+  // Load custom workflow stages for the given entity type
+  const loadWorkflowStages = useCallback(async () => {
+    setWorkflowStagesLoading(true);
+    try {
+      const stages = await getWorkflowStages(entityType);
+      setWorkflowStages(stages);
+    } catch {
+      // Fallback already handled inside getWorkflowStages; keep defaults
+      setWorkflowStages(PIPELINE_STAGES);
+    } finally {
+      setWorkflowStagesLoading(false);
+    }
+  }, [entityType]);
+
+  // Reload stages when entity type changes
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadWorkflowStages();
+  }, [loadWorkflowStages]);
+
+  // ── Leads loading ───────────────────────────────────────────────
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -52,11 +79,15 @@ export function usePipeline() {
     return () => { cancelled = true; };
   }, []);
 
-  const pipeline = useMemo(() => buildPipeline(leads), [leads]);
+  // Build the pipeline using either custom workflow stages or default stages
+  const pipeline = useMemo(() => {
+    const stages = workflowStages.length > 0 ? workflowStages : undefined;
+    return buildPipeline(leads, stages);
+  }, [leads, workflowStages]);
 
-  const moveLead = useCallback(async (leadId: string, newStage: LeadStatus) => {
+  const moveLead = useCallback(async (leadId: string, newStage: string) => {
     try {
-      const updated = await leadService.updateStatus(leadId, newStage);
+      const updated = await leadService.updateStatus(leadId, newStage as LeadStatus);
       if (updated) {
         setLeads((prev) => prev.map((l) => (l.id === leadId ? updated : l)));
       }
@@ -93,7 +124,8 @@ export function usePipeline() {
       }
       const entries: SwimlaneEntry[] = [];
       for (const [id, groupLeads] of assigneeMap) {
-        const p = buildPipeline(groupLeads);
+        const stages = workflowStages.length > 0 ? workflowStages : undefined;
+        const p = buildPipeline(groupLeads, stages);
         entries.push({
           id,
           label: id,
@@ -103,7 +135,8 @@ export function usePipeline() {
         });
       }
       if (unassigned.length > 0) {
-        const p = buildPipeline(unassigned);
+        const stages = workflowStages.length > 0 ? workflowStages : undefined;
+        const p = buildPipeline(unassigned, stages);
         entries.push({
           id: 'unassigned',
           label: 'Unassigned',
@@ -129,7 +162,8 @@ export function usePipeline() {
       for (const p of priorityOrder) {
         const groupLeads = priorityMap.get(p) ?? [];
         if (groupLeads.length > 0) {
-          const pipe = buildPipeline(groupLeads);
+          const stages = workflowStages.length > 0 ? workflowStages : undefined;
+          const pipe = buildPipeline(groupLeads, stages);
           entries.push({
             id: p,
             label: p.charAt(0).toUpperCase() + p.slice(1),
@@ -140,7 +174,8 @@ export function usePipeline() {
         }
       }
       if (unset.length > 0) {
-        const p = buildPipeline(unset);
+        const stages = workflowStages.length > 0 ? workflowStages : undefined;
+        const p = buildPipeline(unset, stages);
         entries.push({
           id: 'unset',
           label: 'Unset',
@@ -152,10 +187,10 @@ export function usePipeline() {
       return entries;
     }
 
-    // 'status' group: each status becomes its own swimlane
-    return PIPELINE_STAGES.map((s) => {
+    // 'status' group: use workflow stages for the status mapping
+    return workflowStages.map((s) => {
       const groupLeads = leads.filter((l) => l.status === s.key);
-      const p = buildPipeline(groupLeads);
+      const p = buildPipeline(groupLeads, workflowStages);
       return {
         id: s.key,
         label: s.label,
@@ -164,7 +199,7 @@ export function usePipeline() {
         totalValue: groupLeads.reduce((sum, l) => sum + l.estimatedValue, 0),
       };
     }).filter((e) => e.totalLeads > 0);
-  }, [leads, swimlaneGroup]);
+  }, [leads, swimlaneGroup, workflowStages]);
 
   return {
     pipeline,
@@ -177,5 +212,7 @@ export function usePipeline() {
     swimlaneGroup,
     setSwimlaneGroup,
     swimlaneData,
+    workflowStages,
+    workflowStagesLoading,
   };
 }

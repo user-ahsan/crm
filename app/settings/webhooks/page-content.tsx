@@ -176,6 +176,7 @@ export default function WebhooksPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchConfigs();
   }, [fetchConfigs]);
 

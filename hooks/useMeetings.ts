@@ -31,6 +31,7 @@ export function useMeetings() {
     // P8: Skip fetch if cache is fresh
     const store = useEntityCache.getState();
     if (!isCacheStale(store, 'meetings') && store.meetings.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMeetings(store.meetings);
       setLoading(false);
       return;

@@ -16,6 +16,7 @@ import { campaignService } from '@/services/campaign.service';
 import { leadService } from '@/services/lead.service';
 import { contactService } from '@/services/contact.service';
 import { useCampaignEmails } from '@/hooks/useCampaigns';
+import { useCampaignStats } from '@/hooks/useCampaignScheduler';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -82,9 +83,13 @@ export default function CampaignDetailPage() {
   // Delete email state
   const [deleteEmailTarget, setDeleteEmailTarget] = useState<string | null>(null);
 
-  // Stats & recipients
-  const [stats, setStats] = useState<{ total: number; sent: number; failed: number; pending: number } | null>(null);
-  const [statsLoading, setStatsLoading] = useState(false);
+  // Stats — polling hook (30s interval when active)
+  const {
+    stats,
+    loading: statsLoading,
+    error: statsError,
+    refresh: refreshStats,
+  } = useCampaignStats(id);
   const [recipients, setRecipients] = useState<{
     id: string;
     recipientEmail: string;
@@ -125,18 +130,6 @@ export default function CampaignDetailPage() {
     }
   }, [id]);
 
-  const loadStats = useCallback(async () => {
-    setStatsLoading(true);
-    try {
-      const res = await fetch(`/api/campaigns/${id}/stats`);
-      if (res.ok) {
-        const data = await res.json();
-        setStats(data);
-      }
-    } catch (e) { console.error('Failed to load campaign stats:', e); toast.error('Failed to load campaign stats'); }
-    finally { setStatsLoading(false); }
-  }, [id]);
-
   const loadRecipients = useCallback(async () => {
     setRecipientsLoading(true);
     try {
@@ -171,13 +164,15 @@ export default function CampaignDetailPage() {
     return () => { cancelled = true; };
   }, [id]);
 
-  // Load stats and recipients after sequence loads
+  // Load recipients after sequence loads
   useEffect(() => {
     if (sequence && !seqLoading) {
-      loadStats();
+      refreshStats();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadRecipients();
     }
-  }, [sequence?.id, seqLoading, loadStats, loadRecipients]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sequence?.id, seqLoading, refreshStats, loadRecipients]); // sequence object intentionally excluded to avoid loops
 
   const handleSaveInfo = useCallback(async () => {
     if (!editName.trim()) return;
@@ -263,6 +258,12 @@ export default function CampaignDetailPage() {
       toast.error('Select at least one lead or contact');
       return;
     }
+    // Double-check that the sequence is still in draft (stale dialog guard)
+    if (sequence?.status !== 'draft') {
+      toast.error('This campaign is no longer in draft status and cannot be activated.');
+      setActivateOpen(false);
+      return;
+    }
     setActivating(true);
     try {
       const res = await fetch('/api/campaigns/activate', {
@@ -279,14 +280,20 @@ export default function CampaignDetailPage() {
       toast.success(`Campaign activated — ${data.total} recipients queued`);
       setActivateOpen(false);
       setSequence((prev) => prev ? { ...prev, status: 'active' as const } : prev);
-      loadStats();
+      refreshStats();
       loadRecipients();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to activate');
+      // Reuse existing server-side dedup check — if already active, show clear message
+      const message = err instanceof Error ? err.message : 'Failed to activate';
+      if (message.toLowerCase().includes('already')) {
+        toast.error('This campaign sequence is already active. Reload the page to see current status.');
+      } else {
+        toast.error(message);
+      }
     } finally {
       setActivating(false);
     }
-  }, [id, loadStats, loadRecipients]);
+  }, [id, sequence, refreshStats, loadRecipients]);
 
   const handlePauseCampaign = useCallback(async () => {
     try {
@@ -328,13 +335,13 @@ export default function CampaignDetailPage() {
       toast.success(`${data.added} recipient${data.added !== 1 ? 's' : ''} added`);
       setAddRecipientsOpen(false);
       loadRecipients();
-      loadStats();
+      refreshStats();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to add recipients');
     } finally {
       setAddingRecipients(false);
     }
-  }, [id, loadRecipients, loadStats]);
+  }, [id, loadRecipients, refreshStats]);
 
   if (seqLoading) {
     return (
@@ -533,7 +540,19 @@ export default function CampaignDetailPage() {
           <CardTitle className="text-lg">Delivery Stats</CardTitle>
           <div className="flex items-center gap-2">
             {sequence.status === 'draft' && (
-              <Button size="sm" onClick={() => setActivateOpen(true)}>
+              <Button
+                size="sm"
+                onClick={() => {
+                  // Guard: prevent opening dialog if sequence has already been activated
+                  // (race condition / stale status check — the server-side dedup will
+                  //  also catch it, but this avoids a confusing dialog flow)
+                  if (sequence.status !== 'draft') {
+                    toast.error('This campaign is already active or completed.');
+                    return;
+                  }
+                  setActivateOpen(true);
+                }}
+              >
                 <IconSend className="mr-1 size-4" />
                 Activate Campaign
               </Button>
@@ -547,7 +566,10 @@ export default function CampaignDetailPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {statsLoading ? (
+          {statsError && (
+            <p className="mb-3 text-sm text-destructive">{statsError}</p>
+          )}
+          {statsLoading && !stats ? (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="h-20 animate-pulse rounded-lg bg-muted" />
@@ -573,7 +595,7 @@ export default function CampaignDetailPage() {
               </div>
             </div>
           ) : (
-            <p className="text-center text-sm text-muted-foreground">No stats available yet.</p>
+            <p className="text-center text-sm text-muted-foreground">No stats available yet. Activate the campaign to begin.</p>
           )}
         </CardContent>
       </Card>
@@ -699,6 +721,7 @@ function RecipientSelectDialog({
   // Reset selections when dialog opens
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedLeadIds([]);
       setSelectedContactIds([]);
       setLeadsSearch('');

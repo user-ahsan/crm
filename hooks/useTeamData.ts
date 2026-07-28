@@ -74,6 +74,7 @@ export function useTeamData(): TeamDataState {
   /* Load on mount */
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load().then(() => { if (cancelled) return; });
     return () => { cancelled = true; };
   }, [load]);

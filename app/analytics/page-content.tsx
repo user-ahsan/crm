@@ -76,8 +76,6 @@ function BarChart({
   bars: { key: string; label: string; color: string }[];
 }) {
   if (data.length === 0) return null;
-  const allValues = data.flatMap((d) => d.values.map((v) => v.value));
-  const maxValue = Math.max(...allValues, 1);
 
   return (
     <div className="space-y-2">
@@ -222,6 +220,7 @@ export default function AnalyticsPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
   }, [loadData]);
 

@@ -32,6 +32,7 @@ export function useTasks() {
     // P8: Skip fetch if cache is fresh
     const store = useEntityCache.getState();
     if (!isCacheStale(store, 'tasks') && store.tasks.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTasks(store.tasks);
       setLoading(false);
       return;
@@ -50,7 +51,7 @@ export function useTasks() {
   const getByEntity = useCallback(async (entityType: string, entityId: string) => {
     try {
       return await taskService.getByEntity(entityType, entityId);
-    } catch (err) {
+    } catch {
       // Error preserved in error state
       return [];
     }

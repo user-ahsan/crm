@@ -32,6 +32,7 @@ export function useLeads() {
     // P8: Skip fetch if cache is fresh
     const store = useEntityCache.getState();
     if (!isCacheStale(store, 'leads') && store.leads.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLeads(store.leads);
       setLoading(false);
       return;
@@ -46,7 +47,7 @@ export function useLeads() {
   const getById = useCallback(async (id: string) => {
     try {
       return await leadService.getById(id);
-    } catch (err) {
+    } catch {
       // Error preserved in error state
       return undefined;
     }
