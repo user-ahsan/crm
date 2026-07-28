@@ -62,6 +62,10 @@ Next.js 16 + Supabase + shadcn/ui. Real auth, real database, zero mock data in p
 | **Settings Layout** | Sidebar navigation across all settings sub-pages. |
 | **Open Graph** | OG metadata (title, description, image, type) on all pages. Sitemap covers all 31 routes. |
 | **Lead Validation** | Full lead form validation module (name, email, phone, fields, enums). |
+| **Workflow Editor (Visual)** | Visual drag-and-drop state machine editor (WorkflowEditor component). State cards, transition lines, delete/create states visually. |
+| **Google Calendar OAuth** | Full OAuth flow code (auth URL, token exchange, AES-256-GCM token encryption, event list/create/sync). API routes for oauth/callback/disconnect. |
+| **Portal Auth API** | Login, register, reset-password, user management API routes with bcrypt. Migration script to Supabase Auth included. |
+| **Real-time Notifications** | Supabase Realtime channel subscriptions for live presence and notifications. Polling fallback every 2 minutes. |
 
 ---
 
@@ -69,13 +73,13 @@ Next.js 16 + Supabase + shadcn/ui. Real auth, real database, zero mock data in p
 
 | Feature | What works | What's missing |
 |---------|-----------|----------------|
-| **Email Sequences** | Create sequences with multiple campaign emails and delay days. Full CRUD. | No deployed scheduler — cron job not configured. |
-| **Workflow Builder** | Settings page with custom states and transitions. Form-based CRUD with optimistic updates. | Not a visual drag-and-drop editor. Custom states don't change the kanban renderer. |
-| **Calendar Sync** | Connect/disconnect/toggle sync works. Stored in DB with provider, email, status. | No real OAuth flow (no Google/Outlook API). Sync is a flag with no background job. |
-| **Portal Auth** | Portal user management works. Invite, toggle, share records. | Uses bcrypt-based custom auth (documented as deprecated). Needs migration to Supabase Auth. |
-| **Invoices** | Full CRUD, PDF download, status management. Detail view. | No standalone creation (must come from quote). Detail view is read-only. |
-| **Campaign Scheduler** | Full campaign scheduler engine exists (`campaign-scheduler.service.ts`), API endpoints for activate/process. | No deployed cron trigger. Must be connected to a cron job service. |
-| **Real-time notifications** | Polling-based notifications every 2 minutes. Realtime channel setup exists. | No WebSocket push. Realtime subscription is basic. |
+| **Email Sequences** | Create sequences with multiple campaign emails and delay days. Full CRUD. Process endpoint at `/api/campaigns/cron/process`. | No deployed cron trigger. Must connect endpoint to a cron job service. |
+| **Workflow Builder** | Visual drag-and-drop editor (WorkflowEditor). Form-based CRUD with optimistic updates. Custom states and transitions. | Custom states don't change the kanban renderer (states are stored but kanban uses hardcoded stages). |
+| **Calendar Sync** | Connect/disconnect/toggle sync works. Full OAuth flow code exists (auth URL, token exchange, token encryption, event CRUD, sync to DB). | google-auth-library has type version conflicts (file uses @ts-nocheck). No background job for auto-sync. |
+| **Portal Auth** | Portal user CRUD. Auth API routes (login, register, reset-password) with bcrypt. Migration script to Supabase Auth exists. | Custom bcrypt auth is deprecated. Needs migration to Supabase Auth for production. |
+| **Invoices** | Full CRUD, PDF download, status management, detail view with edit capability. | No standalone creation (must come from quote). Some edit actions on detail view. |
+| **Campaign Scheduler** | Full campaign scheduler engine (`campaign-scheduler.service.ts`). Cron process endpoint ready. | No deployed cron trigger. Must connect to cron job service. |
+| **Real-time Notifications** | Supabase Realtime channel setup for live updates. useRealtimeNotifications hook. Presence tracking. Polling fallback (2min). | Realtime subscriptions need Supabase Realtime enabled. No WebSocket push fallback if channel fails. |
 
 ---
 
@@ -83,13 +87,11 @@ Next.js 16 + Supabase + shadcn/ui. Real auth, real database, zero mock data in p
 
 | Feature | Notes |
 |---------|-------|
-| **Customer portal frontend** | Admin-side user management only. No login page or dashboard for portal users. |
+| **Customer portal frontend** | Admin-side user management and auth API exist. No login page or dashboard UI for portal users. |
 | **Mobile app** | Nothing — web-only. |
 | **Public REST API** | Key management UI exists. No public endpoints, docs, or rate limiting. |
-| **Unit tests** | Zero |
-| **Integration tests** | Zero |
-| **E2E tests** | Zero |
+| **E2E tests** | Zero. Integration test suite started (`tests/integration/feature-gates.test.ts`). |
 
 ---
 
-**31 routes · 7 migrations · 32 tables · ~400 source files · 97 components · 33 hooks · 29 services · Build: ✅**
+**31 routes · 7 migrations · 32 tables · ~420 source files · 97 components · 35 hooks · 29 services · Build: ✅ · TypeScript: ✅ · Lint: ✅**
