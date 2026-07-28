@@ -205,6 +205,7 @@ export const invoiceService = {
             tax,
             total,
           };
+          if (data.invoiceNumber !== undefined) updateData.invoice_number = data.invoiceNumber || null;
           if (data.status !== undefined) {
             updateData.status = data.status;
             if (data.status === 'paid') updateData.paid_at = new Date().toISOString();
@@ -235,6 +236,7 @@ export const invoiceService = {
       } else {
         // No item changes, update only header fields
         const updateData: Record<string, unknown> = {};
+        if (data.invoiceNumber !== undefined) updateData.invoice_number = data.invoiceNumber || null;
         if (data.status !== undefined) {
           updateData.status = data.status;
           if (data.status === 'paid') updateData.paid_at = new Date().toISOString();
@@ -244,7 +246,7 @@ export const invoiceService = {
         if (data.dueDate !== undefined) updateData.due_date = data.dueDate || null;
         if (data.paymentTerms !== undefined) updateData.payment_terms = data.paymentTerms || null;
         if (data.discount !== undefined || data.taxRate !== undefined) {
-          const { itemTotals, subtotal, tax, total } = computeTotals(
+          const { subtotal, tax, total } = computeTotals(
             existing.items.map(i => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice })),
             data.discount ?? existing.discount,
             data.taxRate ?? existing.taxRate,

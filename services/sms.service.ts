@@ -2,7 +2,7 @@ import { getSharedClient } from '@/lib/supabase/client';
 import { isTwilioConfigured, getTwilioClientAsync } from '@/lib/twilio';
 import type { SmsLog, SmsFormData, SmsRelatedEntity } from '@/types/sms.types';
 import type { DbSmsLog } from '@/types/supabase.types';
-import { ServiceError, toServiceError } from './supabase.service';
+import { toServiceError } from './supabase.service';
 import { activityService } from './activity.service';
 
 function mapRowToSms(row: DbSmsLog): SmsLog {

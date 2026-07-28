@@ -18,7 +18,6 @@
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { ServiceError, toServiceError } from './supabase.service';
 import { isPrivateHost } from '@/lib/ssrf';
-import type { WebhookConfigRow } from '@/types/supabase.types';
 
 // ── Types ─────────────────────────────────────────────────────────────
 

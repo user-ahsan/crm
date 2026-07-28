@@ -3,7 +3,7 @@ import type { Contact, ContactFormData } from '@/types/contact.types';
 import type { DbContact, ContactInsert } from '@/types/supabase.types';
 import { findDuplicates } from '@/lib/utils';
 import type { DuplicateGroup } from '@/lib/utils';
-import { asEnum, ServiceError, toServiceError } from './supabase.service';
+import { ServiceError, toServiceError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
 

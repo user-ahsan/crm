@@ -1,5 +1,5 @@
 import { getSharedClient } from '@/lib/supabase/client';
-import type { Lead, LeadFormData, LeadFilters, LeadStatus, LeadSource, LeadPriority } from '@/types/lead.types';
+import type { Lead, LeadFormData, LeadFilters } from '@/types/lead.types';
 import type { DbLead, DbLeadScore, LeadInsert } from '@/types/supabase.types';
 import type { LeadScore } from '@/types/lead-scoring.types';
 import { findDuplicates } from '@/lib/utils';
@@ -363,8 +363,6 @@ export const leadService = {
       if (leadsErr) throw toServiceError(leadsErr);
       if (!leads || leads.length === 0) return { updated: 0, failed: 0 };
 
-      // Batch with .in() filter instead of sequential
-      const allIds = leads.map((l: { id: string }) => l.id);
       const scoresMap = new Map<string, { score: number; factors: Record<string, number> }>();
 
       for (const lead of leads as { id: string }[]) {

@@ -62,40 +62,6 @@ async function lookupEntityEmails(
   }
 }
 
-/**
- * Determines whether all campaign_emails in a sequence have been sent
- * (sent or failed) for a given recipient. Used to optionally mark a
- * sequence fully processed.
- */
-async function isSequenceCompleteForRecipient(
-  sequenceId: string,
-  recipientId: string,
-): Promise<boolean> {
-  try {
-    const supabase = getSharedClient();
-    const { data, error } = await supabase
-      .from('campaign_emails')
-      .select('id')
-      .eq('sequence_id', sequenceId);
-
-    if (error || !data || data.length === 0) return false;
-
-    const emailIds = data.map((e: { id: string }) => e.id);
-
-    const { data: pending } = await supabase
-      .from('campaign_recipients')
-      .select('id', { count: 'exact', head: true })
-      .eq('recipient_id', recipientId)
-      .in('campaign_email_id', emailIds)
-      .in('status', ['pending']);
-
-    // If no pending rows remain for this recipient, the sequence is done
-    return (pending ?? []).length === 0;
-  } catch {
-    return false;
-  }
-}
-
 // ── Service ───────────────────────────────────────────────────────────
 
 export const campaignScheduler = {

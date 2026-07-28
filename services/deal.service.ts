@@ -1,7 +1,7 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { Deal, DealFormData, DealStage, DealStageFormData } from '@/types/deal.types';
 import type { DbDeal, DbDealStage, DealInsert, DealStageInsert } from '@/types/supabase.types';
-import { ServiceError, toServiceError } from './supabase.service';
+import { toServiceError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
 

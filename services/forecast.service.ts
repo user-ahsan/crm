@@ -1,7 +1,7 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { Forecast, ForecastSummary } from '@/types/forecast.types';
-import type { DbForecast, ForecastInsert, ForecastUpdate } from '@/types/supabase.types';
-import { ServiceError, toServiceError } from './supabase.service';
+import type { DbForecast, ForecastInsert } from '@/types/supabase.types';
+import { toServiceError } from './supabase.service';
 
 function safeNumber(val: unknown, fallback: number = 0): number {
   const n = Number(val);

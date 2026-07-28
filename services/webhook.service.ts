@@ -14,6 +14,7 @@
 import type { WebhookEvent } from '@/types/webhook.types';
 import { webhookConfigService } from './webhook-config.service';
 import { isPrivateHost } from '@/lib/ssrf';
+import { isFeatureEnabled } from '@/lib/feature-gates';
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -113,6 +114,7 @@ async function sendToUrl(
  */
 let _anyWebhookConfigured: boolean | null = null;
 export function isAnyWebhookConfigured(): boolean {
+  if (!isFeatureEnabled('webhooks')) return false;
   if (_anyWebhookConfigured === null) {
     _anyWebhookConfigured = !!(process.env.N8N_WEBHOOK_URL);
   }

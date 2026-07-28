@@ -1,7 +1,7 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { ApiKey, ApiKeyFormData, ApiKeyCreateResponse } from '@/types/api-key.types';
 import type { DbApiKey } from '@/types/supabase.types';
-import { ServiceError, toServiceError } from './supabase.service';
+import { toServiceError } from './supabase.service';
 
 async function sha256(str: string): Promise<string> {
   const encoder = new TextEncoder();

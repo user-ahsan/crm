@@ -1,6 +1,6 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { Tag } from '@/types/tag.types';
-import type { DbTag, DbTagging } from '@/types/supabase.types';
+import type { DbTag } from '@/types/supabase.types';
 import { toServiceError } from './supabase.service';
 
 // Inline types for Supabase join and aggregate query results

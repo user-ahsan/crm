@@ -1,7 +1,7 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { Task, TaskFormData, TaskStatus } from '@/types/task.types';
 import type { DbTask, TaskInsert } from '@/types/supabase.types';
-import { asEnum, ServiceError, toServiceError } from './supabase.service';
+import { asEnum, toServiceError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
 
