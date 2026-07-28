@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { corsHeaders } from '@/lib/cors';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 /**
  * ─── n8n Webhook Route Handler ───────────────────────────────────────
@@ -112,6 +116,21 @@ type ApiResponse = SuccessResponse | ErrorResponse | HealthResponse;
 // ── Helpers ───────────────────────────────────────────────────────────
 
 /**
+ * Timing-safe comparison of the Authorization header against the
+ * webhook secret, mitigating timing-attack vector.
+ */
+function isWebhookAuthorized(authHeader: string | null, secret: string | undefined): boolean {
+  if (!authHeader || !secret) return false;
+  const expected = `Bearer ${secret}`;
+  if (authHeader.length !== expected.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(authHeader), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Returns the webhook secret or undefined if not configured.
  */
 function getWebhookSecret(): string | undefined {
@@ -200,21 +219,31 @@ function processWebhookEvent(body: WebhookPayload): string {
  * Returns 200 on success, 400 for invalid payload, 401 for bad auth.
  */
 export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse>> {
+  const contentLength = parseInt(request.headers.get('content-length') || '0', 10);
+  if (contentLength > 1_048_576) {
+    return NextResponse.json({ success: false, error: 'Request too large' }, { status: 413, headers: corsHeaders() });
+  }
+
+  const ip = request.headers.get('x-forwarded-for') || 'unknown';
+  if (!checkRateLimit('webhook-n8n:' + ip, 60, 60000)) {
+    return NextResponse.json({ success: false, error: 'Too many requests' }, { status: 429, headers: corsHeaders() });
+  }
+
   const webhookSecret = getWebhookSecret();
 
   if (!webhookSecret) {
     return NextResponse.json(
       { success: false, error: 'Webhook secret not configured' },
-      { status: 401 },
+      { status: 401, headers: corsHeaders() },
     );
   }
 
-  // Verify bearer token
+  // Verify bearer token via timing-safe comparison
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${webhookSecret}`) {
+  if (!isWebhookAuthorized(authHeader, webhookSecret)) {
     return NextResponse.json(
       { success: false, error: 'Unauthorized' },
-      { status: 401 },
+      { status: 401, headers: corsHeaders() },
     );
   }
 
@@ -225,7 +254,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
   } catch {
     return NextResponse.json(
       { success: false, error: 'Invalid JSON payload' },
-      { status: 400 },
+      { status: 400, headers: corsHeaders() },
     );
   }
 
@@ -233,7 +262,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
   if (!body.event || !body.timestamp || !body.data) {
     return NextResponse.json(
       { success: false, error: 'Missing required fields: event, timestamp, data' },
-      { status: 400 },
+      { status: 400, headers: corsHeaders() },
     );
   }
 
@@ -243,7 +272,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         success: false,
         error: `Unsupported event: ${body.event}. Supported events: ${Array.from(ALL_EVENTS).join(', ')}`,
       },
-      { status: 400 },
+      { status: 400, headers: corsHeaders() },
     );
   }
 
@@ -252,7 +281,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
   if (Number.isNaN(parsedTimestamp.getTime())) {
     return NextResponse.json(
       { success: false, error: 'Invalid timestamp format. Must be ISO 8601.' },
-      { status: 400 },
+      { status: 400, headers: corsHeaders() },
     );
   }
 
@@ -260,15 +289,22 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
   const summary = processWebhookEvent(body);
   const receivedAt = new Date().toISOString();
 
+  // Persist webhook event to database
+  try {
+    const supabase = await createServerSupabaseClient();
+    await supabase.from('webhook_events').insert({
+      source: 'n8n',
+      event_type: body.event || 'unknown',
+      payload: body,
+      status: 'received',
+      created_at: receivedAt,
+    });
+  } catch (dbError) {
+    console.error('Failed to persist webhook event:', dbError);
+  }
+
   // Operational log for webhook delivery debugging
-  console.log(JSON.stringify({
-    level: 'info',
-    source: 'n8n-webhook',
-    event: body.event,
-    entityId: (body.data.id as string) || 'unknown',
-    summary,
-    receivedAt,
-  }));
+  console.info(`[n8n-webhook] event=${body.event} entityId=${(body.data.id as string) || 'unknown'} summary=${summary}`);
 
   return NextResponse.json(
     {
@@ -276,8 +312,23 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       message: summary,
       receivedAt,
     },
-    { status: 200 },
+    { status: 200, headers: corsHeaders() },
   );
+}
+
+/**
+ * OPTIONS /api/webhook/n8n
+ *
+ * CORS preflight for webhook endpoints.
+ */
+export async function OPTIONS() {
+  return NextResponse.json({}, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
 }
 
 /**
@@ -288,6 +339,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
  *
  * Requires x-api-key header matching N8N_WEBHOOK_SECRET.
  */
+
 export async function GET(request: NextRequest): Promise<NextResponse<HealthResponse | ErrorResponse>> {
   const webhookSecret = getWebhookSecret();
 
@@ -299,7 +351,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<HealthResp
   }
 
   const apiKey = request.headers.get('x-api-key');
-  if (apiKey !== webhookSecret) {
+  const keyBuffer = Buffer.from(apiKey || '');
+  const secretBuffer = Buffer.from(webhookSecret || '');
+  const valid = keyBuffer.length === secretBuffer.length && timingSafeEqual(keyBuffer, secretBuffer);
+  if (!valid) {
     return NextResponse.json(
       { success: false, error: 'Unauthorized' },
       { status: 401 },

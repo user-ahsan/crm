@@ -1,7 +1,8 @@
 import { getSharedClient } from '@/lib/supabase/client';
-import type { SmsLog, SmsFormData } from '@/types/sms.types';
+import { isTwilioConfigured, getTwilioClientAsync } from '@/lib/twilio';
+import type { SmsLog, SmsFormData, SmsRelatedEntity } from '@/types/sms.types';
 import type { DbSmsLog } from '@/types/supabase.types';
-import { formatSupabaseError } from './supabase.service';
+import { ServiceError, toServiceError } from './supabase.service';
 import { activityService } from './activity.service';
 
 function mapRowToSms(row: DbSmsLog): SmsLog {
@@ -12,11 +13,24 @@ function mapRowToSms(row: DbSmsLog): SmsLog {
     body: row.body,
     direction: row.direction as SmsLog['direction'],
     status: row.status as SmsLog['status'],
+    providerMessageId: row.provider_message_id ?? undefined,
+    errorMessage: row.error_message ?? undefined,
     relatedToType: row.related_to_type as SmsLog['relatedToType'],
     relatedToId: row.related_to_id ?? undefined,
     createdBy: row.created_by,
     createdAt: row.created_at,
   };
+}
+
+interface SmsLogInsert {
+  to_number: string;
+  from_number: string;
+  body: string;
+  direction: string;
+  status: string;
+  related_to_type: string | null;
+  related_to_id: string | null;
+  created_by: string;
 }
 
 export const smsService = {
@@ -31,36 +45,47 @@ export const smsService = {
         query = query.eq('related_to_type', relatedToType).eq('related_to_id', relatedToId);
       }
       const { data, error } = await query;
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToSms) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async send(data: SmsFormData): Promise<SmsLog> {
+    const fromNumber = data.fromNumber || process.env.TWILIO_FROM_NUMBER || '+15551234567';
     try {
       const supabase = await getSharedClient();
       const { data: userData } = await supabase.auth.getUser();
       const createdBy = userData?.user?.id ?? 'system';
-      const dbRow = {
+
+      // Guard: if Twilio is not configured, save as 'queued' so the UI shows a clear signal
+      const twilioAvailable = isTwilioConfigured();
+      const status = twilioAvailable ? 'sent' as const : 'queued' as const;
+      const errorMessage = twilioAvailable ? null : 'SMS provider not configured. Set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN to send SMS.';
+
+      const dbRow: SmsLogInsert = {
         to_number: data.toNumber,
-        from_number: data.fromNumber ?? '+15551234567',
+        from_number: fromNumber,
         body: data.body,
         direction: 'outbound',
-        status: 'sent',
+        status,
         related_to_type: data.relatedToType ?? null,
         related_to_id: data.relatedToId ?? null,
         created_by: createdBy,
       };
+
       const { data: inserted, error } = await supabase
         .from('sms_logs')
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
+
       const sms = mapRowToSms(inserted);
-      if (data.relatedToType && data.relatedToId) {
+
+      // Only log activity when actually sent to the carrier
+      if (data.relatedToType && data.relatedToId && sms.status === 'sent' && twilioAvailable) {
         activityService.log(
           data.relatedToType,
           data.relatedToId,
@@ -69,9 +94,71 @@ export const smsService = {
           { direction: 'outbound', to: data.toNumber },
         );
       }
-      return sms;
+
+      // If Twilio is configured, actually send the SMS
+      if (twilioAvailable) {
+        try {
+          const twilio = await getTwilioClientAsync();
+          const twilioMsg = await twilio.messages.create({
+            to: data.toNumber,
+            from: fromNumber,
+            body: data.body,
+          });
+
+          // Update the SMS log with the real provider message ID
+          const { error: updateError } = await supabase
+            .from('sms_logs')
+            .update({ provider_message_id: twilioMsg.sid, status: 'sent' })
+            .eq('id', sms.id);
+          if (updateError) console.error('Failed to update SMS log with provider ID:', updateError);
+
+          return { ...sms, providerMessageId: twilioMsg.sid };
+        } catch (twilioError) {
+          // Update the SMS log with failure
+          const errorMsg = twilioError instanceof Error ? twilioError.message : 'Twilio send failed';
+          await supabase
+            .from('sms_logs')
+            .update({ status: 'failed', error_message: errorMsg })
+            .eq('id', sms.id);
+          return { ...sms, status: 'failed' as const, errorMessage: errorMsg };
+        }
+      }
+
+      return { ...sms, errorMessage: errorMessage ?? undefined };
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
+  },
+
+  async sendBatchSms(
+    messages: Array<{
+      toNumber: string;
+      body: string;
+      relatedToType?: string;
+      relatedToId?: string;
+    }>,
+  ): Promise<Array<{ toNumber: string; success: boolean; messageId?: string; error?: string }>> {
+    const results: Array<{ toNumber: string; success: boolean; messageId?: string; error?: string }> = [];
+
+    for (const msg of messages) {
+      try {
+        const sms = await this.send({
+          toNumber: msg.toNumber,
+          body: msg.body,
+          fromNumber: process.env.TWILIO_FROM_NUMBER,
+          relatedToType: msg.relatedToType as SmsRelatedEntity,
+          relatedToId: msg.relatedToId,
+        });
+        results.push({ toNumber: msg.toNumber, success: sms.status === 'sent', messageId: sms.id });
+      } catch (e) {
+        results.push({
+          toNumber: msg.toNumber,
+          success: false,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+
+    return results;
   },
 };
