@@ -46,6 +46,38 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
   --font-heading: var(--font-geist-sans);
+
+  /* ── Status colors (light defaults) ── */
+  --color-status-new-bg: var(--color-blue-100);
+  --color-status-new-text: var(--color-blue-800);
+  --color-status-contacted-bg: var(--color-yellow-100);
+  --color-status-contacted-text: var(--color-yellow-800);
+  --color-status-qualified-bg: var(--color-purple-100);
+  --color-status-qualified-text: var(--color-purple-800);
+  --color-status-proposal-bg: var(--color-orange-100);
+  --color-status-proposal-text: var(--color-orange-800);
+  --color-status-won-bg: var(--color-green-100);
+  --color-status-won-text: var(--color-green-800);
+  --color-status-lost-bg: var(--color-red-100);
+  --color-status-lost-text: var(--color-red-800);
+
+  /* ── Lead priority colors (light defaults) ── */
+  --color-priority-low-bg: var(--color-gray-100);
+  --color-priority-low-text: var(--color-gray-600);
+  --color-priority-medium-bg: var(--color-blue-100);
+  --color-priority-medium-text: var(--color-blue-700);
+  --color-priority-high-bg: var(--color-red-100);
+  --color-priority-high-text: var(--color-red-700);
+
+  /* ── Task priority colors (light defaults) ── */
+  --color-task-priority-low-bg: var(--color-gray-100);
+  --color-task-priority-low-text: var(--color-gray-600);
+  --color-task-priority-medium-bg: var(--color-blue-100);
+  --color-task-priority-medium-text: var(--color-blue-700);
+  --color-task-priority-high-bg: var(--color-orange-100);
+  --color-task-priority-high-text: var(--color-orange-700);
+  --color-task-priority-critical-bg: var(--color-red-100);
+  --color-task-priority-critical-text: var(--color-red-700);
 }
 
 :root {
@@ -115,6 +147,38 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.552 0.016 285.938);
+
+  /* ── Status colors (dark overrides) ── */
+  --color-status-new-bg: var(--color-blue-900);
+  --color-status-new-text: var(--color-blue-200);
+  --color-status-contacted-bg: var(--color-yellow-900);
+  --color-status-contacted-text: var(--color-yellow-200);
+  --color-status-qualified-bg: var(--color-purple-900);
+  --color-status-qualified-text: var(--color-purple-200);
+  --color-status-proposal-bg: var(--color-orange-900);
+  --color-status-proposal-text: var(--color-orange-200);
+  --color-status-won-bg: var(--color-green-900);
+  --color-status-won-text: var(--color-green-200);
+  --color-status-lost-bg: var(--color-red-900);
+  --color-status-lost-text: var(--color-red-200);
+
+  /* ── Lead priority colors (dark overrides) ── */
+  --color-priority-low-bg: var(--color-gray-800);
+  --color-priority-low-text: var(--color-gray-300);
+  --color-priority-medium-bg: var(--color-blue-900);
+  --color-priority-medium-text: var(--color-blue-200);
+  --color-priority-high-bg: var(--color-red-900);
+  --color-priority-high-text: var(--color-red-200);
+
+  /* ── Task priority colors (dark overrides) ── */
+  --color-task-priority-low-bg: var(--color-gray-800);
+  --color-task-priority-low-text: var(--color-gray-300);
+  --color-task-priority-medium-bg: var(--color-blue-900);
+  --color-task-priority-medium-text: var(--color-blue-200);
+  --color-task-priority-high-bg: var(--color-orange-900);
+  --color-task-priority-high-text: var(--color-orange-200);
+  --color-task-priority-critical-bg: var(--color-red-900);
+  --color-task-priority-critical-text: var(--color-red-200);
 }
 
 @layer base {

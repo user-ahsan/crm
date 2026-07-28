@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { AppShell } from '@/components/common/AppShell';
 import { Toaster } from '@/components/ui/sonner';
 import { TeamProvider } from '@/context/TeamContext';
-import { useThemeStore } from '@/store';
+import { useThemeStore } from '@/store/theme';
 
 /* ── Routes that should NOT render the AppShell ──────────── */
 /* /login and /signup are standalone pages with no sidebar/navbar shell. */
@@ -34,8 +34,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   */
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [theme]);
 
   const isAuthRoute = AUTH_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),

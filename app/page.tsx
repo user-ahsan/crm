@@ -1,6 +1,4 @@
-'use client';
-
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -63,7 +61,7 @@ const features: Feature[] = [
 
 /* ── Landing Page ────────────────────────────────────────── */
 export default function HomePage() {
-  const router = useRouter();
+  const year = new Date().getFullYear().toString();
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -86,24 +84,26 @@ export default function HomePage() {
             >
               Features
             </a>
+            <Link href="/login">
+              <Button
+                variant="default"
+                size="sm"
+              >
+                Sign In
+                <IconArrowRight className="size-4" />
+              </Button>
+            </Link>
+          </nav>
+
+          <Link href="/login">
             <Button
               variant="default"
               size="sm"
-              onClick={() => router.push('/login')}
+              className="md:hidden"
             >
               Sign In
-              <IconArrowRight className="size-4" />
             </Button>
-          </nav>
-
-          <Button
-            variant="default"
-            size="sm"
-            className="md:hidden"
-            onClick={() => router.push('/login')}
-          >
-            Sign In
-          </Button>
+          </Link>
         </div>
       </header>
 
@@ -147,25 +147,24 @@ export default function HomePage() {
             </p>
 
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Button
-                size="lg"
-                className="w-full sm:w-auto"
-                onClick={() => router.push('/signup')}
-              >
-                Get Started
-                <IconChevronRight className="size-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full sm:w-auto"
-                onClick={() => {
-                  const el = document.getElementById('features');
-                  el?.scrollIntoView({ behavior: 'smooth' });
-                }}
-              >
-                Explore Features
-              </Button>
+              <Link href="/signup">
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto"
+                >
+                  Get Started
+                  <IconChevronRight className="size-4" />
+                </Button>
+              </Link>
+              <a href="#features">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full sm:w-auto"
+                >
+                  Explore Features
+                </Button>
+              </a>
             </div>
           </div>
         </section>
@@ -227,14 +226,15 @@ export default function HomePage() {
               Join thousands of sales professionals who use NexusCRM to close
               more deals and build stronger relationships.
             </p>
-            <Button
-              size="lg"
-              className="mt-8"
-              onClick={() => router.push('/signup')}
-            >
-              Get Started Free
-              <IconChevronRight className="size-4" />
-            </Button>
+            <Link href="/signup">
+              <Button
+                size="lg"
+                className="mt-8"
+              >
+                Get Started Free
+                <IconChevronRight className="size-4" />
+              </Button>
+            </Link>
           </div>
         </section>
       </main>
@@ -248,7 +248,7 @@ export default function HomePage() {
               Nexus<span className="text-foreground">CRM</span>
             </span>
           </div>
-          <p>&copy; {new Date().getFullYear()} NexusCRM. All rights reserved.</p>
+          <p>&copy; {year} NexusCRM. All rights reserved.</p>
         </div>
       </footer>
     </div>
