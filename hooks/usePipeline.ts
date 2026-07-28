@@ -5,7 +5,7 @@ import type { Lead, LeadStatus, LeadPriority } from '@/types/lead.types';
 import type { SwimlaneGroup } from '@/types/swimlane.types';
 import { leadService } from '@/services/lead.service';
 import { buildPipeline, type PipelineStage } from '@/modules/pipeline/pipelineUtils';
-import { USERS, LEAD_PRIORITIES, PIPELINE_STAGES } from '@/lib/constants';
+import { LEAD_PRIORITIES, PIPELINE_STAGES } from '@/lib/constants';
 
 /** A single swimlane entry — a group with its own filtered pipeline stages */
 export interface SwimlaneEntry {
@@ -93,11 +93,10 @@ export function usePipeline() {
       }
       const entries: SwimlaneEntry[] = [];
       for (const [id, groupLeads] of assigneeMap) {
-        const user = USERS.find((u) => u.id === id);
         const p = buildPipeline(groupLeads);
         entries.push({
           id,
-          label: user?.name ?? id,
+          label: id,
           pipeline: p,
           totalLeads: groupLeads.length,
           totalValue: groupLeads.reduce((s, l) => s + l.estimatedValue, 0),

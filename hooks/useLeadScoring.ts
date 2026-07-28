@@ -61,25 +61,8 @@ export function useAllScores() {
     setLoading(true);
     setError(null);
     try {
-      const supabase = (await import('@/lib/supabase/client')).createClient;
-      const client = await supabase();
-      const { data, error: err } = await client.from('lead_scores').select('*');
-      if (err) throw new Error(err.message);
-      type DbLeadScoreRow = {
-        id: string;
-        lead_id: string;
-        score: number;
-        factors: Record<string, number>;
-        updated_at: string;
-      };
-      const mapped = (data ?? []).map((r: DbLeadScoreRow) => ({
-        id: r.id,
-        leadId: r.lead_id,
-        score: r.score,
-        factors: r.factors,
-        updatedAt: r.updated_at,
-      }));
-      setScores(mapped);
+      const data = await leadService.getAllScores();
+      setScores(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load scores');
     } finally {
@@ -91,19 +74,8 @@ export function useAllScores() {
     let cancelled = false;
     (async () => {
       try {
-        const supabase = (await import('@/lib/supabase/client')).createClient;
-        const client = await supabase();
-        const { data, error: err } = await client.from('lead_scores').select('*');
-        if (err) throw new Error(err.message);
-        type DbLeadScoreRow = {
-          id: string; lead_id: string; score: number;
-          factors: Record<string, number>; updated_at: string;
-        };
-        const mapped = (data ?? []).map((r: DbLeadScoreRow) => ({
-          id: r.id, leadId: r.lead_id, score: r.score,
-          factors: r.factors, updatedAt: r.updated_at,
-        }));
-        if (!cancelled) setScores(mapped);
+        const data = await leadService.getAllScores();
+        if (!cancelled) setScores(data);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load scores');
       } finally {

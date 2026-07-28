@@ -1,12 +1,16 @@
 import { getSharedClient } from '@/lib/supabase/client';
-import type { Lead, LeadFormData, LeadFilters } from '@/types/lead.types';
+import type { Lead, LeadFormData, LeadFilters, LeadStatus, LeadSource, LeadPriority } from '@/types/lead.types';
 import type { DbLead, DbLeadScore, LeadInsert } from '@/types/supabase.types';
 import type { LeadScore } from '@/types/lead-scoring.types';
 import { findDuplicates } from '@/lib/utils';
 import type { DuplicateGroup } from '@/lib/utils';
-import { formatSupabaseError } from './supabase.service';
+import { asEnum, ServiceError, toServiceError } from './supabase.service';
+import { LEAD_SCORE_EMAIL_PRESENT, LEAD_SCORE_PHONE_PRESENT, LEAD_SCORE_COMPANY_PRESENT, LEAD_SCORE_SOURCE_QUALITY, LEAD_SCORE_TAG_BONUS, LEAD_SCORE_LOST_PENALTY } from '@/lib/constants';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
+
+// Inline type for Supabase aggregate query results in getPipelineStats
+type PipelineStatsRow = { status: string; count: number; value: number | null };
 
 function mapScoreRow(row: DbLeadScore): LeadScore {
   return {
@@ -18,6 +22,10 @@ function mapScoreRow(row: DbLeadScore): LeadScore {
   };
 }
 
+const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'] as const;
+const LEAD_SOURCES = ['manual', 'website', 'referral', 'ads', 'social'] as const;
+const LEAD_PRIORITIES = ['low', 'medium', 'high'] as const;
+
 function mapRowToLead(row: DbLead): Lead {
   return {
     id: row.id,
@@ -27,9 +35,9 @@ function mapRowToLead(row: DbLead): Lead {
     companyName: row.company_name ?? undefined,
     industry: row.industry ?? undefined,
     country: row.country ?? undefined,
-    source: row.source as Lead['source'],
-    status: row.status as Lead['status'],
-    priority: row.priority as Lead['priority'],
+    source: asEnum(row.source, LEAD_SOURCES),
+    status: asEnum(row.status, LEAD_STATUSES),
+    priority: asEnum(row.priority, LEAD_PRIORITIES),
     assignedTo: row.assigned_to ?? undefined,
     estimatedValue: row.estimated_value,
     tags: row.tags ?? [],
@@ -66,10 +74,10 @@ export const leadService = {
         .select('*')
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToLead) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -83,11 +91,11 @@ export const leadService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return data ? mapRowToLead(data) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -107,10 +115,10 @@ export const leadService = {
       if (filters.assignedTo) query = query.eq('assigned_to', filters.assignedTo);
       query = query.order('created_at', { ascending: false }).range((page - 1) * pageSize, page * pageSize - 1);
       const { data, error } = await query;
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToLead) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -118,14 +126,40 @@ export const leadService = {
     try {
       const supabase = await getSharedClient();
       if (data.assignedTo) {
-        const { data: user } = await supabase.from('profiles').select('id').eq('id', data.assignedTo).maybeSingle();
-        if (!user) throw new Error(`Lead assignedTo user ${data.assignedTo} not found`);
+        const { data: user, error: userErr } = await supabase.from('profiles').select('id').eq('id', data.assignedTo).maybeSingle();
+        if (userErr) throw toServiceError(userErr);
+        if (!user) throw new ServiceError(`Lead assignedTo user ${data.assignedTo} not found`, 'USER_NOT_FOUND');
       }
       if (data.companyName) {
-        const { data: existing } = await supabase.from('companies').select('id').eq('name', data.companyName).maybeSingle();
+        const { data: existing, error: existingErr } = await supabase.from('companies').select('id').eq('name', data.companyName).maybeSingle();
+        if (existingErr) throw toServiceError(existingErr);
         if (!existing) {
-          const { data: newCompany } = await supabase.from('companies').insert({ name: data.companyName }).select().single();
-          if (!newCompany) throw new Error(`Failed to auto-create company "${data.companyName}"`);
+          const { data: newCompany, error: newCompanyErr } = await supabase.from('companies').insert({ name: data.companyName }).select().single();
+          if (newCompanyErr) throw toServiceError(newCompanyErr);
+          if (!newCompany) throw new ServiceError(`Failed to auto-create company "${data.companyName}"`, 'COMPANY_CREATE_FAILED');
+          // Set the company_id on the lead row
+          const leadWithCompany = { ...mapLeadToDb(data) };
+          const fullRow = { ...leadWithCompany, company_id: newCompany.id };
+          const { data: inserted, error: insertErr } = await supabase
+            .from('leads')
+            .insert(fullRow)
+            .select()
+            .single();
+          if (insertErr) throw toServiceError(insertErr);
+          const lead = mapRowToLead(inserted);
+          activityService.log('lead', lead.id, 'created', `Lead created: ${lead.fullName}${lead.companyName ? ` from ${lead.companyName}` : ''}`, {
+            source: lead.source,
+            value: lead.estimatedValue,
+          });
+          triggerWebhook('lead.created', {
+            id: lead.id,
+            fullName: lead.fullName,
+            email: lead.email,
+            source: lead.source,
+            status: lead.status,
+            estimatedValue: lead.estimatedValue,
+          });
+          return lead;
         }
       }
       const dbRow = {
@@ -136,7 +170,7 @@ export const leadService = {
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       const lead = mapRowToLead(inserted);
       activityService.log('lead', lead.id, 'created', `Lead created: ${lead.fullName}${lead.companyName ? ` from ${lead.companyName}` : ''}`, {
         source: lead.source,
@@ -152,7 +186,7 @@ export const leadService = {
       });
       return lead;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -160,8 +194,9 @@ export const leadService = {
     try {
       const supabase = await getSharedClient();
       if (data.assignedTo) {
-        const { data: user } = await supabase.from('profiles').select('id').eq('id', data.assignedTo).maybeSingle();
-        if (!user) throw new Error(`Lead assignedTo user ${data.assignedTo} not found`);
+        const { data: user, error: userErr } = await supabase.from('profiles').select('id').eq('id', data.assignedTo).maybeSingle();
+        if (userErr) throw toServiceError(userErr);
+        if (!user) throw new ServiceError(`Lead assignedTo user ${data.assignedTo} not found`, 'USER_NOT_FOUND');
       }
       const dbData = { ...mapLeadToDb(data) };
       const { data: updated, error } = await supabase
@@ -172,7 +207,7 @@ export const leadService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       const lead = mapRowToLead(updated);
       if (data.status) {
@@ -184,23 +219,27 @@ export const leadService = {
       triggerWebhook('lead.updated', { id, ...data });
       return lead;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async delete(id: string): Promise<boolean> {
     try {
       const supabase = await getSharedClient();
-      await supabase.from('tasks').delete().eq('related_to_id', id);
-      await supabase.from('meetings').delete().eq('related_to_id', id);
-      await supabase.from('activities').delete().eq('entity_id', id);
+      const ops = [
+        supabase.from('tasks').delete().eq('related_to_id', id),
+        supabase.from('meetings').delete().eq('related_to_id', id),
+        supabase.from('activities').delete().eq('entity_id', id),
+      ];
+      const results = await Promise.all(ops);
+      for (const r of results) if (r.error) console.error(`Cascade delete error: ${r.error.message}`);
       const { error } = await supabase.from('leads').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       activityService.log('lead', id, 'deleted', `Lead deleted`);
       triggerWebhook('lead.deleted', { id });
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -227,7 +266,7 @@ export const leadService = {
         25,
       );
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -235,36 +274,43 @@ export const leadService = {
     try {
       const supabase = await getSharedClient();
 
-      await supabase.from('tasks').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'lead');
-      await supabase.from('meetings').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'lead');
-      await supabase.from('activities').update({ entity_id: survivorId }).in('entity_id', mergeIds);
-      await supabase.from('taggings').update({ taggable_id: survivorId }).in('taggable_id', mergeIds).eq('taggable_type', 'lead');
+      const { error: tasksErr } = await supabase.from('tasks').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'lead');
+      if (tasksErr) console.error(`Merge tasks update error: ${tasksErr.message}`);
+
+      const { error: meetingsErr } = await supabase.from('meetings').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'lead');
+      if (meetingsErr) console.error(`Merge meetings update error: ${meetingsErr.message}`);
+
+      const { error: activitiesErr } = await supabase.from('activities').update({ entity_id: survivorId }).in('entity_id', mergeIds);
+      if (activitiesErr) console.error(`Merge activities update error: ${activitiesErr.message}`);
+
+      const { error: taggingsErr } = await supabase.from('taggings').update({ taggable_id: survivorId }).in('taggable_id', mergeIds).eq('taggable_type', 'lead');
+      if (taggingsErr) console.error(`Merge taggings update error: ${taggingsErr.message}`);
 
       for (const id of mergeIds) {
         await this.delete(id);
       }
 
       const survivor = await this.getById(survivorId);
-      if (!survivor) throw new Error('Survivor lead not found after merge');
+      if (!survivor) throw new ServiceError('Survivor lead not found after merge', 'MERGE_FAILED');
       activityService.log('lead', survivorId, 'updated', `Lead merged: merged ${mergeIds.length} duplicates`);
       return survivor;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async calculateScore(leadId: string): Promise<{ score: number; factors: Record<string, number> }> {
     const lead = await this.getById(leadId);
-    if (!lead) throw new Error('Lead not found');
+    if (!lead) throw new ServiceError('Lead not found', 'LEAD_NOT_FOUND');
     const factors: Record<string, number> = {};
     let total = 0;
-    if (lead.email) { factors.email_present = 20; total += 20; }
-    if (lead.phone) { factors.phone_present = 15; total += 15; }
-    if (lead.companyName) { factors.company_present = 10; total += 10; }
-    if (lead.source === 'referral' || lead.source === 'website') { factors.source_quality = 15; total += 15; }
-    const tagBonus = (lead.tags?.length ?? 0) * 5;
+    if (lead.email) { factors.email_present = LEAD_SCORE_EMAIL_PRESENT; total += LEAD_SCORE_EMAIL_PRESENT; }
+    if (lead.phone) { factors.phone_present = LEAD_SCORE_PHONE_PRESENT; total += LEAD_SCORE_PHONE_PRESENT; }
+    if (lead.companyName) { factors.company_present = LEAD_SCORE_COMPANY_PRESENT; total += LEAD_SCORE_COMPANY_PRESENT; }
+    if (lead.source === 'referral' || lead.source === 'website') { factors.source_quality = LEAD_SCORE_SOURCE_QUALITY; total += LEAD_SCORE_SOURCE_QUALITY; }
+    const tagBonus = (lead.tags?.length ?? 0) * LEAD_SCORE_TAG_BONUS;
     if (tagBonus > 0) { factors.tags_count = tagBonus; total += tagBonus; }
-    if (lead.status === 'lost') { factors.lost_penalty = -10; total -= 10; }
+    if (lead.status === 'lost') { factors.lost_penalty = LEAD_SCORE_LOST_PENALTY; total += LEAD_SCORE_LOST_PENALTY; }
     return { score: Math.max(0, Math.min(100, total)), factors };
   },
 
@@ -276,10 +322,10 @@ export const leadService = {
         .select('*')
         .eq('lead_id', leadId)
         .maybeSingle();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data ? mapScoreRow(data) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -292,41 +338,82 @@ export const leadService = {
         .upsert({ lead_id: leadId, score, factors }, { onConflict: 'lead_id' })
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return mapScoreRow(data);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
+    }
+  },
+
+  async getAllScores(): Promise<LeadScore[]> {
+    try {
+      const supabase = await getSharedClient();
+      const { data, error } = await supabase.from('lead_scores').select('*');
+      if (error) throw toServiceError(error);
+      return (data ?? []).map(mapScoreRow);
+    } catch (e) {
+      throw toServiceError(e);
     }
   },
 
   async batchUpdateScores(): Promise<{ updated: number; failed: number }> {
     try {
       const supabase = await getSharedClient();
-      const { data: leads } = await supabase.from('leads').select('id');
-      if (!leads) return { updated: 0, failed: 0 };
-      let updated = 0;
-      const failedIds: string[] = [];
-      for (const lead of leads) {
+      const { data: leads, error: leadsErr } = await supabase.from('leads').select('id');
+      if (leadsErr) throw toServiceError(leadsErr);
+      if (!leads || leads.length === 0) return { updated: 0, failed: 0 };
+
+      // Batch with .in() filter instead of sequential
+      const allIds = leads.map((l: { id: string }) => l.id);
+      const scoresMap = new Map<string, { score: number; factors: Record<string, number> }>();
+
+      for (const lead of leads as { id: string }[]) {
         try {
-          await this.updateScore(lead.id);
-          updated++;
-        } catch {
-          failedIds.push(lead.id);
+          const score = await this.calculateScore(lead.id);
+          scoresMap.set(lead.id, score);
+        } catch (err) {
+          console.error(`[LeadService] calculateScore failed for lead ${lead.id}:`, err);
         }
       }
+
+      const scoreEntries = Array.from(scoresMap.entries());
+      let updated = 0;
+      const failedIds: string[] = [];
+
+      for (const [leadId, { score, factors }] of scoreEntries) {
+        try {
+          const { error: upsertErr } = await supabase
+            .from('lead_scores')
+            .upsert({ lead_id: leadId, score, factors }, { onConflict: 'lead_id' });
+          if (upsertErr) throw upsertErr;
+          updated++;
+        } catch (err) {
+          console.error(`[LeadService] upsert score failed for lead ${leadId}:`, err);
+          failedIds.push(leadId);
+        }
+      }
+
       if (failedIds.length > 0) {
         console.warn(`batchUpdateScores: ${failedIds.length} lead(s) failed (IDs: ${failedIds.join(', ')})`);
       }
       return { updated, failed: failedIds.length };
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async getPipelineStats(): Promise<Record<Lead['status'], { count: number; value: number }>> {
     try {
-      const allLeads = await this.getAll();
-      const stats: Record<string, { count: number; value: number }> = {
+      const supabase = await getSharedClient();
+      const { data, error } = await supabase
+        .from('leads')
+        .select('status, count:count(*), value:sum(estimated_value)')
+        .is('deleted_at', null)
+        .neq('status', 'lost');
+
+      if (error) throw toServiceError(error);
+
+      const defaults: Record<string, { count: number; value: number }> = {
         new: { count: 0, value: 0 },
         contacted: { count: 0, value: 0 },
         qualified: { count: 0, value: 0 },
@@ -334,15 +421,17 @@ export const leadService = {
         won: { count: 0, value: 0 },
         lost: { count: 0, value: 0 },
       };
-      for (const lead of allLeads) {
-        if (stats[lead.status]) {
-          stats[lead.status].count++;
-          stats[lead.status].value += lead.estimatedValue;
+
+      for (const row of (data as unknown as PipelineStatsRow[]) ?? []) {
+        const status = asEnum(row.status, LEAD_STATUSES);
+        if (defaults[status]) {
+          defaults[status] = { count: row.count, value: row.value ?? 0 };
         }
       }
-      return stats;
+
+      return defaults as Record<Lead['status'], { count: number; value: number }>;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 };

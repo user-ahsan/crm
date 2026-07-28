@@ -36,22 +36,44 @@ export function useIntegrations() {
     return () => { cancelled = true; };
   }, []);
 
-  const connect = async (data: CalendarIntegrationFormData) => {
-    const integration = await integrationService.connectCalendar(data);
-    setIntegrations((prev) => [integration, ...prev]);
-  };
+  const connect = useCallback(async (data: CalendarIntegrationFormData) => {
+    try {
+      const integration = await integrationService.connectCalendar(data);
+      setIntegrations((prev) => [integration, ...prev]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to connect integration');
+    }
+  }, []);
 
-  const disconnect = async (id: string) => {
-    await integrationService.disconnect(id);
-    setIntegrations((prev) => prev.filter((i) => i.id !== id));
-  };
+  const disconnect = useCallback(async (id: string): Promise<boolean> => {
+    const prev = integrations;
+    setIntegrations(current => current.filter(i => i.id !== id));
+    try {
+      const result = await integrationService.disconnect(id);
+      if (!result) {
+        setIntegrations(prev);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      setIntegrations(prev);
+      setError(e instanceof Error ? e.message : 'Failed to disconnect integration');
+      throw e;
+    }
+  }, [integrations]);
 
-  const toggleSync = async (id: string, enabled: boolean) => {
-    await integrationService.toggleSync(id, enabled);
-    setIntegrations((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, syncEnabled: enabled } : i)),
+  const toggleSync = useCallback(async (id: string, enabled: boolean) => {
+    const prev = integrations;
+    setIntegrations(current =>
+      current.map(i => (i.id === id ? { ...i, syncEnabled: enabled } : i)),
     );
-  };
+    try {
+      await integrationService.toggleSync(id, enabled);
+    } catch (e) {
+      setIntegrations(prev);
+      setError(e instanceof Error ? e.message : 'Failed to toggle sync');
+    }
+  }, [integrations]);
 
   return { integrations, loading, error, reload: load, connect, disconnect, toggleSync };
 }
