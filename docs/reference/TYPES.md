@@ -4,7 +4,7 @@
 
 ---
 
-This document catalogs all 28 type definition files in the `types/` directory. Every entity in the system has a corresponding type file with interfaces, discriminated unions, and form data types.
+This document catalogs all 29 type definition files in the `types/` directory. Every entity in the system has a corresponding type file with interfaces, discriminated unions, and form data types.
 
 ---
 
@@ -870,7 +870,56 @@ Contains user account types for CRM user identity.
 
 ---
 
-### 28. `types/swimlane.types.ts` — Swimlane Types
+### 28. `types/invoice.types.ts` — Invoice Types
+
+```typescript
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+
+export interface InvoiceItem {
+  id: string;
+  invoiceId: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  quoteId?: string;
+  dealId?: string;
+  contactId?: string;
+  companyId?: string;
+  status: InvoiceStatus;
+  subtotal: number;
+  taxRate: number;
+  taxAmount: number;
+  total: number;
+  issuedDate: string;
+  dueDate: string;
+  paidDate?: string;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  items: InvoiceItem[];
+}
+
+export interface InvoiceFormData {
+  quoteId?: string;
+  dealId?: string;
+  contactId?: string;
+  companyId?: string;
+  taxRate?: number;
+  notes?: string;
+  items: { description: string; quantity: number; unitPrice: number }[];
+}
+```
+
+---
+
+### 29. `types/swimlane.types.ts` — Swimlane Types
 
 Types for swimlane grouping in the kanban pipeline view (grouping by assignee or priority).
 

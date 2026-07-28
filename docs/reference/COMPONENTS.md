@@ -344,13 +344,9 @@ See [FEATURES.md](../features/FEATURES.md) → CSV Import/Export section.
 | Component | Purpose | Key Props |
 |-----------|---------|-----------|
 | `LeadTable.tsx` | Sortable lead data table | `leads`, `loading`, `onEdit`, `onDelete` |
-| `LeadForm.tsx` | Create/edit lead form | `lead?`, `onSubmit`, `onCancel` |
-| `LeadDetail.tsx` | Lead detail with 10 tabs | `leadId` |
-| `LeadFilterBar.tsx` | Multi-criteria filter bar | `filters`, `onFilterChange` |
-| `LeadBulkActions.tsx` | Bulk operations | `selected`, `onAction` |
-| `LeadCard.tsx` | Pipeline kanban card | `lead`, `onClick`, `onDrag` |
-| `LeadScoreCard.tsx` | Lead score breakdown | `score` |
-| `LeadTimeline.tsx` | Lead-specific activity feed | `activities` |
+| `LeadCreateForm.tsx` | Create lead form | `onSubmit`, `onCancel` |
+| `LeadDetail.tsx` | Lead detail with tabs | `leadId` |
+| `LeadScoreBadge.tsx` | Lead score badge indicator | `score`, `size?` |
 
 **States (all components):** Loading → skeleton/disabled, Empty → empty state + CTA, Error → error state + retry, Populated → data display
 
@@ -359,28 +355,26 @@ See [FEATURES.md](../features/FEATURES.md) → CSV Import/Export section.
 | Component | Purpose |
 |-----------|---------|
 | `ContactTable.tsx` | Sortable contact data table |
-| `ContactForm.tsx` | Create/edit contact form |
+| `ContactCreateForm.tsx` | Create contact form |
 | `ContactDetail.tsx` | Contact detail with tabs |
-| `ContactFilterBar.tsx` | Contact filter bar |
-| `ContactBulkActions.tsx` | Bulk operations |
 
 ### `components/companies/`
 
 | Component | Purpose |
 |-----------|---------|
 | `CompanyTable.tsx` | Sortable company data table |
-| `CompanyForm.tsx` | Create/edit company form |
+| `CompanyCreateForm.tsx` | Create company form |
 | `CompanyDetail.tsx` | Company detail with contacts/leads |
-| `CompanyFilterBar.tsx` | Company filter bar |
-| `CompanyRevenueCard.tsx` | Revenue estimation card |
 
 ### `components/deals/`
 
 | Component | Purpose |
 |-----------|---------|
 | `DealTable.tsx` | Deal data table with stage/currency |
-| `DealForm.tsx` | Create/edit deal form |
-| `DealDetail.tsx` | Deal detail with communications |
+| `DealCreateForm.tsx` | Create deal form |
+| `DealKanbanBoard.tsx` | Deal kanban board view |
+| `DealKanbanColumn.tsx` | Deal kanban stage column |
+| `DealPipelineCard.tsx` | Deal pipeline card |
 
 ### `components/pipeline/`
 
@@ -388,9 +382,8 @@ See [FEATURES.md](../features/FEATURES.md) → CSV Import/Export section.
 |-----------|---------|-----------|
 | `KanbanBoard.tsx` | Drag-and-drop kanban board | `stages`, `leads`, `onMoveLead` |
 | `KanbanColumn.tsx` | Single pipeline stage column | `stage`, `leads`, `onDrop` |
-| `KanbanCard.tsx` | Draggable lead card | `lead`, `onClick` |
-| `SwimlaneSelector.tsx` | Swimlane grouping control | `options`, `selected` |
-| `PipelineStats.tsx` | Stage analytics | `stats` |
+| `PipelineCard.tsx` | Draggable lead card | `lead`, `onClick` |
+| `SwimlaneBoard.tsx` | Swimlane grouping board | `swimlane`, `leads` |
 
 **States:** Loading (skeleton columns), Empty (empty columns), Populated (cards), Drag (elevated shadow)
 
@@ -398,31 +391,29 @@ See [FEATURES.md](../features/FEATURES.md) → CSV Import/Export section.
 
 | Component | Purpose |
 |-----------|---------|
-| `TaskTable.tsx` | Task data table with priority/status |
-| `TaskForm.tsx` | Create/edit task form |
-| `TaskFilterBar.tsx` | Filter by status/priority/assigned |
-| `TaskRow.tsx` | Single task row with inline toggle |
+| `TaskList.tsx` | Task list with priority/status |
+| `TaskCreateForm.tsx` | Create task form |
 
 ### `components/meetings/`
 
 | Component | Purpose |
 |-----------|---------|
-| `CalendarView.tsx` | Month/week calendar grid |
-| `MeetingForm.tsx` | Create/edit meeting form |
+| `MeetingCalendar.tsx` | Month/week calendar grid |
+| `MeetingCreateForm.tsx` | Create meeting form |
 | `MeetingCard.tsx` | Calendar event card |
-| `MeetingDetail.tsx` | Meeting detail view |
 
 ### `components/communication/`
 
 | Component | Purpose |
 |-----------|---------|
 | `EmailComposer.tsx` | Compose email modal |
-| `EmailList.tsx` | Email history for entity |
+| `EmailHistory.tsx` | Email history for entity |
 | `SmsComposer.tsx` | Compose SMS modal |
-| `SmsList.tsx` | SMS history for entity |
-| `CallLogForm.tsx` | Log a call modal |
+| `SmsHistory.tsx` | SMS history for entity |
+| `CallLogDialog.tsx` | Log a call dialog |
 | `CallLogList.tsx` | Call log history |
 | `NoteEditor.tsx` | Add/edit Markdown note |
+| `NotesList.tsx` | Notes list for entity |
 
 ### `components/teams/`
 
@@ -433,31 +424,27 @@ See [FEATURES.md](../features/FEATURES.md) → CSV Import/Export section.
 | `InviteMemberDialog.tsx` | Invite form dialog | `open`, `onInvite` |
 | `PermissionGuard.tsx` | Conditional rendering by permission | `action`, `entity`, `scope?`, `fallback?` |
 | `RoleBadge.tsx` | Colored role indicator | `role`, `size?` |
+| `CreateTeamDialog.tsx` | Create new team dialog | `open`, `onCreate` |
 
 ### `components/automation/`
 
 | Component | Purpose |
 |-----------|---------|
-| `AutomationRuleList.tsx` | List of automation rules |
-| `AutomationRuleForm.tsx` | Create/edit rule with trigger/conditions/actions |
-| `ConditionBuilder.tsx` | Condition builder UI |
-| `ActionConfig.tsx` | Action configuration form |
+| `CreateRuleDialog.tsx` | Create automation rule dialog |
 
 ### `components/quotes/`
 
 | Component | Purpose |
 |-----------|---------|
 | `QuoteTable.tsx` | Quote data table |
-| `QuoteForm.tsx` | Quote editor with line items |
-| `QuoteItemEditor.tsx` | Line item row editor |
-| `QuoteDetail.tsx` | Quote detail view |
+| `QuoteCreateDialog.tsx` | Create quote dialog with line items |
 
 ### `components/saved-views/`
 
 | Component | Purpose |
 |-----------|---------|
-| `ViewsDropdown.tsx` | Saved views dropdown |
-| `SaveViewDialog.tsx` | Save current filters as view |
+| `SavedViewList.tsx` | Saved views list |
+| `SavedViewDialog.tsx` | Save current filters as view |
 
 ---
 

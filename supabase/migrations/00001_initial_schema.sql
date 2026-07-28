@@ -131,7 +131,30 @@ create index if not exists idx_tasks_assigned_to on public.tasks (assigned_to);
 drop trigger if exists trigger_tasks_updated_at on public.tasks;
 create trigger trigger_tasks_updated_at before update on public.tasks for each row execute function handle_updated_at();
 
--- 6. MEETINGS TABLE
+-- 6. RATE LIMITS TABLE (serverless-persistent rate limiting)
+create table if not exists public.rate_limits (
+  key       text         primary key,
+  count     integer      not null default 1,
+  reset_at  timestamptz  not null
+);
+alter table public.rate_limits enable row level security;
+-- No public policies — only service_role (backend) can read/write.
+
+-- 7. PORTAL USERS (customer portal accounts, with column-level security on password_hash)
+create table if not exists public.portal_users (
+  id            uuid        primary key default gen_random_uuid(),
+  email         text        not null unique,
+  name          text        not null,
+  password_hash text        not null,
+  last_login    timestamptz null,
+  active        boolean     not null default true,
+  created_at    timestamptz not null default now()
+);
+alter table public.portal_users enable row level security;
+-- Column-level security: hide password_hash from anon/authenticated SELECT
+revoke select (password_hash) on public.portal_users from authenticated, anon;
+
+-- 8. MEETINGS TABLE
 create table if not exists public.meetings (
   id               uuid         primary key default gen_random_uuid(),
   title            text         not null,
@@ -155,7 +178,7 @@ create index if not exists idx_meetings_type on public.meetings (type);
 drop trigger if exists trigger_meetings_updated_at on public.meetings;
 create trigger trigger_meetings_updated_at before update on public.meetings for each row execute function handle_updated_at();
 
--- 7. ACTIVITIES TABLE
+-- 9. ACTIVITIES TABLE
 create table if not exists public.activities (
   id          uuid         primary key default gen_random_uuid(),
   entity_type text         not null,
@@ -170,7 +193,7 @@ create index if not exists idx_activities_entity on public.activities (entity_ty
 create index if not exists idx_activities_timestamp on public.activities (timestamp desc);
 create index if not exists idx_activities_type on public.activities (type);
 
--- 8. TEAMS TABLE
+-- 10. TEAMS TABLE
 create table if not exists public.teams (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -186,7 +209,7 @@ create index if not exists idx_teams_invite_code on public.teams(invite_code);
 drop trigger if exists trigger_teams_updated_at on public.teams;
 create trigger trigger_teams_updated_at before update on public.teams for each row execute function handle_updated_at();
 
--- 9. TEAM MEMBERS TABLE
+-- 11. TEAM MEMBERS TABLE
 create table if not exists public.team_members (
   id uuid primary key default gen_random_uuid(),
   team_id uuid not null references public.teams(id) on delete cascade,
@@ -199,7 +222,7 @@ create table if not exists public.team_members (
 create index if not exists idx_team_members_team_id on public.team_members(team_id);
 create index if not exists idx_team_members_user_id on public.team_members(user_id);
 
--- 10. TEAM INVITATIONS TABLE
+-- 12. TEAM INVITATIONS TABLE
 create table if not exists public.team_invitations (
   id uuid primary key default gen_random_uuid(),
   team_id uuid not null references public.teams(id) on delete cascade,
@@ -255,30 +278,125 @@ alter table public.activities enable row level security;
 alter table public.teams enable row level security;
 alter table public.team_members enable row level security;
 alter table public.team_invitations enable row level security;
+alter table public.rate_limits enable row level security;
+alter table public.portal_users enable row level security;
 
 -- Leads
 drop policy if exists "Enable all for authenticated users" on public.leads;
-create policy "Enable all for authenticated users" on public.leads for all to authenticated using (true) with check (true);
+drop policy if exists "select_own_leads" on public.leads;
+drop policy if exists "insert_team_leads" on public.leads;
+drop policy if exists "update_own_leads" on public.leads;
+drop policy if exists "delete_own_leads" on public.leads;
+create policy "select_own_leads" on public.leads for select to authenticated using (
+  owner_id::text = auth.uid()::text
+  or assigned_to = auth.uid()::text
+  or exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "insert_team_leads" on public.leads for insert to authenticated with check (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "update_own_leads" on public.leads for update to authenticated using (
+  owner_id::text = auth.uid()::text or assigned_to = auth.uid()::text
+);
+create policy "delete_own_leads" on public.leads for delete to authenticated using (
+  owner_id::text = auth.uid()::text
+);
 
 -- Companies
 drop policy if exists "Enable all for authenticated users" on public.companies;
-create policy "Enable all for authenticated users" on public.companies for all to authenticated using (true) with check (true);
+drop policy if exists "select_team_companies" on public.companies;
+drop policy if exists "insert_team_companies" on public.companies;
+drop policy if exists "update_team_companies" on public.companies;
+drop policy if exists "delete_team_companies" on public.companies;
+create policy "select_team_companies" on public.companies for select to authenticated using (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "insert_team_companies" on public.companies for insert to authenticated with check (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "update_team_companies" on public.companies for update to authenticated using (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "delete_team_companies" on public.companies for delete to authenticated using (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
 
 -- Contacts
 drop policy if exists "Enable all for authenticated users" on public.contacts;
-create policy "Enable all for authenticated users" on public.contacts for all to authenticated using (true) with check (true);
+drop policy if exists "select_team_contacts" on public.contacts;
+drop policy if exists "insert_team_contacts" on public.contacts;
+drop policy if exists "update_team_contacts" on public.contacts;
+drop policy if exists "delete_team_contacts" on public.contacts;
+create policy "select_team_contacts" on public.contacts for select to authenticated using (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "insert_team_contacts" on public.contacts for insert to authenticated with check (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "update_team_contacts" on public.contacts for update to authenticated using (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "delete_team_contacts" on public.contacts for delete to authenticated using (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
 
 -- Tasks
 drop policy if exists "Enable all for authenticated users" on public.tasks;
-create policy "Enable all for authenticated users" on public.tasks for all to authenticated using (true) with check (true);
+drop policy if exists "select_own_tasks" on public.tasks;
+drop policy if exists "insert_team_tasks" on public.tasks;
+drop policy if exists "update_own_tasks" on public.tasks;
+drop policy if exists "delete_own_tasks" on public.tasks;
+create policy "select_own_tasks" on public.tasks for select to authenticated using (
+  assigned_to = auth.uid()::text
+  or exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "insert_team_tasks" on public.tasks for insert to authenticated with check (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "update_own_tasks" on public.tasks for update to authenticated using (
+  assigned_to = auth.uid()::text
+);
+create policy "delete_own_tasks" on public.tasks for delete to authenticated using (
+  assigned_to = auth.uid()::text
+);
 
 -- Meetings
 drop policy if exists "Enable all for authenticated users" on public.meetings;
-create policy "Enable all for authenticated users" on public.meetings for all to authenticated using (true) with check (true);
+drop policy if exists "select_team_meetings" on public.meetings;
+drop policy if exists "insert_team_meetings" on public.meetings;
+drop policy if exists "update_team_meetings" on public.meetings;
+drop policy if exists "delete_team_meetings" on public.meetings;
+create policy "select_team_meetings" on public.meetings for select to authenticated using (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "insert_team_meetings" on public.meetings for insert to authenticated with check (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "update_team_meetings" on public.meetings for update to authenticated using (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "delete_team_meetings" on public.meetings for delete to authenticated using (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
 
 -- Activities
 drop policy if exists "Enable all for authenticated users" on public.activities;
-create policy "Enable all for authenticated users" on public.activities for all to authenticated using (true) with check (true);
+drop policy if exists "select_team_activities" on public.activities;
+drop policy if exists "insert_team_activities" on public.activities;
+drop policy if exists "update_team_activities" on public.activities;
+drop policy if exists "delete_team_activities" on public.activities;
+create policy "select_team_activities" on public.activities for select to authenticated using (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "insert_team_activities" on public.activities for insert to authenticated with check (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "update_team_activities" on public.activities for update to authenticated using (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "delete_team_activities" on public.activities for delete to authenticated using (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
 
 -- Teams
 drop policy if exists "Users can view teams they belong to" on public.teams;
@@ -319,6 +437,24 @@ create policy "Members can view invitations" on public.team_invitations for sele
 drop policy if exists "Admins can manage invitations" on public.team_invitations;
 create policy "Admins can manage invitations" on public.team_invitations for all to authenticated using (
   is_team_admin(team_id)
+);
+
+-- Portal Users (column-level security: password_hash is excluded from role-based SELECT)
+drop policy if exists "select_team_portal_users" on public.portal_users;
+drop policy if exists "insert_team_portal_users" on public.portal_users;
+drop policy if exists "update_team_portal_users" on public.portal_users;
+drop policy if exists "delete_team_portal_users" on public.portal_users;
+create policy "select_team_portal_users" on public.portal_users for select to authenticated using (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "insert_team_portal_users" on public.portal_users for insert to authenticated with check (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "update_team_portal_users" on public.portal_users for update to authenticated using (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
+);
+create policy "delete_team_portal_users" on public.portal_users for delete to authenticated using (
+  exists (select 1 from public.team_members where user_id = auth.uid()::text)
 );
 
 -- ─────────────────────────────────────────────────────────────

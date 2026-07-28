@@ -159,14 +159,12 @@ This document catalogs every custom hook in the `hooks/` directory. All hooks fo
 
 ## Cached Entity Hooks
 
-### `useCachedLeads()`, `useCachedContacts()`, `useCachedCompanies()`, `useCachedTasks()`, `useCachedMeetings()`
+### Cached Entity Access (via Entity Cache Store)
 
-**Files:** `hooks/useCachedLeads.ts`, etc.
-
-**Purpose:** Read-only cached access to entity data from the Zustand entity cache store. Used when you need quick access to entity data without triggering a full data fetch.
+**Purpose:** Read-only cached access to entity data from the Zustand entity cache store (`store/entity-cache.ts`). Used when you need quick access to entity data without triggering a full data fetch. The cached hooks (`useCachedLeads`, `useCachedContacts`, `useCachedCompanies`, `useCachedTasks`, `useCachedMeetings`) are consumed inline within the primary CRUD hooks rather than existing as separate files, reading directly from `useEntityCache` (Zustand store).
 
 ```typescript
-// Pattern for each cached hook
+// Pattern for cached access
 {
   data: Entity[];
   getById: (id: string) => Entity | undefined;
@@ -652,6 +650,26 @@ Triggers a CSV download in the browser using column definitions from `lib/csv-ex
   connect: (provider: CalendarProvider) => Promise<void>;
   disconnect: (id: string) => Promise<void>;
   toggleSync: (id: string, enabled: boolean) => Promise<void>;
+}
+```
+
+---
+
+### `useInvoices()`
+
+**File:** `hooks/useInvoices.ts`
+
+**Services Called:** `invoiceService`
+
+```typescript
+{
+  invoices: Invoice[];
+  loading: boolean;
+  error: string | null;
+  getById: (id: string) => Promise<Invoice | undefined>;
+  createInvoice: (data: InvoiceFormData) => Promise<Invoice | undefined>;
+  updateInvoice: (id: string, data: Partial<InvoiceFormData>) => Promise<Invoice | undefined>;
+  deleteInvoice: (id: string) => Promise<boolean>;
 }
 ```
 

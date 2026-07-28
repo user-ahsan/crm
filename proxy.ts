@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { updateSession } from '@/lib/supabase/update-session';
 
 /**
  * ─── Auth Routing (Zero API Calls) ─────────────────────────────────
@@ -26,12 +27,29 @@ const protectedRoutes = [
 
 const authRoutes = ['/login', '/signup'] as const;
 
+/**
+ * API routes that handle authentication internally via supabase.auth.getUser().
+ * These bypass the cookie-based check to avoid rate-limit issues.
+ */
+const publicApiRoutes = [
+  '/api/email', '/api/sms', '/api/webhooks', '/api/campaigns',
+] as const;
+
 export async function proxy(request: NextRequest) {
+  // Refresh the Supabase session on every request
+  const response = await updateSession(request);
+
   const { pathname } = request.nextUrl;
 
   // ── Landing page — always allow ──────────────────────────────
   if (pathname === '/') {
-    return NextResponse.next({ request });
+    return response;
+  }
+
+  // ── Public API routes — bypass cookie check ───────────────────
+  // These routes handle auth internally via supabase.auth.getUser()
+  if (publicApiRoutes.some((r) => pathname.startsWith(r))) {
+    return response;
   }
 
   // ── Check for any Supabase session cookie (local, zero API calls) ─
@@ -43,7 +61,7 @@ export async function proxy(request: NextRequest) {
     if (hasSession) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
-    return NextResponse.next({ request });
+    return response;
   }
 
   // ── Protected routes — redirect to /login if no session ───────
@@ -53,11 +71,11 @@ export async function proxy(request: NextRequest) {
       loginUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(loginUrl);
     }
-    return NextResponse.next({ request });
+    return response;
   }
 
   // ── Everything else — pass through ────────────────────────────
-  return NextResponse.next({ request });
+  return response;
 }
 
 export const config = {

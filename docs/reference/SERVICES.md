@@ -1,6 +1,6 @@
 # Service Layer Reference
 
-## NexusCRM — All 24 Service Modules
+## NexusCRM — All 29 Service Modules
 
 ---
 
@@ -477,3 +477,82 @@ export function formatSupabaseError(error: unknown): string;
 ```
 
 Used by all services to normalize Supabase error messages into user-friendly strings.
+
+---
+
+### `campaign-scheduler.service.ts`
+
+**Purpose:** Scheduled campaign email dispatch at configured intervals.
+
+**Exported Methods:**
+```typescript
+export const campaignSchedulerService = {
+  scheduleEmails(sequenceId: string): Promise<void>;
+  processScheduledEmails(): Promise<void>;
+  cancelSchedule(sequenceId: string): Promise<void>;
+}
+```
+
+---
+
+### `invoice.service.ts`
+
+**Purpose:** Invoice CRUD with line item management.
+
+**Exported Methods:**
+```typescript
+export const invoiceService = {
+  getAll(): Promise<Invoice[]>;
+  getById(id: string): Promise<Invoice | undefined>;
+  create(data: InvoiceFormData): Promise<Invoice>;
+  update(id: string, data: Partial<InvoiceFormData>): Promise<Invoice | undefined>;
+  delete(id: string): Promise<boolean>;
+  updateStatus(id: string, status: InvoiceStatus): Promise<Invoice | undefined>;
+}
+```
+
+---
+
+### `notification.service.ts`
+
+**Purpose:** In-app notification management.
+
+**Exported Methods:**
+```typescript
+export const notificationService = {
+  getAll(): Promise<AppNotification[]>;
+  markAsRead(id: string): Promise<void>;
+  markAllAsRead(): Promise<void>;
+  create(data: NotificationFormData): Promise<AppNotification>;
+  dismiss(id: string): Promise<void>;
+}
+```
+
+---
+
+### `realtime.service.ts`
+
+**Purpose:** Supabase Realtime channel subscription management.
+
+**Exported Methods:**
+```typescript
+export const realtimeService = {
+  subscribeToEntity(entityType: string, channel: string): Promise<() => void>;
+  unsubscribeAll(): void;
+}
+```
+
+---
+
+### `webhook-config.service.ts`
+
+**Purpose:** Webhook configuration management (URL, secret, enabled state).
+
+**Exported Methods:**
+```typescript
+export const webhookConfigService = {
+  getConfig(): Promise<WebhookConfig>;
+  updateConfig(config: Partial<WebhookConfig>): Promise<WebhookConfig>;
+  testConnection(): Promise<boolean>;
+}
+```
