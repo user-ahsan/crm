@@ -323,7 +323,8 @@ export default function PortalSettingsPage() {
           <DialogHeader>
             <DialogTitle>Invite Portal User</DialogTitle>
             <DialogDescription>
-              Create a new portal user account. The user will use these credentials to log in.
+              Create a new portal user account. Authentication is managed by Supabase Auth —
+              the user will receive a password reset email to set their own password.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">

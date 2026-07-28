@@ -87,13 +87,10 @@ function saveCachedKPIs(kpis: DashboardKPIs): void {
 type PageState = 'loading' | 'error' | 'empty' | 'ready';
 
 function TaskTime({ dueDate }: { dueDate: string }) {
-  const [timeStr, setTimeStr] = useState('');
-  useEffect(() => {
-    setTimeStr(new Date(dueDate).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    }));
-  }, [dueDate]);
+  const [timeStr] = useState(() => new Date(dueDate).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  }));
   return <span suppressHydrationWarning className="shrink-0 text-xs text-muted-foreground">{timeStr}</span>;
 }
 

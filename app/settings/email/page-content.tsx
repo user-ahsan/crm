@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { IconMail, IconCheck, IconX, IconSend, IconExternalLink, IconDeviceFloppy, IconInfoCircle } from '@tabler/icons-react';
 import { toast } from 'sonner';
-import { getSupabaseClient } from '@/lib/supabase/client';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

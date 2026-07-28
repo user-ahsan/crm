@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { InvoiceTemplate, InvoiceTemplateFormData, PaymentTerms } from '@/types/invoice.types';
 import { getSupabaseClient } from '@/lib/supabase/client';
 
@@ -13,7 +13,7 @@ const defaultTemplates: InvoiceTemplate[] = [
   },
 ];
 import { PageHeader } from '@/components/common/PageHeader';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -54,8 +54,6 @@ export default function InvoiceTemplatesPage() {
   const [form, setForm] = useState<InvoiceTemplateFormData>(defaultFormData);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
-
   // Load templates from Supabase on mount
   useEffect(() => {
     const loadTemplates = async () => {
@@ -70,17 +68,10 @@ export default function InvoiceTemplatesPage() {
         }
       } catch {
         // Silently fall back to in-memory defaults
-      } finally {
-        setLoading(false);
       }
     };
     loadTemplates();
   }, []);
-
-  const editingTemplate = useMemo(
-    () => (editingId ? templates.find((t) => t.id === editingId) : null),
-    [editingId, templates],
-  );
 
   const openCreate = useCallback(() => {
     setEditingId(null);
@@ -401,6 +392,7 @@ export default function InvoiceTemplatesPage() {
                 </div>
                 {logoPreview ? (
                   <div className="size-14 flex-shrink-0 rounded-lg border overflow-hidden bg-muted/30 flex items-center justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={logoPreview}
                       alt="Logo preview"

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { IconBrandGoogle, IconBrandOffice, IconPlugConnected, IconPlugOff, IconTrash } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import type { CalendarIntegration, CalendarProvider } from '@/types/integration.types';
@@ -11,8 +12,6 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Card,
   CardContent,
@@ -20,14 +19,6 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,41 +36,41 @@ const PROVIDER_META: Record<CalendarProvider, { label: string; icon: typeof Icon
 };
 
 export default function IntegrationsPage() {
-  const { integrations, loading, error, reload, connect, disconnect, toggleSync } = useIntegrations();
-
-  const [connectDialogOpen, setConnectDialogOpen] = useState(false);
-  const [connectProvider, setConnectProvider] = useState<CalendarProvider>('google');
-  const [connectEmail, setConnectEmail] = useState('');
-  const [connecting, setConnecting] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { integrations, loading, error, reload, disconnect, toggleSync } = useIntegrations();
 
   const [disconnectTarget, setDisconnectTarget] = useState<CalendarIntegration | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
 
-  const handleConnect = async () => {
-    if (!connectEmail.trim()) {
-      toast.error('Please enter an email address');
-      return;
-    }
-    setConnecting(true);
-    try {
-      await connect({ provider: connectProvider, email: connectEmail.trim() });
-      setConnectEmail('');
-      setConnectDialogOpen(false);
-      toast.success(`${PROVIDER_META[connectProvider].label} connected`);
-    } catch {
-      toast.error('Failed to connect calendar');
-    } finally {
-      setConnecting(false);
-    }
+  const handleGoogleOAuth = () => {
+    window.location.href = '/api/integrations/google/oauth';
   };
 
   const handleDisconnect = async () => {
     if (!disconnectTarget) return;
+    setDisconnecting(true);
     try {
-      await disconnect(disconnectTarget.id);
-      toast.success('Calendar disconnected');
+      // For Google integrations, call the disconnect API which handles token revocation
+      if (disconnectTarget.provider === 'google') {
+        const res = await fetch('/api/integrations/google/disconnect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ integrationId: disconnectTarget.id }),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error ?? 'Failed to disconnect');
+        }
+      } else {
+        await disconnect(disconnectTarget.id);
+      }
+      toast.success(`${PROVIDER_META[disconnectTarget.provider].label} disconnected`);
       setDisconnectTarget(null);
-    } catch {
-      toast.error('Failed to disconnect');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to disconnect');
+    } finally {
+      setDisconnecting(false);
     }
   };
 
@@ -91,6 +82,52 @@ export default function IntegrationsPage() {
       toast.error('Failed to toggle sync');
     }
   };
+
+  // Handle OAuth callback query params
+  const handleOAuthCallback = useCallback(() => {
+    const oauthSuccess = searchParams.get('oauth_success');
+    const oauthError = searchParams.get('oauth_error');
+    const oauthEmail = searchParams.get('oauth_email');
+
+    if (oauthSuccess === 'true') {
+      toast.success(
+        oauthEmail
+          ? `Google Calendar (${oauthEmail}) connected successfully`
+          : 'Google Calendar connected successfully',
+      );
+      reload();
+      // Clean up the URL params
+      router.replace('/settings/integrations');
+    }
+
+    if (oauthError) {
+      switch (oauthError) {
+        case 'access_denied':
+          toast.error('Google Calendar access was denied. Please try again.');
+          break;
+        case 'unauthenticated':
+          toast.error('You must be logged in to connect a calendar.');
+          break;
+        case 'state_mismatch':
+          toast.error('Session mismatch. Please try connecting again.');
+          break;
+        case 'missing_auth_code':
+          toast.error('No authorization code received from Google.');
+          break;
+        default:
+          toast.error(
+            oauthError.length > 80
+              ? 'Failed to connect Google Calendar'
+              : `Failed to connect: ${oauthError}`,
+          );
+      }
+      router.replace('/settings/integrations');
+    }
+  }, [searchParams, reload, router]);
+
+  useEffect(() => {
+    handleOAuthCallback();
+  }, [handleOAuthCallback]);
 
   if (loading) {
     return (
@@ -114,11 +151,11 @@ export default function IntegrationsPage() {
     <div className="space-y-6">
       <PageHeader title="Integrations" description="Connect external accounts and services">
         <div className="flex gap-2">
-          <Button onClick={() => { setConnectProvider('google'); setConnectDialogOpen(true); }}>
+          <Button onClick={handleGoogleOAuth}>
             <IconBrandGoogle className="mr-2 size-4" />
             Connect Google Calendar
           </Button>
-          <Button variant="outline" onClick={() => { setConnectProvider('outlook'); setConnectDialogOpen(true); }}>
+          <Button variant="outline" disabled title="Outlook Calendar coming soon">
             <IconBrandOffice className="mr-2 size-4" />
             Connect Outlook Calendar
           </Button>
@@ -129,7 +166,7 @@ export default function IntegrationsPage() {
         <CardHeader>
           <CardTitle>Connected Accounts</CardTitle>
           <CardDescription>
-            Manage your calendar sync connections. Real OAuth would require a backend endpoint.
+            Manage your calendar sync connections. Click &ldquo;Connect Google Calendar&rdquo; to authorize via OAuth.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -137,7 +174,7 @@ export default function IntegrationsPage() {
             <EmptyState
               title="No connected accounts"
               description="Connect a calendar to sync events and availability."
-              action={{ label: 'Connect Google Calendar', onClick: () => { setConnectProvider('google'); setConnectDialogOpen(true); } }}
+              action={{ label: 'Connect Google Calendar', onClick: handleGoogleOAuth }}
             />
           ) : (
             <div className="space-y-3">
@@ -168,9 +205,9 @@ export default function IntegrationsPage() {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <div className="flex items-center gap-2">
-                        <Label htmlFor={`sync-${integration.id}`} className="text-xs text-muted-foreground">
+                        <label htmlFor={`sync-${integration.id}`} className="text-xs text-muted-foreground cursor-pointer">
                           Sync
-                        </Label>
+                        </label>
                         <Switch
                           id={`sync-${integration.id}`}
                           checked={integration.syncEnabled}
@@ -194,53 +231,24 @@ export default function IntegrationsPage() {
         </CardContent>
       </Card>
 
-      {/* Connect Dialog */}
-      <Dialog open={connectDialogOpen} onOpenChange={setConnectDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Connect {PROVIDER_META[connectProvider].label}
-            </DialogTitle>
-            <DialogDescription>
-              Enter the email address associated with your {PROVIDER_META[connectProvider].label} account.
-              This is a mock connection — real OAuth requires a backend endpoint.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="connect-email">Email Address</Label>
-              <Input
-                id="connect-email"
-                type="email"
-                value={connectEmail}
-                onChange={(e) => setConnectEmail(e.target.value)}
-                placeholder="user@gmail.com"
-                autoFocus
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setConnectDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleConnect} disabled={connecting}>{connecting ? 'Connecting...' : 'Connect'}</Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Disconnect Confirmation */}
       <AlertDialog open={!!disconnectTarget} onOpenChange={(open: boolean) => { if (!open) setDisconnectTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Disconnect Account</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to disconnect {disconnectTarget?.email}? Calendar events will no longer sync.
+              Are you sure you want to disconnect {disconnectTarget?.email}? Calendar events will no longer sync
+              {disconnectTarget?.provider === 'google' ? ' and Google access will be revoked' : ''}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDisconnect} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Disconnect
+            <AlertDialogCancel disabled={disconnecting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDisconnect}
+              disabled={disconnecting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {disconnecting ? 'Disconnecting...' : 'Disconnect'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

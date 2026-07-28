@@ -33,7 +33,6 @@ import {
   IconSun,
   IconBell,
   IconUserCircle,
-  IconDeviceFloppy,
   IconBuilding,
   IconArrowRight,
   IconUsersGroup,
@@ -106,7 +105,7 @@ export default function SettingsPage() {
       }
     };
     loadSettings();
-  }, []);
+  }, [setDisplayName, setEmail, setTimezone, setEmailNotif, setTaskReminders, setMeetingAlerts]);
 
   const handleThemeToggle = useCallback(() => {
     toggleTheme();
