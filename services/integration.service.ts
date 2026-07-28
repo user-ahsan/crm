@@ -1,7 +1,7 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { CalendarIntegration, CalendarIntegrationFormData, CalendarProvider } from '@/types/integration.types';
 import type { DbCalendarIntegration } from '@/types/supabase.types';
-import { formatSupabaseError } from './supabase.service';
+import { ServiceError, toServiceError } from './supabase.service';
 
 function mapRow(row: DbCalendarIntegration): CalendarIntegration {
   return {
@@ -23,32 +23,34 @@ export const integrationService = {
         .from('calendar_integrations')
         .select('*')
         .order('created_at', { ascending: false });
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRow) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async connectCalendar(data: CalendarIntegrationFormData): Promise<CalendarIntegration> {
     try {
       const supabase = await getSharedClient();
-      const dbRow = {
-        provider: data.provider,
-        email: data.email,
-        access_token: 'mock_' + crypto.randomUUID(),
-        sync_enabled: true,
-        created_by: 'system',
-      };
+      const { data: userData } = await supabase.auth.getUser();
+      const createdBy = userData?.user?.id ?? 'system';
+
       const { data: inserted, error } = await supabase
         .from('calendar_integrations')
-        .insert(dbRow)
+        .insert({
+          provider: data.provider,
+          email: data.email,
+          sync_enabled: true,
+          created_by: createdBy,
+        })
         .select()
         .single();
-      if (error) throw new Error(error.message);
+
+      if (error) throw toServiceError(error);
       return mapRow(inserted);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -56,24 +58,29 @@ export const integrationService = {
     try {
       const supabase = await getSharedClient();
       const { error } = await supabase.from('calendar_integrations').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
-  async toggleSync(id: string, enabled: boolean): Promise<boolean> {
+  async toggleSync(id: string, enabled: boolean): Promise<CalendarIntegration | undefined> {
     try {
       const supabase = await getSharedClient();
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('calendar_integrations')
         .update({ sync_enabled: enabled })
-        .eq('id', id);
-      if (error) throw new Error(error.message);
-      return true;
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) {
+        if (error.code === 'PGRST116') return undefined;
+        throw toServiceError(error);
+      }
+      return updated ? mapRow(updated) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 };

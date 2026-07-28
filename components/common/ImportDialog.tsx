@@ -25,6 +25,8 @@ interface ColumnSpec {
   example: string;
 }
 
+type ImportEntityType = 'leads' | 'contacts' | 'companies' | 'tasks' | 'meetings';
+
 const ENTITY_COLUMNS: Record<string, ColumnSpec[]> = {
   leads: [
     { name: 'fullName', type: 'text', required: true, description: 'Lead full name', example: 'John Davis' },
@@ -309,7 +311,7 @@ export function ImportDialog({
     [processFile],
   );
 
-  /** Simulated import */
+  /** Production import with real validation */
   const handleImport = useCallback(async () => {
     if (!parsed) return;
 
@@ -317,38 +319,75 @@ export function ImportDialog({
     setError(null);
 
     try {
-      // Simulate processing time
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Simulate import: most rows succeed, some fail randomly
-      const mockErrors: ImportResult['errors'] = [];
-      let errorCount = 0;
-
+      // Validate all rows before importing
+      const errors: ImportResult['errors'] = [];
       for (let i = 0; i < parsed.totalRows; i++) {
-        // Simulate ~10% failure rate for demo realism
-        if (Math.random() < 0.1 && errorCount < 3) {
-          mockErrors.push({
-            row: i + 2, // +2 because row 1 is header, 0-indexed
-            message: `Invalid data in column "${parsed.headers[0] ?? 'unknown'}"`,
-          });
-          errorCount++;
+        const row = parsed.rows[i];
+        for (let j = 0; j < parsed.headers.length; j++) {
+          if (!row[j] || row[j].trim() === '') {
+            const col = parsed.headers[j];
+            const colSpec = columns.find((c) => c.name.toLowerCase() === col.toLowerCase());
+            if (colSpec?.required) {
+              errors.push({
+                row: i + 2,
+                message: `Missing required value in column "${col}"`,
+              });
+            }
+          }
         }
       }
 
-      const importedCount = parsed.totalRows - mockErrors.length;
+      if (errors.length > 0) {
+        setError(`Found ${errors.length} validation error(s). Please fix and re-upload.`);
+        toast.error(`Import failed: ${errors.length} row(s) have missing required fields.`);
+        setResult({ imported: 0, errors });
+        setImporting(false);
+        return;
+      }
+
+      // All rows valid — call the appropriate service
+      const serviceMap: Record<string, { create: (data: any) => Promise<any> }> = {
+        leads: (await import('@/services/lead.service')).leadService,
+        contacts: (await import('@/services/contact.service')).contactService,
+        companies: (await import('@/services/company.service')).companyService,
+        tasks: (await import('@/services/task.service')).taskService,
+        meetings: (await import('@/services/meeting.service')).meetingService,
+      };
+
+      const service = serviceMap[entityType];
+      if (!service) {
+        throw new Error(`Unknown entity type: ${entityType}`);
+      }
+
+      let importedCount = 0;
+      const importErrors: ImportResult['errors'] = [];
+
+      for (let i = 0; i < parsed.totalRows; i++) {
+        try {
+          const rowData: Record<string, string> = {};
+          parsed.headers.forEach((header, idx) => {
+            rowData[header] = parsed.rows[i][idx] || '';
+          });
+          await service.create(rowData);
+          importedCount++;
+        } catch (e) {
+          importErrors.push({
+            row: i + 2,
+            message: e instanceof Error ? e.message : 'Import failed',
+          });
+        }
+      }
+
       const importResult: ImportResult = {
         imported: importedCount,
-        errors: mockErrors,
+        errors: importErrors,
       };
 
       setResult(importResult);
-
-      if (mockErrors.length === 0) {
-        toast.success(`Successfully imported ${importedCount} ${entityLabel.toLowerCase()}`);
+      if (importErrors.length > 0) {
+        toast.warning(`Imported ${importedCount} ${entityLabel.toLowerCase()} with ${importErrors.length} error(s).`);
       } else {
-        toast.warning(
-          `Imported ${importedCount} ${entityLabel.toLowerCase()} with ${mockErrors.length} error(s)`,
-        );
+        toast.success(`Successfully imported ${importedCount} ${entityLabel.toLowerCase()}.`);
       }
 
       onImportComplete?.();
@@ -359,7 +398,7 @@ export function ImportDialog({
     } finally {
       setImporting(false);
     }
-  }, [parsed, entityLabel, onImportComplete]);
+  }, [parsed, entityLabel, onImportComplete, columns]);
 
   /** Preview rows (first 3) */
   const previewRows = useMemo(() => {

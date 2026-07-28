@@ -1,8 +1,16 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { Invoice, InvoiceFormData, InvoiceStatus } from '@/types/invoice.types';
 import type { DbInvoice, DbInvoiceItem } from '@/types/supabase.types';
-import { formatSupabaseError } from './supabase.service';
-import { getNextInvoiceNumber } from '@/data/invoices';
+import { ServiceError, toServiceError } from './supabase.service';
+/** Generate a unique invoice number for new invoices. */
+function getNextInvoiceNumber(): string {
+  const year = new Date().getFullYear();
+  const seq = String(Math.floor(Math.random() * 9000) + 1000);
+  return `INV-${year}-${seq}`;
+}
+import { asEnum } from './supabase.service';
+
+const INVOICE_STATUSES = ['draft', 'sent', 'paid', 'overdue', 'cancelled', 'refunded'] as const;
 
 function mapRowToInvoice(row: DbInvoice, items: DbInvoiceItem[] = []): Invoice {
   return {
@@ -12,7 +20,7 @@ function mapRowToInvoice(row: DbInvoice, items: DbInvoiceItem[] = []): Invoice {
     leadId: row.lead_id ?? undefined,
     contactId: row.contact_id ?? undefined,
     companyId: row.company_id ?? undefined,
-    status: row.status as Invoice['status'],
+    status: asEnum(row.status as string, INVOICE_STATUSES),
     subtotal: Number(row.subtotal),
     discount: Number(row.discount),
     taxRate: Number(row.tax_rate),
@@ -42,6 +50,10 @@ function mapRowToInvoiceItem(row: DbInvoiceItem) {
 }
 
 function computeTotals(items: { description: string; quantity: number; unitPrice: number }[], discount: number = 0, taxRate: number = 0) {
+  for (const item of items) {
+    if (item.quantity < 0) throw new ServiceError(`Negative quantity not allowed: ${item.description}`, 'INVALID_QUANTITY');
+    if (item.unitPrice < 0) throw new ServiceError(`Negative unit price not allowed: ${item.description}`, 'INVALID_PRICE');
+  }
   const itemTotals = items.map((i) => ({
     ...i,
     total: i.quantity * i.unitPrice,
@@ -62,12 +74,12 @@ export const invoiceService = {
         .select('*, invoice_items(*)')
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return (data ?? []).map((row: DbInvoice & { invoice_items?: DbInvoiceItem[] }) =>
         mapRowToInvoice(row, row.invoice_items ?? []),
       );
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -81,13 +93,13 @@ export const invoiceService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return data
         ? mapRowToInvoice(data as DbInvoice, (data as { invoice_items?: DbInvoiceItem[] }).invoice_items ?? [])
         : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -99,12 +111,12 @@ export const invoiceService = {
         .select('*, invoice_items(*)')
         .eq('quote_id', quoteId)
         .maybeSingle();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data
         ? mapRowToInvoice(data as DbInvoice, (data as { invoice_items?: DbInvoiceItem[] }).invoice_items ?? [])
         : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -134,7 +146,7 @@ export const invoiceService = {
         })
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
 
       const invoiceId = inserted.id;
 
@@ -149,13 +161,13 @@ export const invoiceService = {
             sort_order: idx,
           })),
         );
-        if (itemsError) throw new Error(itemsError.message);
+        if (itemsError) throw toServiceError(itemsError);
       }
 
       const invoice = await this.getById(invoiceId);
       return invoice!;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -165,65 +177,107 @@ export const invoiceService = {
       const existing = await this.getById(id);
       if (!existing) return undefined;
 
-      const items = data.items ?? existing.items.map((i) => ({
-        description: i.description,
-        quantity: i.quantity,
-        unitPrice: i.unitPrice,
-      }));
-      const discount = data.discount ?? existing.discount;
-      const taxRate = data.taxRate ?? existing.taxRate;
-      const { itemTotals, subtotal, tax, total } = computeTotals(items, discount, taxRate);
-
-      const updateData: Record<string, unknown> = {
-        subtotal,
-        discount,
-        tax_rate: taxRate,
-        tax,
-        total,
-      };
-      if (data.status !== undefined) {
-        updateData.status = data.status;
-        if (data.status === 'paid') updateData.paid_at = new Date().toISOString();
-        if (data.status === 'draft' || data.status === 'cancelled') updateData.paid_at = null;
-      }
-      if (data.notes !== undefined) updateData.notes = data.notes;
-      if (data.dueDate !== undefined) updateData.due_date = data.dueDate || null;
-      if (data.paymentTerms !== undefined) updateData.payment_terms = data.paymentTerms || null;
-
-      const { error } = await supabase.from('invoices').update(updateData).eq('id', id);
-      if (error) throw new Error(error.message);
-
+      // Only delete+re-insert items when they actually changed
       if (data.items) {
-        await supabase.from('invoice_items').delete().eq('invoice_id', id);
-        if (itemTotals.length > 0) {
-          const { error: itemsError } = await supabase.from('invoice_items').insert(
-            itemTotals.map((item, idx) => ({
-              invoice_id: id,
-              description: item.description,
-              quantity: item.quantity,
-              unit_price: item.unitPrice,
-              total: item.total,
-              sort_order: idx,
-            })),
+        const existingItemData = existing.items.map((i) => ({
+          description: i.description,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+        }));
+        const itemsChanged =
+          existingItemData.length !== data.items.length ||
+          existingItemData.some((ei, idx) => {
+            const ni = data.items![idx];
+            return !ni || ei.description !== ni.description || ei.quantity !== ni.quantity || ei.unitPrice !== ni.unitPrice;
+          });
+
+        if (itemsChanged) {
+          const { itemTotals, subtotal, tax, total } = computeTotals(
+            data.items,
+            data.discount ?? existing.discount,
+            data.taxRate ?? existing.taxRate,
           );
-          if (itemsError) throw new Error(itemsError.message);
+
+          const updateData: Record<string, unknown> = {
+            subtotal,
+            discount: data.discount ?? existing.discount,
+            tax_rate: data.taxRate ?? existing.taxRate,
+            tax,
+            total,
+          };
+          if (data.status !== undefined) {
+            updateData.status = data.status;
+            if (data.status === 'paid') updateData.paid_at = new Date().toISOString();
+            if (data.status === 'draft' || data.status === 'cancelled') updateData.paid_at = null;
+          }
+          if (data.notes !== undefined) updateData.notes = data.notes;
+          if (data.dueDate !== undefined) updateData.due_date = data.dueDate || null;
+          if (data.paymentTerms !== undefined) updateData.payment_terms = data.paymentTerms || null;
+
+          const { error: updateErr } = await supabase.from('invoices').update(updateData).eq('id', id);
+          if (updateErr) throw toServiceError(updateErr);
+
+          await supabase.from('invoice_items').delete().eq('invoice_id', id);
+          if (itemTotals.length > 0) {
+            const { error: itemsError } = await supabase.from('invoice_items').insert(
+              itemTotals.map((item, idx) => ({
+                invoice_id: id,
+                description: item.description,
+                quantity: item.quantity,
+                unit_price: item.unitPrice,
+                total: item.total,
+                sort_order: idx,
+              })),
+            );
+            if (itemsError) throw toServiceError(itemsError);
+          }
+        }
+      } else {
+        // No item changes, update only header fields
+        const updateData: Record<string, unknown> = {};
+        if (data.status !== undefined) {
+          updateData.status = data.status;
+          if (data.status === 'paid') updateData.paid_at = new Date().toISOString();
+          if (data.status === 'draft' || data.status === 'cancelled') updateData.paid_at = null;
+        }
+        if (data.notes !== undefined) updateData.notes = data.notes;
+        if (data.dueDate !== undefined) updateData.due_date = data.dueDate || null;
+        if (data.paymentTerms !== undefined) updateData.payment_terms = data.paymentTerms || null;
+        if (data.discount !== undefined || data.taxRate !== undefined) {
+          const { itemTotals, subtotal, tax, total } = computeTotals(
+            existing.items.map(i => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice })),
+            data.discount ?? existing.discount,
+            data.taxRate ?? existing.taxRate,
+          );
+          updateData.subtotal = subtotal;
+          updateData.discount = data.discount ?? existing.discount;
+          updateData.tax_rate = data.taxRate ?? existing.taxRate;
+          updateData.tax = tax;
+          updateData.total = total;
+        }
+        if (Object.keys(updateData).length > 0) {
+          const { error: updateErr } = await supabase.from('invoices').update(updateData).eq('id', id);
+          if (updateErr) throw toServiceError(updateErr);
         }
       }
 
       return this.getById(id);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async delete(id: string): Promise<boolean> {
     try {
       const supabase = await getSharedClient();
+      // Also delete invoice_items
+      const { error: itemsErr } = await supabase.from('invoice_items').delete().eq('invoice_id', id);
+      if (itemsErr) console.error(`Delete invoice_items error: ${itemsErr.message}`);
       const { error } = await supabase.from('invoices').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -241,11 +295,11 @@ export const invoiceService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return data ? mapRowToInvoice(data as DbInvoice) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 };

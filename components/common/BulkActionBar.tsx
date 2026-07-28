@@ -23,7 +23,8 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
-import { USERS, LEAD_STATUSES, LEAD_PRIORITIES, TASK_STATUSES } from '@/lib/constants';
+import { useTeamContext } from '@/context/TeamContext';
+import { LEAD_STATUSES, LEAD_PRIORITIES, TASK_STATUSES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
 /* ── Shared types ─────────────────────────────────────────────────── */
@@ -79,6 +80,9 @@ export function BulkActionBar({
   tags = [],
   extraActions,
 }: BulkActionBarProps) {
+  /* ── Team context for member list ─────────────────────────────── */
+  const { members, loading: teamLoading } = useTeamContext();
+
   /* ── State ────────────────────────────────────────────────────── */
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
@@ -134,9 +138,9 @@ export function BulkActionBar({
     setAssignOpen(false);
     try {
       await onBulkAssign(ids, selectedUserId);
-      const user = USERS.find((u) => u.id === selectedUserId);
+      const user = members.find((u) => u.id === selectedUserId);
       toast.success(
-        `Assigned ${count} ${entityLabel}${count !== 1 ? 's' : ''} to ${user?.name ?? selectedUserId}`,
+        `Assigned ${count} ${entityLabel}${count !== 1 ? 's' : ''} to ${user?.user?.name ?? selectedUserId}`,
       );
       resetSelections();
       onClear();
@@ -145,7 +149,7 @@ export function BulkActionBar({
     } finally {
       setProcessing(false);
     }
-  }, [onBulkAssign, selectedUserId, ids, count, entityLabel, resetSelections, onClear]);
+  }, [onBulkAssign, selectedUserId, ids, count, entityLabel, resetSelections, onClear, members]);
 
   const handleTag = useCallback(async () => {
     if (!onBulkTag || !selectedTagId) return;
@@ -251,7 +255,7 @@ export function BulkActionBar({
               <Popover open={assignOpen} onOpenChange={setAssignOpen}>
                 <PopoverTrigger
                   render={
-                    <Button variant="outline" size="sm" disabled={processing} />
+                    <Button variant="outline" size="sm" disabled={processing || teamLoading} />
                   }
                 >
                   <IconUser className="mr-1 size-3.5" />
@@ -265,9 +269,9 @@ export function BulkActionBar({
                         <SelectValue placeholder="Select user..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {USERS.map((user) => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.name}
+                        {members.map((member) => (
+                          <SelectItem key={member.id} value={member.id}>
+                            {member.user?.name ?? member.id}
                           </SelectItem>
                         ))}
                       </SelectContent>
