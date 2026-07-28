@@ -67,7 +67,7 @@ export function useCallLogs(entityType?: string, entityId?: string) {
       setError(e instanceof Error ? e.message : 'Failed to log call');
       return undefined;
     }
-  }, []);
+  }, [user?.id]);
 
   return { callLogs, loading, error, logCall, refresh };
 }

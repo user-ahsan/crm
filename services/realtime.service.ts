@@ -1,17 +1,22 @@
 /**
  * ─── Supabase Realtime Notification Service ──────────────────────────────
  *
- * Manages Postgres change subscriptions for live notifications.
- * Derives notifications from existing database changes — no custom queue.
+ * Manages Postgres change subscriptions for live notifications,
+ * plus broadcast channels for instant push and presence tracking.
  *
- * Channel naming scheme: notifications:user:{userId}
+ * Channel naming schemes:
+ *   notifications:user:{userId}  — Postgres changes (persistence / catch-up)
+ *   broadcast:user:{userId}      — Broadcast push (instant delivery)
+ *   presence:{entityType}:{entityId} — Presence tracking (who is viewing)
+ *
  * Tables monitored: leads, deals, tasks, meetings, team_members
  * ─────────────────────────────────────────────────────────────────────────
  */
 
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { toServiceError } from './supabase.service';
-import type { RealtimePostgresChangesPayload, RealtimePostgresChangesFilter } from '@supabase/supabase-js';
+import { isFeatureEnabled } from '@/lib/feature-gates';
+import type { RealtimeChannel, RealtimePostgresChangesPayload, RealtimePostgresChangesFilter } from '@supabase/supabase-js';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -37,10 +42,43 @@ export interface RealtimeCallbacks {
   onNotification: (notification: RealtimeNotification) => void;
 }
 
+export interface BroadcastCallbacks extends RealtimeCallbacks {
+  /** Called when the broadcast channel subscription status changes. */
+  onStatusChange?: (status: string) => void;
+}
+
+export interface PresenceUser {
+  userId: string;
+  name: string;
+  avatarUrl?: string;
+}
+
+export interface PresenceCallbacks {
+  /** Called with the full list of currently-present users. */
+  onSync: (users: PresenceUser[]) => void;
+  /** Called when a new user joins presence. */
+  onJoin?: (user: PresenceUser) => void;
+  /** Called when a user leaves presence. */
+  onLeave?: (user: PresenceUser) => void;
+}
+
 // ── State ───────────────────────────────────────────────────────────────
 
-/** Active channel subscriptions keyed by channel name. */
-const activeChannels = new Map<string, ReturnType<ReturnType<typeof getSupabaseClient>['channel']>>();
+/** Active Postgres change subscription channels keyed by channel name. */
+const activeChannels = new Map<string, RealtimeChannel>();
+
+/** Active broadcast channels keyed by channel name. */
+const broadcastChannels = new Map<string, RealtimeChannel>();
+
+/** Active presence channels. */
+const presenceChannels = new Map<string, { channel: RealtimeChannel; userIds: Set<string> }>();
+
+// ── Feature check ───────────────────────────────────────────────────────
+
+/** Returns whether Realtime is enabled via environment variable. */
+export function isRealtimeEnabled(): boolean {
+  return isFeatureEnabled('realtime') && process.env.NEXT_PUBLIC_SUPABASE_REALTIME_ENABLED === 'true';
+}
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -287,8 +325,9 @@ export function stopListening(channelName?: string): void {
  * @returns      — A list of recent notifications derived from activities
  */
 export async function getPendingNotifications(
-  userId: string,
+  _userId: string,
 ): Promise<RealtimeNotification[]> {
+  void _userId; // Reserved for future use — will scope notifications per user
   try {
     const supabase = getSupabaseClient();
 
@@ -357,5 +396,304 @@ function formatPendingTitle(type: string, description: string): string {
       return 'You were assigned';
     default:
       return 'Update';
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// BROADCAST CHANNEL API
+// ═════════════════════════════════════════════════════════════════════════
+
+/**
+ * Starts a broadcast channel for the given user that listens for instant
+ * push notifications delivered via `channel.send({ type: 'broadcast', ... })`.
+ *
+ * This complements `startListening()` — broadcast provides instant delivery
+ * while Postgres changes provide persistence and catch-up.
+ *
+ * @param userId   — The authenticated user's ID
+ * @param callbacks — Object with `onNotification` (and optional `onStatusChange`)
+ * @returns        — An unsubscribe function
+ */
+export function startBroadcast(
+  userId: string,
+  callbacks: BroadcastCallbacks,
+): () => void {
+  const supabase = getSupabaseClient();
+  const channelName = `broadcast:user:${userId}`;
+
+  // If already subscribed, return a no-op
+  if (broadcastChannels.has(channelName)) {
+    return () => stopBroadcast(userId);
+  }
+
+  const channel = supabase.channel(channelName);
+
+  // Listen for broadcast notification events
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  channel.on('broadcast', { event: 'notification' }, ({ payload }: { payload: any }) => {
+    try {
+      const notification = payload as RealtimeNotification;
+      callbacks.onNotification(notification);
+    } catch {
+      // Silently skip malformed payloads
+    }
+  });
+
+  channel.subscribe((status: string) => {
+    callbacks.onStatusChange?.(status);
+    if (status !== 'SUBSCRIBED') {
+      console.error(`[realtime] Broadcast channel ${channelName} subscribe error: ${status}`);
+    }
+  });
+
+  broadcastChannels.set(channelName, channel);
+
+  return () => stopBroadcast(userId);
+}
+
+/**
+ * Sends a notification via the user's broadcast channel for instant delivery.
+ *
+ * If no active broadcast channel exists for the user, the notification is
+ * silently skipped — it will be picked up by the Postgres changes subscription
+ * or the polling fallback.
+ *
+ * @param userId       — The target user's ID
+ * @param notification — The notification to deliver
+ */
+export async function sendNotification(
+  userId: string,
+  notification: RealtimeNotification,
+): Promise<void> {
+  if (!isRealtimeEnabled()) return;
+
+  const channelName = `broadcast:user:${userId}`;
+  const channel = broadcastChannels.get(channelName);
+
+  if (channel) {
+    try {
+      await channel.send({
+        type: 'broadcast',
+        event: 'notification',
+        payload: notification,
+      });
+    } catch {
+      // Silently fail — Postgres changes / polling will catch it
+    }
+  }
+  // No active channel — notification will be caught by postgres_changes / polling
+}
+
+/**
+ * Stops the broadcast channel for the given user.
+ * Safe to call multiple times.
+ *
+ * @param userId — The user whose broadcast channel to stop
+ */
+export function stopBroadcast(userId: string): void {
+  const channelName = `broadcast:user:${userId}`;
+  const channel = broadcastChannels.get(channelName);
+  if (channel) {
+    try {
+      channel.unsubscribe();
+    } catch {
+      // Channel may already be closed
+    }
+    broadcastChannels.delete(channelName);
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// PRESENCE TRACKING API
+// ═════════════════════════════════════════════════════════════════════════
+
+/**
+ * Tracks the current user's presence on a specific entity record.
+ * Creates (or reuses) a presence channel and registers the user.
+ *
+ * @param entityType — Entity type (e.g. 'lead', 'deal', 'task')
+ * @param entityId   — Entity record ID
+ * @param userId     — The current user's ID
+ * @param userMeta   — Display metadata (name, avatar)
+ * @returns          — An unsubscribe function that stops tracking
+ */
+export function trackPresence(
+  entityType: string,
+  entityId: string,
+  userId: string,
+  userMeta: { name: string; avatarUrl?: string },
+): () => void {
+  const supabase = getSupabaseClient();
+  const channelName = `presence:${entityType}:${entityId}`;
+
+  // Add user to existing channel if it exists
+  const existing = presenceChannels.get(channelName);
+  if (existing) {
+    existing.userIds.add(userId);
+    existing.channel.track({
+      user_id: userId,
+      name: userMeta.name,
+      avatar_url: userMeta.avatarUrl ?? null,
+      online_at: new Date().toISOString(),
+    }).catch(() => {});
+    return () => {
+      existing.userIds.delete(userId);
+      stopPresence(entityType, entityId);
+    };
+  }
+
+  const channel = supabase.channel(channelName);
+
+  channel.subscribe(async (status: string) => {
+    if (status === 'SUBSCRIBED') {
+      try {
+        await channel.track({
+          user_id: userId,
+          name: userMeta.name,
+          avatar_url: userMeta.avatarUrl ?? null,
+          online_at: new Date().toISOString(),
+        });
+      } catch {
+        console.error(`[realtime] Presence track failed for ${channelName}`);
+      }
+    } else if (status !== 'SUBSCRIBED') {
+      console.error(`[realtime] Presence channel ${channelName} error: ${status}`);
+    }
+  });
+
+  presenceChannels.set(channelName, { channel, userIds: new Set([userId]) });
+
+  return () => {
+    const entry = presenceChannels.get(channelName);
+    if (entry) {
+      entry.userIds.delete(userId);
+      if (entry.userIds.size === 0) {
+        stopPresence(entityType, entityId);
+      }
+    }
+  };
+}
+
+/**
+ * Listens for presence changes on a specific entity record.
+ * Reports join / leave / sync events via the provided callbacks.
+ *
+ * @param entityType — Entity type (e.g. 'lead', 'deal', 'task')
+ * @param entityId   — Entity record ID
+ * @param callbacks  — Presence event callbacks
+ * @returns          — An unsubscribe function
+ */
+export function onPresenceChange(
+  entityType: string,
+  entityId: string,
+  callbacks: PresenceCallbacks,
+): () => void {
+  const supabase = getSupabaseClient();
+  const channelName = `presence:${entityType}:${entityId}`;
+
+  // Reuse existing presence channel if one is already active
+  const existing = presenceChannels.get(channelName);
+  const channel = existing?.channel ?? supabase.channel(channelName);
+
+  channel
+    .on('presence', { event: 'sync' }, () => {
+      try {
+        const state = channel.presenceState();
+        const users: PresenceUser[] = [];
+        for (const presences of Object.values(state)) {
+          const list = presences as Array<{
+            user_id: string;
+            name: string;
+            avatar_url?: string;
+          }>;
+          for (const p of list) {
+            users.push({
+              userId: p.user_id,
+              name: p.name,
+              avatarUrl: p.avatar_url ?? undefined,
+            });
+          }
+        }
+        callbacks.onSync(users);
+      } catch {
+        // Silently skip malformed presence state
+      }
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .on('presence', { event: 'join' }, ({ newPresences }: { newPresences: any }) => {
+      try {
+        const presences = newPresences as Array<{
+          user_id: string;
+          name: string;
+          avatar_url?: string;
+        }>;
+        for (const p of presences) {
+          callbacks.onJoin?.({
+            userId: p.user_id,
+            name: p.name,
+            avatarUrl: p.avatar_url ?? undefined,
+          });
+        }
+      } catch {
+        // Silently skip malformed join events
+      }
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .on('presence', { event: 'leave' }, ({ leftPresences }: { leftPresences: any }) => {
+      try {
+        const presences = leftPresences as Array<{
+          user_id: string;
+          name: string;
+          avatar_url?: string;
+        }>;
+        for (const p of presences) {
+          callbacks.onLeave?.({
+            userId: p.user_id,
+            name: p.name,
+            avatarUrl: p.avatar_url ?? undefined,
+          });
+        }
+      } catch {
+        // Silently skip malformed leave events
+      }
+    });
+
+  // Only subscribe if this is a new channel (not reusing an existing one)
+  if (!existing) {
+    channel.subscribe((status: string) => {
+      if (status !== 'SUBSCRIBED') {
+        console.error(`[realtime] Presence listener ${channelName} error: ${status}`);
+      }
+    });
+    presenceChannels.set(channelName, { channel, userIds: new Set() });
+  }
+
+  return () => {
+    // Individual listener cleanup is handled by the caller
+    // The channel stays alive as long as there are active trackers
+  };
+}
+
+/**
+ * Stops presence tracking on a specific entity record.
+ * If no users remain, the channel is fully unsubscribed.
+ *
+ * @param entityType — Entity type
+ * @param entityId   — Entity record ID
+ */
+export function stopPresence(entityType: string, entityId: string): void {
+  const channelName = `presence:${entityType}:${entityId}`;
+  const entry = presenceChannels.get(channelName);
+
+  if (!entry) return;
+
+  // Only fully unsubscribe if no users are tracking
+  if (entry.userIds.size === 0) {
+    try {
+      entry.channel.unsubscribe();
+    } catch {
+      // Channel may already be closed
+    }
+    presenceChannels.delete(channelName);
   }
 }

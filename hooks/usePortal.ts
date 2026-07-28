@@ -16,8 +16,6 @@ export function usePortalUsers() {
       setUsers(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load portal users');
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -37,13 +35,21 @@ export function usePortalUsers() {
     return () => { cancelled = true; };
   }, []);
 
+  /**
+   * Creates a portal user via the registration API route.
+   * This delegates to the server-side admin client for Supabase Auth user creation.
+   */
   const createUser = useCallback(async (data: PortalUserFormData) => {
-    try {
-      const user = await portalService.createUser(data);
-      setUsers((prev) => [user, ...prev]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create portal user');
+    const res = await fetch('/api/portal/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.error ?? 'Failed to create portal user');
     }
+    setUsers((prev) => [json.user, ...prev]);
   }, []);
 
   const toggleActive = useCallback(async (id: string, active: boolean) => {
@@ -57,13 +63,19 @@ export function usePortalUsers() {
     }
   }, []);
 
+  /**
+   * Deletes a portal user via the users API route.
+   * This delegates to the server-side admin client to also delete the Auth identity.
+   */
   const deleteUser = useCallback(async (id: string) => {
-    try {
-      await portalService.deleteUser(id);
-      setUsers((prev) => prev.filter((u) => u.id !== id));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete portal user');
+    const res = await fetch(`/api/portal/auth/users/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error(json.error ?? 'Failed to delete portal user');
     }
+    setUsers((prev) => prev.filter((u) => u.id !== id));
   }, []);
 
   return { users, loading, error, reload: load, createUser, toggleActive, deleteUser };

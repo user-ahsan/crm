@@ -1,3 +1,5 @@
+import { isFeatureEnabled } from './feature-gates';
+
 /**
  * ponytail: thin Twilio client wrapper, dynamic import so it never
  * gets bundled into client chunks. Call from server code only —
@@ -32,5 +34,5 @@ export function getTwilioFromNumber(): string {
 }
 
 export function isTwilioConfigured(): boolean {
-  return !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
+  return isFeatureEnabled('sms') && !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
 }

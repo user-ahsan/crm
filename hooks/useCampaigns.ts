@@ -84,7 +84,7 @@ export function useCampaigns() {
       setError(e instanceof Error ? e.message : 'Failed to create sequence');
       return undefined;
     }
-  }, []);
+  }, [user?.id]);
 
   const updateSequence = useCallback(async (id: string, data: Partial<EmailSequenceFormData>) => {
     let previous: EmailSequence[] | undefined;
@@ -144,7 +144,7 @@ export function useCampaigns() {
 
   const getSequenceStats = useCallback(async (sequenceId: string): Promise<SequenceStats> => {
     if (statsMap[sequenceId]) return statsMap[sequenceId];
-    const sequence = await campaignService.getSequence(sequenceId);
+    await campaignService.getSequence(sequenceId);
     const emails = await campaignService.getCampaignEmails(sequenceId);
     const stats: SequenceStats = {
       total: emails.length,

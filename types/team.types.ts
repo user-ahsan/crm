@@ -3,7 +3,7 @@
 export type TeamRole = 'admin' | 'manager' | 'agent' | 'viewer';
 export type InvitationStatus = 'pending' | 'accepted' | 'declined' | 'expired';
 export type PermissionAction = 'create' | 'read' | 'update' | 'delete';
-export type PermissionEntity = 'lead' | 'contact' | 'company' | 'task' | 'meeting' | 'team' | 'analytics';
+export type PermissionEntity = 'lead' | 'contact' | 'company' | 'task' | 'meeting' | 'team' | 'analytics' | 'campaign' | 'deal';
 export type PermissionScope = 'own' | 'team' | 'all';
 
 /* ── Entity Interfaces ─────────────────────────────────────── */

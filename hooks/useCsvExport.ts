@@ -9,9 +9,6 @@ import type { ExportColumn } from '@/lib/csv-export-definitions';
 /** Small delay helper to space out sequential downloads */
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** Entity types that support CSV export */
-type ExportEntityType = 'leads' | 'contacts' | 'companies' | 'tasks' | 'meetings' | 'all';
-
 /**
  * Generic CSV export helper. Writes typed data to a CSV file and triggers download.
  */

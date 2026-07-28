@@ -143,7 +143,7 @@ export function useDeals() {
   const getPipeline = useCallback(async () => {
     try {
       return await dealService.getPipeline();
-    } catch (err) {
+    } catch {
       // Error preserved in error state
       return [];
     }
@@ -156,7 +156,7 @@ export function useDeals() {
   const getTotalValue = useCallback(async () => {
     try {
       return await dealService.getTotalValue();
-    } catch (err) {
+    } catch {
       // Error preserved in error state
       return 0;
     }

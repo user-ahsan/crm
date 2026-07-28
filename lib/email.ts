@@ -1,10 +1,11 @@
 import { Resend } from 'resend';
+import { isFeatureEnabled } from './feature-gates';
 
 let _resend: Resend | null = null;
 
-/** Gated: true when RESEND_API_KEY is set — controls whether email sends actually hit the Resend API. */
+/** Gated: true when Resend feature gate AND RESEND_API_KEY are set. Delegates to centralized feature-gates. */
 export function isResendConfigured(): boolean {
-  return !!process.env.RESEND_API_KEY;
+  return isFeatureEnabled('email') && !!process.env.RESEND_API_KEY;
 }
 
 /** Resend client singleton. Throws only when called but not configured — guard with isResendConfigured() first. */

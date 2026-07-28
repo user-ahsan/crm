@@ -172,7 +172,7 @@ export const useEntityCache = create<EntityCacheState>()((set) => ({
     const now = Date.now();
     set((state) => {
       const staleTypes = Object.entries(state.lastFetched)
-        .filter(([_, ts]) => now - ts > CACHE_TTL)
+        .filter(([, ts]) => now - ts > CACHE_TTL)
         .map(([type]) => type);
 
       const updates: Record<string, unknown> = {};

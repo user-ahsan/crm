@@ -83,7 +83,6 @@ export const DUPE_MIN_SCORE = 20;
 // ── Rate limiting ────────────────────────────────────────────────────
 export const RATE_LIMIT_WINDOW_MS = 60_000;
 export const RATE_LIMIT_MAX_ATTEMPTS = 10;
-export const RATE_LIMIT_BCRYPT_COST = 10;
 
 export const SCORING_FACTORS: ScoringFactor[] = [
   { key: 'email_present', label: 'Email present', weight: 20, description: '+20 if email exists' },
