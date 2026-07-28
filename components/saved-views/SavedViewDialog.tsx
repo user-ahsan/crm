@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { IconLoader2 } from '@tabler/icons-react';
 import type { SavedView, ViewEntityType } from '@/types/saved-view.types';
 import { savedViewService } from '@/services/saved-view.service';
 import { Button } from '@/components/ui/button';
@@ -152,6 +153,7 @@ export function SavedViewDialog({
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={saving}>
+            {saving && <IconLoader2 className="mr-2 size-4 animate-spin" />}
             {saving ? 'Saving...' : isEditing ? 'Update' : 'Create'}
           </Button>
         </DialogFooter>

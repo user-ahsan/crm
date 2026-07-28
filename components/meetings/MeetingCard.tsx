@@ -26,18 +26,27 @@ const TYPE_ICONS: Record<MeetingType, React.ReactNode> = {
   online: <IconVideo size={16} className="text-blue-500" />,
   offline: <IconBuilding size={16} className="text-green-500" />,
   call: <IconPhone size={16} className="text-amber-500" />,
+  video: <IconVideo size={16} className="text-blue-500" />,
+  in_person: <IconBuilding size={16} className="text-green-500" />,
+  other: <IconClock size={16} className="text-gray-500" />,
 };
 
 const TYPE_BADGE_VARIANTS: Record<MeetingType, 'default' | 'secondary' | 'outline'> = {
   online: 'default',
   offline: 'secondary',
   call: 'outline',
+  video: 'default',
+  in_person: 'secondary',
+  other: 'outline',
 };
 
 const TYPE_LABELS: Record<MeetingType, string> = {
   online: 'Online',
   offline: 'Offline',
   call: 'Call',
+  video: 'Video',
+  in_person: 'In Person',
+  other: 'Other',
 };
 
 export function MeetingCard({ meeting, onEdit, onDelete }: MeetingCardProps) {

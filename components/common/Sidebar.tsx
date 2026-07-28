@@ -26,6 +26,10 @@ import {
   IconMailForward,
   IconHierarchy,
   IconKey,
+  IconMail,
+  IconMessage,
+  IconWebhook,
+  IconPuzzle,
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { NAV_GROUPS } from '@/lib/constants';
@@ -63,6 +67,11 @@ const iconMap = {
   'mail-forward': IconMailForward,
   hierarchy: IconHierarchy,
   'api-key': IconKey,
+  mail: IconMail,
+  'device-mobile-message': IconMessage,
+  webhook: IconWebhook,
+  puzzle: IconPuzzle,
+  key: IconKey,
 } as const;
 
 type IconKey = keyof typeof iconMap;
@@ -137,7 +146,7 @@ export function Sidebar({
         {NAV_GROUPS.map((group) => (
           <div key={group.label} className={collapsed ? '' : 'space-y-0.5'}>
             {!collapsed && (
-              <p className="px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+              <p className="px-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">
                 {group.label}
               </p>
             )}

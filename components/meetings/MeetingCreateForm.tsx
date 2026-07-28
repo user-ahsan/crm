@@ -52,6 +52,9 @@ const TYPE_LABELS: Record<MeetingType, string> = {
   online: 'Online',
   offline: 'Offline',
   call: 'Call',
+  video: 'Video',
+  in_person: 'In Person',
+  other: 'Other',
 };
 
 function getDefaultDateTime(): string {
@@ -208,7 +211,7 @@ export function MeetingCreateForm({
           duration: effectiveDuration,
           type,
           participants,
-          relatedToType: relatedToType || undefined,
+          relatedToType: relatedToType as MeetingFormData['relatedToType'],
           relatedToId: relatedToId.trim() || undefined,
           notes: notes.trim() || undefined,
         };

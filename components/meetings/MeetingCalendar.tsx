@@ -33,10 +33,13 @@ type ViewMode = 'month' | 'week';
 
 const DAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const TYPE_ICONS: Record<MeetingType, React.ReactNode> = {
+const TYPE_ICONS: Record<string, React.ReactNode> = {
   online: <IconVideo size={14} />,
   offline: <IconBuilding size={14} />,
   call: <IconPhone size={14} />,
+  video: <IconVideo size={14} />,
+  in_person: <IconBuilding size={14} />,
+  other: <IconCalendar size={14} />,
 };
 
 function isSameDay(a: Date, b: Date): boolean {
@@ -47,8 +50,8 @@ function isSameDay(a: Date, b: Date): boolean {
   );
 }
 
-function isToday(date: Date): boolean {
-  return isSameDay(date, new Date());
+function isToday(date: Date, today: Date): boolean {
+  return isSameDay(date, today);
 }
 
 function isCurrentMonth(date: Date, year: number, month: number): boolean {
@@ -122,9 +125,10 @@ function getWeekRangeLabel(days: Date[]): string {
 export function MeetingCalendar() {
   const { meetings, loading, error, refresh } = useMeetings();
   const [viewMode, setViewMode] = useState<ViewMode>('month');
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [today] = useState(() => new Date());
 
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
@@ -287,12 +291,14 @@ export function MeetingCalendar() {
               currentMonth={currentMonth}
               meetingsByDay={meetingsByDay}
               onDayClick={handleDayClick}
+              today={today}
             />
           ) : (
             <WeekView
               days={weekDays}
               meetingsByDay={meetingsByDay}
               onDayClick={handleDayClick}
+              today={today}
             />
           )}
 
@@ -353,12 +359,14 @@ function MonthView({
   currentMonth,
   meetingsByDay,
   onDayClick,
+  today,
 }: {
   days: Date[];
   currentYear: number;
   currentMonth: number;
   meetingsByDay: Map<string, Meeting[]>;
   onDayClick: (day: Date) => void;
+  today: Date;
 }) {
   const weeks: Date[][] = [];
   for (let i = 0; i < days.length; i += 7) {
@@ -383,7 +391,7 @@ function MonthView({
         {/* Calendar grid */}
         {weeks.map((week, weekIdx) => (
           <div
-            key={weekIdx}
+            key={week[0].toISOString()}
             className={cn(
               'grid grid-cols-7',
               weekIdx < weeks.length - 1 && 'border-b'
@@ -394,11 +402,11 @@ function MonthView({
               const dayMeetings = meetingsByDay.get(dateKey);
               const meetingCount = dayMeetings?.length ?? 0;
               const inMonth = isCurrentMonth(day, currentYear, currentMonth);
-              const today = isToday(day);
+              const isDayToday = isToday(day, today);
 
               return (
                 <button
-                  key={dayIdx}
+                  key={day.toISOString()}
                   type="button"
                   onClick={() => onDayClick(day)}
                   className={cn(
@@ -410,7 +418,7 @@ function MonthView({
                   <span
                     className={cn(
                       'flex size-7 items-center justify-center rounded-full text-xs',
-                      today &&
+                      isDayToday &&
                         'bg-primary text-primary-foreground font-semibold'
                     )}
                   >
@@ -457,10 +465,12 @@ function WeekView({
   days,
   meetingsByDay,
   onDayClick,
+  today,
 }: {
   days: Date[];
   meetingsByDay: Map<string, Meeting[]>;
   onDayClick: (day: Date) => void;
+  today: Date;
 }) {
   return (
     <Card>
@@ -468,10 +478,10 @@ function WeekView({
         {/* Day headers with date */}
         <div className="grid grid-cols-7 border-b">
           {days.map((day, idx) => {
-            const today = isToday(day);
+            const isDayToday = isToday(day, today);
             return (
               <div
-                key={idx}
+                key={day.toISOString()}
                 className={cn(
                   'flex flex-col items-center py-2',
                   idx < 6 && 'border-r'
@@ -483,7 +493,7 @@ function WeekView({
                 <span
                   className={cn(
                     'flex size-7 items-center justify-center rounded-full text-sm',
-                    today && 'bg-primary text-primary-foreground font-semibold'
+                    isDayToday && 'bg-primary text-primary-foreground font-semibold'
                   )}
                 >
                   {day.getDate()}
@@ -501,7 +511,7 @@ function WeekView({
 
             return (
               <div
-                key={idx}
+                key={day.toISOString()}
                 className={cn(
                   'flex min-h-[200px] flex-col gap-1 p-1.5',
                   idx < 6 && 'border-r'
@@ -578,7 +588,7 @@ function DayMeetingItem({ meeting }: { meeting: Meeting }) {
         <div className="flex flex-wrap gap-1">
           {meeting.participants.map((p, i) => (
             <span
-              key={i}
+              key={`${p}-${i}`}
               className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground"
             >
               {p}

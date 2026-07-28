@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import type { Deal, DealStage } from '@/types/deal.types';
 import {
   Table,
@@ -12,7 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { USERS } from '@/lib/constants';
+import { USERS } from '@/data/mock-users';
 import { formatCurrency, formatDate, getInitials } from '@/lib/formatters';
 import { IconEdit, IconTrash, IconCurrencyDollar, IconCalendarEvent } from '@tabler/icons-react';
 
@@ -24,7 +25,7 @@ interface DealTableProps {
   onClick: (id: string) => void;
 }
 
-export function DealTable({ deals, stages, onEdit, onDelete, onClick }: DealTableProps) {
+const DealTable = memo(function DealTable({ deals, stages, onEdit, onDelete, onClick }: DealTableProps) {
   const stageMap = new Map(stages.map((s) => [s.id, s]));
 
   return (
@@ -130,4 +131,7 @@ export function DealTable({ deals, stages, onEdit, onDelete, onClick }: DealTabl
       </Table>
     </div>
   );
-}
+});
+
+DealTable.displayName = 'DealTable';
+export { DealTable };

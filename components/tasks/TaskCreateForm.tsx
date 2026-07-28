@@ -22,7 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { USERS, TASK_PRIORITIES } from '@/lib/constants';
+import { USERS } from '@/data/mock-users';
+import { TASK_PRIORITIES } from '@/lib/constants';
 import { toast } from 'sonner';
 import { IconLoader2 } from '@tabler/icons-react';
 

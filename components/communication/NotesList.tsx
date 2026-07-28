@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { useNotes } from '@/hooks/useNotes';
 import { NoteEditor } from './NoteEditor';
 import { formatRelativeTime, getInitials } from '@/lib/formatters';
-import { USERS } from '@/lib/constants';
+import { USERS } from '@/data/mock-users';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';

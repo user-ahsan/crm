@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Lead } from '@/types/lead.types';
 import type { LeadScore } from '@/types/lead-scoring.types';
@@ -16,7 +16,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { STATUS_COLORS, PRIORITY_COLORS, USERS } from '@/lib/constants';
+import { USERS } from '@/data/mock-users';
+import { STATUS_COLORS, PRIORITY_COLORS } from '@/lib/color-tokens';
 import { formatCurrency, formatDate, getInitials } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { LeadScoreBadge } from '@/components/leads/LeadScoreBadge';
@@ -39,7 +40,7 @@ interface LeadTableProps {
   scores?: Map<string, LeadScore>;
 }
 
-export function LeadTable({ leads, onEdit, onDelete, selectedIds: externalSelectedIds, onSelectionChange, scores }: LeadTableProps) {
+const LeadTable = memo(function LeadTable({ leads, onEdit, onDelete, selectedIds: externalSelectedIds, onSelectionChange, scores }: LeadTableProps) {
   const router = useRouter();
   const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
   const selectedIds = externalSelectedIds ?? internalSelectedIds;
@@ -133,7 +134,7 @@ export function LeadTable({ leads, onEdit, onDelete, selectedIds: externalSelect
                 Created
               </span>
             </TableHead>
-            <TableHead className="sticky right-0 w-24 min-w-[80px] bg-background text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)]">Actions</TableHead>
+            <TableHead className="sticky right-0 z-10 w-24 min-w-[80px] bg-background text-right shadow-[-4px_0_8px_-4px_rgb(0_0_0/0.08)] dark:shadow-[-4px_0_8px_-4px_rgb(255_255_255/0.06)]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -224,7 +225,7 @@ export function LeadTable({ leads, onEdit, onDelete, selectedIds: externalSelect
                 <TableCell className="text-muted-foreground tabular-nums">
                   {formatDate(lead.createdAt)}
                 </TableCell>
-                <TableCell>
+                <TableCell className="sticky right-0 z-10 bg-background shadow-[-4px_0_8px_-4px_rgb(0_0_0/0.08)] dark:shadow-[-4px_0_8px_-4px_rgb(255_255_255/0.06)]">
                   <div
                     className="flex items-center justify-end gap-1"
                     onClick={(e) => e.stopPropagation()}
@@ -255,4 +256,7 @@ export function LeadTable({ leads, onEdit, onDelete, selectedIds: externalSelect
       </Table>
     </div>
   );
-}
+});
+
+LeadTable.displayName = 'LeadTable';
+export { LeadTable };

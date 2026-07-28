@@ -13,6 +13,8 @@ import {
   IconSearch,
 } from '@tabler/icons-react';
 
+type ResultType = 'lead' | 'contact' | 'company' | 'task' | 'meeting';
+
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   lead: <IconUsers className="h-4 w-4" />,
   contact: <IconAddressBook className="h-4 w-4" />,
@@ -90,7 +92,12 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Search leads, contacts, companies"
+    >
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
       <div className="relative z-50 w-full max-w-lg">
         <Command className="rounded-lg border shadow-2xl">
@@ -119,41 +126,45 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
                 Start typing to search across all entities
               </div>
             )}
-            {groupKeys.map((type) => (
-              <div key={type}>
-                <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground">
-                  {TYPE_ICONS[type]}
-                  {TYPE_LABELS[type] ?? type}
-                  <span className="ml-auto text-[10px]">({grouped[type].length})</span>
-                </div>
-                {grouped[type].map((result) => {
-                  const globalIdx = flatResults.indexOf(result);
-                  return (
-                    <div
-                      key={result.id}
-                      className={`flex cursor-pointer items-center gap-3 px-3 py-2 text-sm ${
-                        globalIdx === selectedIndex ? 'bg-accent text-accent-foreground' : ''
-                      }`}
-                      onClick={() => {
-                        router.push(result.href);
-                        onClose();
-                      }}
-                      onMouseEnter={() => setSelectedIndex(globalIdx)}
-                    >
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted">
-                        {TYPE_ICONS[type]}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="truncate font-medium">{result.title}</div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          {result.subtitle}
-                        </div>
-                      </div>
+              <div role="listbox">
+                {groupKeys.map((type) => (
+                  <div key={type}>
+                    <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                      {TYPE_ICONS[type]}
+                      {TYPE_LABELS[type] ?? type}
+                      <span className="ml-auto text-[10px]">({grouped[type].length})</span>
                     </div>
-                  );
-                })}
+                    {grouped[type].map((result) => {
+                      const globalIdx = flatResults.indexOf(result);
+                      return (
+                        <div
+                          key={result.id}
+                          role="option"
+                          aria-selected={globalIdx === selectedIndex}
+                          className={`flex cursor-pointer items-center gap-3 px-3 py-2 text-sm ${
+                            globalIdx === selectedIndex ? 'bg-accent text-accent-foreground' : ''
+                          }`}
+                          onClick={() => {
+                            router.push(result.href);
+                            onClose();
+                          }}
+                          onMouseEnter={() => setSelectedIndex(globalIdx)}
+                        >
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted">
+                            {TYPE_ICONS[type]}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="truncate font-medium">{result.title}</div>
+                            <div className="truncate text-xs text-muted-foreground">
+                              {result.subtitle}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
-            ))}
           </div>
           <div className="border-t p-2 text-[10px] text-muted-foreground">
             <span className="mr-3">↑↓ Navigate</span>

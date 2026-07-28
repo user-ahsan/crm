@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Lead } from '@/types/lead.types';
 import type { Task } from '@/types/task.types';
 import type { Meeting } from '@/types/meeting.types';
@@ -27,7 +27,7 @@ import { TagInput } from '@/components/common/TagInput';
 import { LeadScoreBadge } from '@/components/leads/LeadScoreBadge';
 import { useLeads } from '@/hooks/useLeads';
 import { useLeadScore } from '@/hooks/useLeadScoring';
-import { SCORING_FACTORS } from '@/types/lead-scoring.types';
+import { SCORING_FACTORS } from '@/lib/constants';
 import { tagService } from '@/services/tag.service';
 import type { Tag } from '@/types/tag.types';
 import { useTasks } from '@/hooks/useTasks';
@@ -37,9 +37,11 @@ import { NotesList } from '@/components/communication/NotesList';
 import { useCallLogs } from '@/hooks/useCallLogs';
 import { CallLogList } from '@/components/communication/CallLogList';
 import { FileAttachmentList } from '@/components/common/FileAttachmentList';
-import { STATUS_COLORS, PRIORITY_COLORS, USERS } from '@/lib/constants';
+import { STATUS_COLORS, PRIORITY_COLORS } from '@/lib/color-tokens';
+import { USERS } from '@/data/mock-users';
 import { formatCurrency, formatDate, formatDateTime, formatRelativeTime, getInitials, formatDuration } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import {
   IconArrowLeft,
   IconMail,
@@ -106,7 +108,10 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
 
   const [entityTags, setEntityTags] = useState<Tag[]>([]);
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
+  const leadIdRef = useRef(leadId);
+  leadIdRef.current = leadId;
 
+  // ─── Data & State ─────────────────────────────────
   // Fetch lead data
   useEffect(() => {
     let cancelled = false;
@@ -135,19 +140,30 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
       if (!cancelled) setEntityTags(tags);
     }).catch(() => {});
     return () => { cancelled = true; };
-  }, [leadState, leadId]);
+    }, [leadState, leadId]);
 
+  // ─── Event Handlers ───────────────────────────────
   const handleTagChange = useCallback(async (tags: Tag[]) => {
     setEntityTags(tags);
-    const tagIds = tags.map((t) => {
-      if (t.id.startsWith('new-')) {
-        tagService.create(t.name, t.color).then((created) => created.id);
-        return null;
-      }
-      return t.id;
-    }).filter(Boolean) as string[];
-    tagService.setTagsForEntity('lead', leadId, tagIds).catch(() => {});
-  }, [leadId]);
+    const currentLeadId = leadIdRef.current;
+    try {
+      // Resolve all tag IDs — await creations so new tags get real IDs
+      const tagIds = await Promise.all(
+        tags.map(async (t) => {
+          if (t.id.startsWith('new-')) {
+            const created = await tagService.create(t.name, t.color);
+            return created.id;
+          }
+          return t.id;
+        }),
+      );
+      await tagService.setTagsForEntity('lead', currentLeadId, tagIds);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update tags';
+      console.error('[LeadDetail] Tag update failed:', err);
+      toast.error(message);
+    }
+  }, []);
 
   // Fetch related tasks, meetings, activities when tab changes or lead loads
   useEffect(() => {
@@ -192,6 +208,7 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
     return () => { cancelled = true; };
   }, [leadState, activeTab, getTasksByEntity, getMeetingsByEntity, getActivitiesByEntity]);
 
+  // ─── Render ───────────────────────────────────────
   // Loading state
   if (leadState.status === 'loading') {
     return (

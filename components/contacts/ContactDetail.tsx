@@ -78,6 +78,7 @@ export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
   const [entityTags, setEntityTags] = useState<Tag[]>([]);
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
 
+  // ─── Data & State ─────────────────────────────────
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -139,6 +140,7 @@ export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
     return () => { cancelled = true; };
   }, [contactId]);
 
+  // ─── Event Handlers ───────────────────────────────
   const handleTagChange = useCallback(async (tags: Tag[]) => {
     setEntityTags(tags);
     const tagIds = tags.map((t) => t.id).filter((id) => !id.startsWith('new-'));
@@ -157,6 +159,7 @@ export function ContactDetail({ contactId, onBack }: ContactDetailProps) {
     }
   }, [onBack, router]);
 
+  // ─── Render ───────────────────────────────────────
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">

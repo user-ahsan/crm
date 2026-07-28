@@ -16,7 +16,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
 import { IconDotsVertical, IconEdit, IconFileInvoice, IconTrash } from '@tabler/icons-react';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 
@@ -73,10 +72,8 @@ export function QuoteTable({ quotes, onEdit, onDelete, onStatusChange, onGenerat
               </TableCell>
               <TableCell>
                 <DropdownMenu>
-                  <DropdownMenuTrigger onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="size-8">
-                      <IconDotsVertical className="size-4" />
-                    </Button>
+                  <DropdownMenuTrigger onClick={(e) => e.stopPropagation()} className="inline-flex shrink-0 items-center justify-center rounded-md size-8 hover:bg-accent hover:text-accent-foreground">
+                    <IconDotsVertical className="size-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenuItem onClick={() => onEdit(quote.id)}>

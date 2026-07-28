@@ -2,7 +2,7 @@
 
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { STATUS_COLORS } from '@/lib/constants';
+import { STATUS_COLORS } from '@/lib/color-tokens';
 
 interface StatusBadgeProps {
   status: string;

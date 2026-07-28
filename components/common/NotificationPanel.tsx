@@ -17,6 +17,23 @@ import { formatRelativeTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { Notification } from '@/hooks/useNotifications';
 
+/* ── Fade-in animation ───────────────────────────────────── */
+const notificationStyles = `
+  @keyframes notificationFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .notification-enter {
+    animation: notificationFadeIn 0.3s ease-out;
+  }
+`;
+
 /* ── Icon Map ─────────────────────────────────────────────── */
 const notificationIcons = {
   lead_created: { icon: IconUsers, color: 'text-blue-500 bg-blue-100 dark:bg-blue-900/30' },
@@ -51,6 +68,9 @@ export function NotificationPanel({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-md">
+        {/* ── Animations ──────────────────────────────── */}
+        <style>{notificationStyles}</style>
+
         {/* ── Header ───────────────────────────────────── */}
         <div className="flex items-center justify-between border-b px-6 py-4">
           <div>
@@ -121,7 +141,10 @@ export function NotificationPanel({
                         >
                           {notification.title}
                         </p>
-                        <span className="shrink-0 text-xs text-muted-foreground">
+                        <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+                          {!notification.read && (
+                            <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
+                          )}
                           {formatRelativeTime(notification.timestamp)}
                         </span>
                       </div>
@@ -130,24 +153,24 @@ export function NotificationPanel({
                       </p>
                     </div>
 
-                    {/* Unread indicator + click to mark read */}
+                    {/* Mark as read button */}
                     {!notification.read && (
                       <button
                         type="button"
                         onClick={() => onMarkRead(notification.id)}
-                        className="absolute right-6 top-6 size-2 rounded-full bg-primary hover:opacity-70"
+                        className="absolute right-6 top-6 size-2 rounded-full bg-primary hover:opacity-80"
                         aria-label="Mark as read"
                       />
                     )}
 
-                    {/* Dismiss */}
+                    {/* Dismiss button */}
                     <button
                       type="button"
                       onClick={() => onDismiss(notification.id)}
-                      className="absolute right-6 top-6 opacity-0 transition-opacity focus:opacity-100 group-hover:opacity-100"
+                      className="absolute right-6 top-10 opacity-0 group-hover:opacity-100 transition-opacity hover:text-foreground"
                       aria-label="Dismiss notification"
                     >
-                      <IconX className="size-3.5 text-muted-foreground" />
+                      <IconX className="size-3.5" />
                     </button>
                   </div>
                 );

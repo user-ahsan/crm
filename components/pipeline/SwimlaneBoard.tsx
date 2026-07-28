@@ -8,7 +8,9 @@ import { KanbanBoard } from './KanbanBoard';
 import { DealKanbanBoard } from '@/components/deals/DealKanbanBoard';
 import { KanbanColumn } from './KanbanColumn';
 import { DealKanbanColumn } from '@/components/deals/DealKanbanColumn';
-import { PIPELINE_STAGES, USERS, LEAD_PRIORITIES, STATUS_COLORS } from '@/lib/constants';
+import { USERS } from '@/data/mock-users';
+import { PIPELINE_STAGES, LEAD_PRIORITIES } from '@/lib/constants';
+import { STATUS_COLORS } from '@/lib/color-tokens';
 import { buildPipeline } from '@/modules/pipeline/pipelineUtils';
 import { formatCurrency } from '@/lib/formatters';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -50,7 +52,8 @@ export function SwimlaneBoard({
   onDealDrop,
   onLeadClick,
   onDealClick,
-}: SwimlaneBoardProps) {
+  }: SwimlaneBoardProps) {
+  // ─── Data & State ─────────────────────────────────
   const lanes = useMemo<Lane[]>(() => {
     if (groupBy === 'none') return [];
 
@@ -65,6 +68,7 @@ export function SwimlaneBoard({
     return [];
   }, [leads, deals, groupBy, type]);
 
+  // ─── Render ───────────────────────────────────────
   if (groupBy === 'none') {
     return type === 'leads' ? <KanbanBoard /> : <DealKanbanBoard />;
   }

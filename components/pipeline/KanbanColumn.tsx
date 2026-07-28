@@ -16,9 +16,11 @@ interface KanbanColumnProps {
   accentColor: string;
   onDrop: (leadId: string, stageKey: string) => void;
   onLeadClick: (lead: Lead) => void;
+  /** Move the card to the adjacent stage (keyboard arrows) */
+  onMoveCard?: (leadId: string, currentStageKey: string, direction: 'left' | 'right') => void;
 }
 
-export function KanbanColumn({ stage, accentColor, onDrop, onLeadClick }: KanbanColumnProps) {
+export function KanbanColumn({ stage, accentColor, onDrop, onLeadClick, onMoveCard }: KanbanColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -101,6 +103,8 @@ export function KanbanColumn({ stage, accentColor, onDrop, onLeadClick }: Kanban
                 key={lead.id}
                 lead={lead}
                 onClick={onLeadClick}
+                stageKey={stage.key}
+                onMoveCard={onMoveCard}
               />
             ))}
           </div>

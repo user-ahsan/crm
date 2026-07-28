@@ -81,7 +81,7 @@ export function TagInput({
     } else if (e.key === 'Enter' && canCreate && highlightIndex === -1) {
       e.preventDefault();
       const newTag: Tag = {
-        id: `new-${Date.now()}`,
+        id: `new-${crypto.randomUUID()}`,
         name: inputValue.trim(),
         color: '#6366f1',
         createdAt: new Date().toISOString(),
@@ -179,7 +179,7 @@ export function TagInput({
               )}
               onClick={() => {
                 const newTag: Tag = {
-                  id: `new-${Date.now()}`,
+                  id: `new-${crypto.randomUUID()}`,
                   name: inputValue.trim(),
                   color: '#6366f1',
                   createdAt: new Date().toISOString(),

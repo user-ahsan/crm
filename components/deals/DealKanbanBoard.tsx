@@ -1,38 +1,38 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useMemo, memo } from 'react';
+import { toast } from 'sonner';
 import type { Deal } from '@/types/deal.types';
 import { useDeals } from '@/hooks/useDeals';
-import { dealService } from '@/services/deal.service';
 import { useRouter } from 'next/navigation';
 import { DealKanbanColumn } from '@/components/deals/DealKanbanColumn';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { IconRefresh, IconAlertTriangle } from '@tabler/icons-react';
 
-export function DealKanbanBoard() {
-  const { deals, stages, loading, error, refresh } = useDeals();
+const DealKanbanBoard = memo(function DealKanbanBoard() {
+  const { deals, stages, loading, error, refresh, updateDealStage } = useDeals();
   const router = useRouter();
 
-  const pipeline = stages.map((stage) => ({
+  const pipeline = useMemo(() => stages.map((stage) => ({
     stage,
     deals: deals.filter((d) => d.stageId === stage.id),
     totalValue: deals.filter((d) => d.stageId === stage.id).reduce((sum, d) => sum + d.value, 0),
     count: deals.filter((d) => d.stageId === stage.id).length,
-  }));
+  })), [stages, deals]);
 
   const unassignedDeals = deals.filter((d) => !d.stageId);
 
   const handleDrop = useCallback(
     async (dealId: string, stageId: string) => {
       try {
-        await dealService.update(dealId, { stageId });
-        refresh();
+        await updateDealStage(dealId, stageId);
       } catch {
         console.error('Failed to move deal');
+        toast.error('Failed to move deal');
       }
     },
-    [refresh],
+    [updateDealStage],
   );
 
   const handleDealClick = useCallback(
@@ -141,4 +141,7 @@ export function DealKanbanBoard() {
       )}
     </div>
   );
-}
+});
+
+DealKanbanBoard.displayName = 'DealKanbanBoard';
+export { DealKanbanBoard };

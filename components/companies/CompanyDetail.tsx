@@ -60,6 +60,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
   const [entityTags, setEntityTags] = useState<Tag[]>([]);
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
 
+  // ─── Data & State ─────────────────────────────────
   const { callLogs, loading: callLogsLoading, logCall } = useCallLogs('company', companyId);
   const {
     emails,
@@ -126,6 +127,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
     return () => { cancelled = true; };
   }, [companyId]);
 
+  // ─── Event Handlers ───────────────────────────────
   const handleTagChange = useCallback(async (tags: Tag[]) => {
     setEntityTags(tags);
     const tagIds = tags.map((t) => t.id).filter((id) => !id.startsWith('new-'));
@@ -144,6 +146,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
     }
   }, [onBack, router]);
 
+  // ─── Render ───────────────────────────────────────
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">

@@ -22,7 +22,7 @@ import {
   SelectItem,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { IconUserPlus } from '@tabler/icons-react';
+import { IconUserPlus, IconLoader2 } from '@tabler/icons-react';
 
 interface InviteMemberDialogProps {
   open: boolean;
@@ -185,12 +185,8 @@ export function InviteMemberDialog({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
-            {submitting ? (
-              <>
-                <span className="mr-1.5 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Sending...
-              </>
-            ) : (
+            {submitting && <IconLoader2 className="mr-2 size-4 animate-spin" />}
+            {submitting ? 'Sending...' : (
               <>
                 <IconUserPlus size={16} className="mr-1.5" />
                 Send Invitation

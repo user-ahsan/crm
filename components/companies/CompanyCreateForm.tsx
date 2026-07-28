@@ -279,8 +279,8 @@ export function CompanyCreateForm({ open, onOpenChange, onSuccess, editCompany }
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
-            {submitting && <IconLoader2 className="size-4 animate-spin" />}
-            {isEditMode ? 'Save Changes' : 'Create Company'}
+            {submitting && <IconLoader2 className="mr-2 size-4 animate-spin" />}
+            {submitting ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Company'}
           </Button>
         </DialogFooter>
       </DialogContent>

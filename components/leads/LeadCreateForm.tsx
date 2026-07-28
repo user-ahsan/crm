@@ -22,7 +22,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useLeads } from '@/hooks/useLeads';
-import { LEAD_SOURCES, LEAD_PRIORITIES, STATUS_COLORS, PRIORITY_COLORS, USERS } from '@/lib/constants';
+import { USERS } from '@/data/mock-users';
+import { LEAD_SOURCES, LEAD_PRIORITIES } from '@/lib/constants';
+import { STATUS_COLORS, PRIORITY_COLORS } from '@/lib/color-tokens';
 import { cn } from '@/lib/utils';
 import { validateLeadForm } from '@/lib/validators';
 import { IconX, IconPlus, IconLoader2 } from '@tabler/icons-react';
@@ -513,8 +515,8 @@ export function LeadCreateForm({ open, onOpenChange, onSuccess, editLead }: Lead
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
-            {submitting && <IconLoader2 className="size-4 animate-spin" />}
-            {isEditMode ? 'Save Changes' : 'Create Lead'}
+            {submitting && <IconLoader2 className="mr-2 size-4 animate-spin" />}
+            {submitting ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Lead'}
           </Button>
         </DialogFooter>
       </DialogContent>

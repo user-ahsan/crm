@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
+import { IconLoader2 } from '@tabler/icons-react';
 import type { AutomationRuleFormData, AutomationTriggerEvent } from '@/types/automation.types';
 
 const TRIGGER_EVENTS: { value: AutomationTriggerEvent; label: string }[] = [
@@ -290,6 +291,7 @@ export function CreateRuleDialog({ open, onOpenChange, onSave, initialData }: Cr
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button type="button" onClick={handleSave} disabled={saving}>
+            {saving && <IconLoader2 className="mr-2 size-4 animate-spin" />}
             {saving ? 'Saving...' : isEditing ? 'Update Rule' : 'Create Rule'}
           </Button>
         </DialogFooter>

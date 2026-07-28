@@ -4,7 +4,7 @@ import { useCallback, useRef } from 'react';
 import type { Deal } from '@/types/deal.types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { USERS } from '@/lib/constants';
+import { USERS } from '@/data/mock-users';
 import { formatCurrency, getInitials } from '@/lib/formatters';
 import { IconGripVertical, IconUser } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';

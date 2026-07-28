@@ -22,7 +22,9 @@ interface CallLogListProps {
   onLogCall: (data: CallLogFormData) => Promise<CallLog | undefined>;
 }
 
-const RESULT_COLORS: Record<string, string> = {
+type CallResultKey = 'completed' | 'no_answer' | 'busy' | 'failed' | 'voicemail';
+
+const RESULT_COLORS: Record<CallResultKey, string> = {
   completed: 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300',
   no_answer: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300',
   busy: 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300',

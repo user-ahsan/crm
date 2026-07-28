@@ -5,7 +5,7 @@ import type { Lead } from '@/types/lead.types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { PRIORITY_COLORS } from '@/lib/constants';
+import { PRIORITY_COLORS } from '@/lib/color-tokens';
 import { formatCurrency, getInitials } from '@/lib/formatters';
 import { IconUser } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
@@ -14,9 +14,13 @@ interface PipelineCardProps {
   lead: Lead;
   onDragStart?: (lead: Lead) => void;
   onClick?: (lead: Lead) => void;
+  /** The stage this card belongs to (for keyboard navigation) */
+  stageKey?: string;
+  /** Move the card to the adjacent stage (keyboard arrows) */
+  onMoveCard?: (leadId: string, currentStageKey: string, direction: 'left' | 'right') => void;
 }
 
-export function PipelineCard({ lead, onDragStart, onClick }: PipelineCardProps) {
+export function PipelineCard({ lead, onDragStart, onClick, stageKey, onMoveCard }: PipelineCardProps) {
   const dragImageRef = useRef<HTMLDivElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -61,11 +65,16 @@ export function PipelineCard({ lead, onDragStart, onClick }: PipelineCardProps) 
       )}
       role="button"
       tabIndex={0}
-      aria-label={`Lead card for ${lead.fullName}`}
+      aria-grabbed={false}
+      aria-roledescription="pipeline card"
+      aria-label={`Lead card for ${lead.fullName}${stageKey ? `, currently in ${stageKey} stage` : ''}. Use arrow keys to move between stages.`}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           handleClick();
+        } else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && stageKey && onMoveCard) {
+          e.preventDefault();
+          onMoveCard(lead.id, stageKey, e.key === 'ArrowLeft' ? 'left' : 'right');
         }
       }}
     >
@@ -105,7 +114,7 @@ export function PipelineCard({ lead, onDragStart, onClick }: PipelineCardProps) 
           {/* Assigned user avatar */}
           {lead.assignedTo ? (
             <Avatar className="size-5 flex-shrink-0">
-              <AvatarFallback className="text-[8px] bg-primary/10 text-primary font-medium">
+              <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-medium">
                 {getInitials(
                   lead.assignedTo
                     .replace(/^user-\d+-?/, '')

@@ -22,7 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useDeals } from '@/hooks/useDeals';
-import { USERS } from '@/lib/constants';
+import { USERS } from '@/data/mock-users';
 import { IconX, IconPlus, IconLoader2 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 
@@ -346,8 +346,8 @@ export function DealCreateForm({ open, onOpenChange, onSuccess, editDeal, stages
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
-            {submitting && <IconLoader2 className="size-4 animate-spin" />}
-            {isEditMode ? 'Save Changes' : 'Create Deal'}
+            {submitting && <IconLoader2 className="mr-2 size-4 animate-spin" />}
+            {submitting ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Deal'}
           </Button>
         </DialogFooter>
       </DialogContent>

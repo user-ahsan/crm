@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import type { Lead } from '@/types/lead.types';
@@ -13,7 +13,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { PIPELINE_STAGES, USERS, STATUS_COLORS } from '@/lib/constants';
+import { USERS } from '@/data/mock-users';
+import { PIPELINE_STAGES } from '@/lib/constants';
+import { STATUS_COLORS } from '@/lib/color-tokens';
 import { formatCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {
@@ -30,7 +32,7 @@ interface KanbanBoardProps {
   swimlaneData?: SwimlaneEntry[];
 }
 
-export function KanbanBoard({ swimlaneGroup, swimlaneData }: KanbanBoardProps = {}) {
+const KanbanBoard = memo(function KanbanBoard({ swimlaneGroup, swimlaneData }: KanbanBoardProps = {}) {
   const router = useRouter();
   const { pipeline, loading, error, refresh, moveLead } = usePipeline();
 
@@ -47,6 +49,19 @@ export function KanbanBoard({ swimlaneGroup, swimlaneData }: KanbanBoardProps = 
   const handleLeadClick = useCallback((lead: Lead) => {
     router.push(`/leads/${lead.id}`);
   }, [router]);
+
+  const handleMoveCard = useCallback(
+    (_leadId: string, currentStageKey: string, direction: 'left' | 'right') => {
+      const currentIndex = PIPELINE_STAGES.findIndex((s) => s.key === currentStageKey);
+      if (currentIndex === -1) return;
+
+      const targetIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= PIPELINE_STAGES.length) return;
+
+      moveLead(_leadId, PIPELINE_STAGES[targetIndex].key as LeadStatus);
+    },
+    [moveLead]
+  );
 
   const totalLeads = pipeline.reduce((sum, s) => sum + s.count, 0);
 
@@ -152,6 +167,7 @@ export function KanbanBoard({ swimlaneGroup, swimlaneData }: KanbanBoardProps = 
               </div>
 
               {/* Kanban columns for this swimlane section */}
+              <span className="sr-only" role="status">Use arrow keys to move cards between stages.</span>
               <div className="flex gap-3 overflow-x-auto p-3 [mask-image:linear-gradient(to_right,black_0%,black_95%,transparent_100%)]">
                 {allEmpty ? (
                   <div className="flex w-full items-center justify-center py-6 text-center">
@@ -167,6 +183,7 @@ export function KanbanBoard({ swimlaneGroup, swimlaneData }: KanbanBoardProps = 
                         accentColor={stageConfig?.color ?? 'border-t-gray-500'}
                         onDrop={handleDrop}
                         onLeadClick={handleLeadClick}
+                        onMoveCard={handleMoveCard}
                       />
                     );
                   })
@@ -227,7 +244,9 @@ export function KanbanBoard({ swimlaneGroup, swimlaneData }: KanbanBoardProps = 
         </div>
       ) : (
         /* Kanban columns in horizontal scroll */
-        <div className="flex gap-3 overflow-x-auto pb-2 [mask-image:linear-gradient(to_right,black_0%,black_95%,transparent_100%)]">
+        <>
+          <span className="sr-only" role="status">Use arrow keys to move cards between stages.</span>
+          <div className="flex gap-3 overflow-x-auto pb-2 [mask-image:linear-gradient(to_right,black_0%,black_95%,transparent_100%)]">
           {pipeline.map((stage) => {
             const stageConfig = PIPELINE_STAGES.find((s) => s.key === stage.key);
             return (
@@ -237,6 +256,7 @@ export function KanbanBoard({ swimlaneGroup, swimlaneData }: KanbanBoardProps = 
                 accentColor={stageConfig?.color ?? 'border-t-gray-500'}
                 onDrop={handleDrop}
                 onLeadClick={handleLeadClick}
+                onMoveCard={handleMoveCard}
               />
             );
           })}
@@ -255,10 +275,14 @@ export function KanbanBoard({ swimlaneGroup, swimlaneData }: KanbanBoardProps = 
             </div>
           )}
         </div>
+        </>
       )}
     </div>
   );
-}
+});
+
+KanbanBoard.displayName = 'KanbanBoard';
+export { KanbanBoard };
 
 /** Small avatar used in assignee swimlane headers */
 function LaneAvatar({ laneId }: { laneId: string; label: string }) {

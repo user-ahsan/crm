@@ -6,33 +6,47 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { IconMail, IconSend, IconFileDescription } from '@tabler/icons-react';
+import { IconMail, IconSend, IconFileDescription, IconCheck, IconX } from '@tabler/icons-react';
+
+export interface SendResult {
+  success: boolean;
+  messageId?: string;
+  error?: string;
+}
 
 interface EmailComposerProps {
   toAddress?: string;
   relatedToType?: string;
   relatedToId?: string;
-  onSend: (data: { toAddress: string; subject: string; body: string }) => Promise<void>;
+  onSend: (data: { toAddress: string; subject: string; body: string }) => Promise<SendResult | void>;
   onSaveDraft?: (data: { toAddress: string; subject: string; body: string }) => Promise<void>;
   onClose?: () => void;
+  isTestSend?: boolean;
 }
 
-export function EmailComposer({ toAddress = '', onSend, onSaveDraft, onClose }: EmailComposerProps) {
+export function EmailComposer({ toAddress = '', onSend, onSaveDraft, onClose, isTestSend }: EmailComposerProps) {
   const [to, setTo] = useState(toAddress);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deliveryStatus, setDeliveryStatus] = useState<SendResult | null>(null);
 
   const handleSend = async () => {
     if (!to.trim() || !body.trim()) return;
     setSending(true);
+    setDeliveryStatus(null);
     try {
-      await onSend({ toAddress: to, subject, body });
-      setTo('');
-      setSubject('');
-      setBody('');
-      onClose?.();
+      const result = await onSend({ toAddress: to, subject, body });
+      if (result) {
+        setDeliveryStatus(result);
+      }
+      if (!result || result.success) {
+        setTo('');
+        setSubject('');
+        setBody('');
+        onClose?.();
+      }
     } finally {
       setSending(false);
     }
@@ -61,6 +75,11 @@ export function EmailComposer({ toAddress = '', onSend, onSaveDraft, onClose }: 
         <CardTitle className="inline-flex items-center gap-2 text-base">
           <IconMail className="size-4" />
           Compose Email
+          {isTestSend && (
+            <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              TEST
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -93,6 +112,27 @@ export function EmailComposer({ toAddress = '', onSend, onSaveDraft, onClose }: 
             onChange={(e) => setBody(e.target.value)}
           />
         </div>
+
+        {deliveryStatus && (
+          <div
+            className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${
+              deliveryStatus.success
+                ? 'bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400'
+                : 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+            }`}
+          >
+            {deliveryStatus.success ? (
+              <IconCheck className="size-4 shrink-0" />
+            ) : (
+              <IconX className="size-4 shrink-0" />
+            )}
+            <span className="text-xs">
+              {deliveryStatus.success
+                ? `Sent via Resend${deliveryStatus.messageId ? ` (${deliveryStatus.messageId.slice(0, 12)}...)` : ''}`
+                : `Send failed: ${deliveryStatus.error ?? 'Unknown error'}`}
+            </span>
+          </div>
+        )}
       </CardContent>
       <CardFooter className="flex justify-between gap-3">
         <Button variant="outline" size="sm" onClick={onClose}>
@@ -107,7 +147,7 @@ export function EmailComposer({ toAddress = '', onSend, onSaveDraft, onClose }: 
           )}
           <Button size="sm" onClick={handleSend} disabled={!isValid || sending}>
             <IconSend className="size-4" />
-            {sending ? 'Sending...' : 'Send'}
+            {sending ? 'Sending...' : isTestSend ? 'Send Test' : 'Send'}
           </Button>
         </div>
       </CardFooter>

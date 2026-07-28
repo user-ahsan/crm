@@ -22,7 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useContacts } from '@/hooks/useContacts';
-import { companies } from '@/data/companies';
+import { useCompanies } from '@/hooks/useCompanies';
 import { validateContactForm } from '@/lib/validators';
 import { IconX, IconPlus, IconLoader2 } from '@tabler/icons-react';
 import { toast } from 'sonner';
@@ -54,6 +54,7 @@ const defaultFormData: ContactFormData = {
 
 export function ContactCreateForm({ open, onOpenChange, onSuccess, editContact }: ContactCreateFormProps) {
   const { createContact, updateContact } = useContacts();
+  const { companies: companiesData } = useCompanies();
   const [formData, setFormData] = useState<ContactFormData>(defaultFormData);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -259,7 +260,7 @@ export function ContactCreateForm({ open, onOpenChange, onSuccess, editContact }
                   <SelectValue placeholder="Select a company" />
                 </SelectTrigger>
                 <SelectContent>
-                  {companies.map((company) => (
+                  {companiesData.map((company) => (
                     <SelectItem key={company.id} value={company.id}>
                       {company.name}
                     </SelectItem>
@@ -350,8 +351,8 @@ export function ContactCreateForm({ open, onOpenChange, onSuccess, editContact }
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
-            {submitting && <IconLoader2 className="size-4 animate-spin" />}
-            {isEditMode ? 'Save Changes' : 'Create Contact'}
+            {submitting && <IconLoader2 className="mr-2 size-4 animate-spin" />}
+            {submitting ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Contact'}
           </Button>
         </DialogFooter>
       </DialogContent>

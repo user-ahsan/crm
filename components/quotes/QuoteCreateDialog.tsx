@@ -382,8 +382,8 @@ export function QuoteCreateDialog({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
-            {submitting && <IconLoader2 className="size-4 animate-spin" />}
-            {isEditMode ? 'Save Changes' : 'Create Quote'}
+            {submitting && <IconLoader2 className="mr-2 size-4 animate-spin" />}
+            {submitting ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Quote'}
           </Button>
         </DialogFooter>
       </DialogContent>

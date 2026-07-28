@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { IconUsersGroup } from '@tabler/icons-react';
+import { IconUsersGroup, IconLoader2 } from '@tabler/icons-react';
 
 interface CreateTeamDialogProps {
   open: boolean;
@@ -140,12 +140,8 @@ export function CreateTeamDialog({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
-            {submitting ? (
-              <>
-                <span className="mr-1.5 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Creating...
-              </>
-            ) : (
+            {submitting && <IconLoader2 className="mr-2 size-4 animate-spin" />}
+            {submitting ? 'Creating...' : (
               <>
                 <IconUsersGroup size={16} className="mr-1.5" />
                 Create Team

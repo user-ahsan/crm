@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TASK_PRIORITY_COLORS } from '@/lib/constants';
+import { TASK_PRIORITY_COLORS } from '@/lib/color-tokens';
 import { formatRelativeTime, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {
@@ -35,13 +35,13 @@ const FILTER_TABS: { key: FilterTab; label: string }[] = [
   { key: 'overdue', label: 'Overdue' },
 ];
 
-function isOverdue(task: Task): boolean {
+function isOverdue(task: Task, now: Date = new Date()): boolean {
   if (task.status === 'completed') return false;
   if (!task.dueDate) return false;
-  return new Date(task.dueDate) < new Date();
+  return new Date(task.dueDate) < now;
 }
 
-function filterTasksByTab(tasks: Task[], tab: FilterTab): Task[] {
+function filterTasksByTab(tasks: Task[], tab: FilterTab, now: Date): Task[] {
   switch (tab) {
     case 'all':
       return tasks;
@@ -50,7 +50,7 @@ function filterTasksByTab(tasks: Task[], tab: FilterTab): Task[] {
     case 'completed':
       return tasks.filter((t) => t.status === 'completed');
     case 'overdue':
-      return tasks.filter((t) => t.status === 'overdue' || isOverdue(t));
+      return tasks.filter((t) => t.status === 'overdue' || isOverdue(t, now));
     default:
       return tasks;
   }
@@ -60,12 +60,14 @@ function TaskRow({
   task,
   onToggle,
   showEntity,
+  now,
 }: {
   task: Task;
   onToggle: (id: string) => void;
   showEntity?: boolean;
+  now: Date;
 }) {
-  const taskIsOverdue = isOverdue(task);
+  const taskIsOverdue = isOverdue(task, now);
   const isCompleted = task.status === 'completed';
 
   const handleCheckedChange = useCallback(
@@ -163,12 +165,13 @@ export function TaskList({ tasks: externalTasks, showEntity, onTaskUpdate }: Tas
   } = useTasks();
 
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
+  const [now] = useState(() => new Date());
 
   const sourceTasks = externalTasks ?? hookTasks;
 
   const filteredTasks = useMemo(
-    () => filterTasksByTab(sourceTasks, activeTab),
-    [sourceTasks, activeTab]
+    () => filterTasksByTab(sourceTasks, activeTab, now),
+    [sourceTasks, activeTab, now]
   );
 
   const handleToggle = useCallback(
@@ -227,7 +230,7 @@ export function TaskList({ tasks: externalTasks, showEntity, onTaskUpdate }: Tas
           {FILTER_TABS.map((tab) => {
             const count = tab.key === 'all'
               ? sourceTasks.length
-              : filterTasksByTab(sourceTasks, tab.key).length;
+              : filterTasksByTab(sourceTasks, tab.key, now).length;
             return (
               <TabsTrigger key={tab.key} value={tab.key} className="flex-1 text-xs">
                 {tab.label}
@@ -256,6 +259,7 @@ export function TaskList({ tasks: externalTasks, showEntity, onTaskUpdate }: Tas
                     task={task}
                     onToggle={handleToggle}
                     showEntity={showEntity}
+                    now={now}
                   />
                 ))}
               </div>

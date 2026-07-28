@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface NoteEditorProps {
   initialTitle?: string;
@@ -11,18 +11,11 @@ interface NoteEditorProps {
 }
 
 export function NoteEditor({ initialTitle = '', initialBody = '', onSave, onCancel, saving: externalSaving }: NoteEditorProps) {
-  const [title, setTitle] = useState(initialTitle);
-  const [body, setBody] = useState(initialBody);
+  const [title, setTitle] = useState(() => initialTitle);
+  const [body, setBody] = useState(() => initialBody);
   const [internalSaving, setInternalSaving] = useState(false);
   const saving = externalSaving ?? internalSaving;
   const isDirty = title !== initialTitle || body !== initialBody;
-
-  useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect */
-    setTitle(initialTitle);
-    setBody(initialBody);
-    /* eslint-enable react-hooks/set-state-in-effect */
-  }, [initialTitle, initialBody]);
 
   const handleSave = async () => {
     if (!body.trim()) return;

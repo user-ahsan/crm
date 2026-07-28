@@ -12,8 +12,10 @@ import {
   IconChevronDown,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useThemeStore } from '@/store/theme';
+import { useShallow } from 'zustand/shallow';
 import { useCallback } from 'react';
 import { useTeamContext } from '@/context/TeamContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -41,11 +43,13 @@ export interface TopBarProps {
   onNotificationClick: () => void;
   /** Number of unread notifications */
   notificationCount?: number;
+  /** Whether the search command palette is currently open */
+  isSearchOpen?: boolean;
 }
 
 /* ── Component ───────────────────────────────────────────── */
-export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notificationCount = 3 }: TopBarProps) {
-  const { theme, toggleTheme } = useThemeStore();
+export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notificationCount = 0, isSearchOpen }: TopBarProps) {
+  const { theme, toggleTheme } = useThemeStore(useShallow(s => ({ theme: s.theme, toggleTheme: s.toggleTheme })));
   const isDark = theme === 'dark';
   const currentUser = useCurrentUser();
   const { team } = useTeamContext();
@@ -58,6 +62,7 @@ export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notif
       await getSupabaseClient().auth.signOut();
     } catch (err) {
       console.error('Sign-out error:', err);
+      toast.error('Sign-out failed');
       // Fall through — still clear local state below
     }
 
@@ -125,6 +130,8 @@ export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notif
           'md:max-w-sm lg:max-w-md',
         )}
         aria-label="Open search"
+        aria-haspopup="dialog"
+        aria-expanded={isSearchOpen}
       >
         <IconSearch className="size-4 shrink-0" aria-hidden="true" />
 
@@ -184,7 +191,12 @@ export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notif
               variant="destructive"
               className="absolute -top-0.5 -right-0.5 flex size-4 min-w-0 items-center justify-center rounded-full p-0 text-[10px] leading-none"
             >
-              {notificationCount > 99 ? '99+' : notificationCount}
+              <span className="sr-only">
+                {notificationCount} unread notification{notificationCount !== 1 ? 's' : ''}
+              </span>
+              <span aria-hidden="true">
+                {notificationCount > 99 ? '99+' : notificationCount}
+              </span>
             </Badge>
           )}
         </Button>

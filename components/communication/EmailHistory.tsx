@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmailComposer } from '@/components/communication/EmailComposer';
-import { IconMail, IconArrowBackUp, IconSend, IconMessage, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import { IconMail, IconArrowBackUp, IconSend, IconMessage, IconChevronDown, IconChevronUp, IconCopy, IconExternalLink } from '@tabler/icons-react';
 import type { Email } from '@/types/communication.types';
 import { formatDateTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -28,6 +29,26 @@ interface EmailHistoryProps {
   onRefresh?: () => void;
   subject?: string;
   toAddress?: string;
+}
+
+function copyToClipboard(text: string) {
+  navigator.clipboard.writeText(text).then(
+    () => toast.success('Copied to clipboard'),
+    () => toast.error('Failed to copy'),
+  );
+}
+
+function statusConfig(status: Email['status']) {
+  switch (status) {
+    case 'sent':
+      return { label: 'Sent', className: 'border-green-300 text-green-700 dark:border-green-700 dark:text-green-400' };
+    case 'draft':
+      return { label: 'Draft', className: 'border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400' };
+    case 'pending':
+      return { label: 'Pending', className: 'border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-400' };
+    case 'failed':
+      return { label: 'Failed', className: 'border-red-300 text-red-700 dark:border-red-700 dark:text-red-400' };
+  }
 }
 
 export function EmailHistory({ emails, loading, entityType, entityId, onSend, onRefresh, toAddress }: EmailHistoryProps) {
@@ -96,12 +117,16 @@ export function EmailHistory({ emails, loading, entityType, entityId, onSend, on
           <div className="space-y-2">
             {emails.map((email) => {
               const isExpanded = expandedId === email.id;
+              const statusCfg = statusConfig(email.status);
+              const hasProviderId = !!email.providerMessageId;
+              const hasError = !!email.errorMessage;
               return (
                 <div
                   key={email.id}
                   className={cn(
                     'rounded-lg border p-3 transition-colors',
                     email.direction === 'inbound' ? 'bg-muted/30' : 'bg-background',
+                    email.status === 'failed' && 'border-red-200 dark:border-red-900/50',
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -115,16 +140,8 @@ export function EmailHistory({ emails, loading, entityType, entityId, onSend, on
                         <span className="font-medium text-foreground truncate">
                           {email.direction === 'inbound' ? email.fromAddress : email.toAddress}
                         </span>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'text-[10px] font-normal',
-                            email.status === 'draft' && 'border-yellow-300 text-yellow-600',
-                            email.status === 'failed' && 'border-red-300 text-red-600',
-                            email.status === 'sent' && 'border-green-300 text-green-600',
-                          )}
-                        >
-                          {email.status}
+                        <Badge variant="outline" className={cn('text-[10px] font-normal', statusCfg.className)}>
+                          {statusCfg.label}
                         </Badge>
                       </div>
                       {email.subject && (
@@ -135,6 +152,45 @@ export function EmailHistory({ emails, loading, entityType, entityId, onSend, on
                       <p className={cn('mt-1 text-sm text-muted-foreground', !isExpanded && 'line-clamp-2')}>
                         {email.body}
                       </p>
+
+                      {isExpanded && (
+                        <div className="mt-3 space-y-2 border-t pt-2">
+                          {hasProviderId && (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span className="font-medium">Provider ID:</span>
+                              <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
+                                {email.providerMessageId}
+                              </code>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(email.providerMessageId!)}
+                                className="text-muted-foreground hover:text-foreground"
+                                title="Copy provider message ID"
+                              >
+                                <IconCopy className="size-3" />
+                              </button>
+                              <a
+                                href={`https://resend.com/emails/${email.providerMessageId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-blue-600 hover:underline dark:text-blue-400"
+                              >
+                                <IconExternalLink className="size-3" />
+                                View in Resend
+                              </a>
+                            </div>
+                          )}
+                          {hasError && (
+                            <div className="flex items-start gap-2 text-xs text-red-600 dark:text-red-400">
+                              <span className="shrink-0 font-medium">Error:</span>
+                              <span>{email.errorMessage}</span>
+                            </div>
+                          )}
+                          {!hasProviderId && !hasError && email.status === 'sent' && (
+                            <p className="text-xs text-muted-foreground">Sent via Resend</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
                       <span className="whitespace-nowrap text-xs text-muted-foreground">

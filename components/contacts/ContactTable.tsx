@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Contact } from '@/types/contact.types';
 import {
@@ -16,7 +16,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import { companies } from '@/data/companies';
 import {
   IconEdit,
   IconTrash,
@@ -33,9 +32,10 @@ interface ContactTableProps {
   onDelete?: (id: string) => void;
   selectedIds?: Set<string>;
   onSelectionChange?: (ids: Set<string>) => void;
+  companies: Array<{ id: string; name: string }>;
 }
 
-export function ContactTable({ contacts, onEdit, onDelete, selectedIds: externalSelectedIds, onSelectionChange }: ContactTableProps) {
+const ContactTable = memo(function ContactTable({ contacts, onEdit, onDelete, selectedIds: externalSelectedIds, onSelectionChange, companies }: ContactTableProps) {
   const router = useRouter();
   const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
   const selectedIds = externalSelectedIds ?? internalSelectedIds;
@@ -235,6 +235,7 @@ export function ContactTable({ contacts, onEdit, onDelete, selectedIds: external
       </Table>
     </div>
   );
-}
+});
 
+ContactTable.displayName = 'ContactTable';
 export default ContactTable;

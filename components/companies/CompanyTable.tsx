@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Company } from '@/types/company.types';
 import {
@@ -34,7 +34,7 @@ interface CompanyTableProps {
   onSelectionChange?: (ids: Set<string>) => void;
 }
 
-export function CompanyTable({ companies, onEdit, onDelete, selectedIds: externalSelectedIds, onSelectionChange }: CompanyTableProps) {
+const CompanyTable = memo(function CompanyTable({ companies, onEdit, onDelete, selectedIds: externalSelectedIds, onSelectionChange }: CompanyTableProps) {
   const router = useRouter();
   const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
   const selectedIds = externalSelectedIds ?? internalSelectedIds;
@@ -211,6 +211,7 @@ export function CompanyTable({ companies, onEdit, onDelete, selectedIds: externa
       </Table>
     </div>
   );
-}
+});
 
+CompanyTable.displayName = 'CompanyTable';
 export default CompanyTable;

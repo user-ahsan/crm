@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { IconDeviceMobileMessage, IconSend } from '@tabler/icons-react';
+import { IconDeviceMobileMessage, IconSend, IconCheck, IconX } from '@tabler/icons-react';
 
 interface SmsComposerProps {
   toNumber?: string;
@@ -22,15 +23,26 @@ export function SmsComposer({ toNumber = '', onSend, onClose }: SmsComposerProps
   const [to, setTo] = useState(toNumber);
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
+  const [sendStatus, setSendStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [sendErrorMsg, setSendErrorMsg] = useState('');
 
   const handleSend = async () => {
     if (!to.trim() || !body.trim()) return;
     setSending(true);
+    setSendStatus('idle');
     try {
       await onSend({ toNumber: to, body });
-      setTo('');
-      setBody('');
-      onClose?.();
+      setSendStatus('success');
+      setTimeout(() => {
+        setTo('');
+        setBody('');
+        onClose?.();
+      }, 1200);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to send SMS';
+      setSendErrorMsg(msg);
+      setSendStatus('error');
+      toast.error('Failed to send SMS', { description: msg });
     } finally {
       setSending(false);
     }
@@ -71,15 +83,40 @@ export function SmsComposer({ toNumber = '', onSend, onClose }: SmsComposerProps
             {body.length}/{MAX_CHARS}
           </p>
         </div>
+
+        {/* Delivery status indicator */}
+        {sendStatus === 'success' && (
+          <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-400">
+            <IconCheck className="size-4 shrink-0" />
+            <span>SMS sent successfully</span>
+          </div>
+        )}
+        {sendStatus === 'error' && (
+          <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
+            <IconX className="size-4 shrink-0" />
+            <span className="flex-1">{sendErrorMsg}</span>
+            <button onClick={() => setSendStatus('idle')} className="text-red-500 hover:text-red-700">
+              <IconX className="size-3.5" />
+            </button>
+          </div>
+        )}
       </CardContent>
       <CardFooter className="flex justify-between gap-3">
-        <Button variant="outline" size="sm" onClick={onClose}>
+        <Button variant="outline" size="sm" onClick={onClose} disabled={sending}>
           Cancel
         </Button>
-        <Button size="sm" onClick={handleSend} disabled={!isValid || sending}>
-          <IconSend className="size-4" />
-          {sending ? 'Sending...' : 'Send'}
-        </Button>
+        <div className="flex items-center gap-2">
+          {sendStatus === 'error' && (
+            <Button variant="outline" size="sm" onClick={handleSend} disabled={sending}>
+              <IconSend className="size-4" />
+              Retry
+            </Button>
+          )}
+          <Button size="sm" onClick={handleSend} disabled={!isValid || sending || sendStatus === 'success'}>
+            <IconSend className="size-4" />
+            {sending ? 'Sending...' : sendStatus === 'success' ? 'Sent!' : 'Send'}
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );

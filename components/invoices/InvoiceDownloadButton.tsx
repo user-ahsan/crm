@@ -5,8 +5,23 @@ import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import { InvoicePDF } from './InvoicePDF';
 import type { Invoice } from '@/types/invoice.types';
 import type { InvoiceTemplate } from '@/types/invoice.types';
-import { invoiceTemplates } from '@/data/invoices';
 import { Button } from '@/components/ui/button';
+
+const defaultTemplate: InvoiceTemplate = {
+  id: 'default',
+  name: 'Default',
+  primaryColor: '#1e293b',
+  accentColor: '#3b82f6',
+  companyName: '',
+  companyAddress: '',
+  companyEmail: '',
+  companyPhone: '',
+  footer: 'Thank you for your business!',
+  paymentTerms: 'net-30',
+  isDefault: true,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
 import { IconDownload, IconEye, IconLoader2 } from '@tabler/icons-react';
 
 interface InvoiceDownloadButtonProps {
@@ -25,7 +40,7 @@ export function InvoiceDownloadButton({
   showPreview = false,
 }: InvoiceDownloadButtonProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
-  const template = invoiceTemplates.find((t) => t.isDefault) || invoiceTemplates[0];
+  const template = defaultTemplate;
 
   return (
     <>
