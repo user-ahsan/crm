@@ -42,7 +42,7 @@ export function PipelineCard({ lead, onDragStart, onClick, stageKey, onMoveCard 
     [lead, onDragStart]
   );
 
-  const handleDragEnd = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragEnd = useCallback(() => {
     setIsDragging(false);
   }, []);
 

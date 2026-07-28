@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import type { CSSProperties } from 'react';
 import type { Lead } from '@/types/lead.types';
 import type { PipelineStage } from '@/modules/pipeline/pipelineUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { PipelineCard } from '@/components/pipeline/PipelineCard';
 import { formatCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -14,13 +14,19 @@ import { IconArrowDown } from '@tabler/icons-react';
 interface KanbanColumnProps {
   stage: PipelineStage;
   accentColor: string;
+  /**
+   * Optional inline style for the Card element.
+   * Used when custom workflow stages provide hex colors instead of Tailwind classes.
+   * Example: `{ borderTopColor: '#3b82f6' }`
+   */
+  style?: CSSProperties;
   onDrop: (leadId: string, stageKey: string) => void;
   onLeadClick: (lead: Lead) => void;
   /** Move the card to the adjacent stage (keyboard arrows) */
   onMoveCard?: (leadId: string, currentStageKey: string, direction: 'left' | 'right') => void;
 }
 
-export function KanbanColumn({ stage, accentColor, onDrop, onLeadClick, onMoveCard }: KanbanColumnProps) {
+export function KanbanColumn({ stage, accentColor, style, onDrop, onLeadClick, onMoveCard }: KanbanColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -67,6 +73,7 @@ export function KanbanColumn({ stage, accentColor, onDrop, onLeadClick, onMoveCa
         accentColor,
         isDragOver && 'ring-2 ring-primary/40 bg-primary/5 shadow-lg'
       )}
+      style={style}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}

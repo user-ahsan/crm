@@ -109,7 +109,7 @@ export function LeadDetail({ leadId, onBack }: LeadDetailProps) {
   const [entityTags, setEntityTags] = useState<Tag[]>([]);
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
   const leadIdRef = useRef(leadId);
-  leadIdRef.current = leadId;
+  useEffect(() => { leadIdRef.current = leadId; }, [leadId]);
 
   // ─── Data & State ─────────────────────────────────
   // Fetch lead data

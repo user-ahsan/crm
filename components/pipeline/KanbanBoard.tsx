@@ -1,12 +1,15 @@
 'use client';
 
-import { useCallback, memo } from 'react';
+import { useCallback, useMemo, memo } from 'react';
+import type { CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import type { Lead } from '@/types/lead.types';
 import type { LeadStatus } from '@/types/lead.types';
 import type { SwimlaneGroup } from '@/types/swimlane.types';
+import type { WorkflowEntityType } from '@/types/workflow.types';
 import type { SwimlaneEntry } from '@/hooks/usePipeline';
+import type { StageDefinition } from '@/modules/pipeline/pipelineUtils';
 import { usePipeline } from '@/hooks/usePipeline';
 import { KanbanColumn } from '@/components/pipeline/KanbanColumn';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,11 +33,46 @@ interface KanbanBoardProps {
   swimlaneGroup?: SwimlaneGroup;
   /** Pre-computed grouped data used when swimlaneGroup is not 'none' */
   swimlaneData?: SwimlaneEntry[];
+  /**
+   * Entity type for loading custom workflow states.
+   * Defaults to 'lead' when omitted.
+   * Only used when `stages` prop is not provided.
+   */
+  entityType?: WorkflowEntityType;
+  /**
+   * Override the stage definitions used to render columns.
+   * When provided, the board uses these instead of loading from the workflow service
+   * or falling back to PIPELINE_STAGES.
+   * Each stage's `key` is matched against lead `status` for grouping.
+   */
+  stages?: StageDefinition[];
 }
 
-const KanbanBoard = memo(function KanbanBoard({ swimlaneGroup, swimlaneData }: KanbanBoardProps = {}) {
+const FALLBACK_COLOR = 'border-t-gray-500';
+
+const KanbanBoard = memo(function KanbanBoard({
+  swimlaneGroup,
+  swimlaneData,
+  entityType = 'lead',
+  stages: propStages,
+}: KanbanBoardProps = {}) {
   const router = useRouter();
-  const { pipeline, loading, error, refresh, moveLead } = usePipeline();
+  const {
+    pipeline,
+    loading,
+    error,
+    refresh,
+    moveLead,
+    workflowStages: hookStages,
+    workflowStagesLoading,
+  } = usePipeline(entityType);
+
+  // Resolve which stages to use: prop > hook > PIPELINE_STAGES
+  const resolvedStages = useMemo<StageDefinition[]>(() => {
+    if (propStages) return propStages;
+    if (hookStages && hookStages.length > 0) return hookStages;
+    return PIPELINE_STAGES;
+  }, [propStages, hookStages]);
 
   const handleDrop = useCallback(
     (leadId: string, stageKey: string) => {
@@ -52,20 +90,39 @@ const KanbanBoard = memo(function KanbanBoard({ swimlaneGroup, swimlaneData }: K
 
   const handleMoveCard = useCallback(
     (_leadId: string, currentStageKey: string, direction: 'left' | 'right') => {
-      const currentIndex = PIPELINE_STAGES.findIndex((s) => s.key === currentStageKey);
+      const currentIndex = resolvedStages.findIndex((s) => s.key === currentStageKey);
       if (currentIndex === -1) return;
 
       const targetIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1;
-      if (targetIndex < 0 || targetIndex >= PIPELINE_STAGES.length) return;
+      if (targetIndex < 0 || targetIndex >= resolvedStages.length) return;
 
-      moveLead(_leadId, PIPELINE_STAGES[targetIndex].key as LeadStatus);
+      moveLead(_leadId, resolvedStages[targetIndex].key as LeadStatus);
     },
-    [moveLead]
+    [moveLead, resolvedStages]
   );
 
   const totalLeads = pipeline.reduce((sum, s) => sum + s.count, 0);
 
-  // ---------- Swimlane rendering ----------
+  // ── Helper: resolve column accent ───────────────────────────────
+  // Default PIPELINE_STAGES use Tailwind border classes (e.g. 'border-t-blue-500').
+  // Custom workflow stages use hex colors (e.g. '#3b82f6') via inline style.
+  const resolveColumnProps = useCallback((stageKey: string, stageColor: string) => {
+    const defaultStage = PIPELINE_STAGES.find((s) => s.key === stageKey);
+    if (defaultStage) {
+      // Default stage: use the Tailwind class
+      return {
+        accentColor: defaultStage.color,
+        style: undefined as CSSProperties | undefined,
+      };
+    }
+    // Custom stage: use hex color as inline style, no Tailwind accent class
+    return {
+      accentColor: '',
+      style: { borderTopColor: stageColor } as CSSProperties,
+    };
+  }, []);
+
+  // ── Swimlane rendering ─────────────────────────────────────────
 
   if (swimlaneGroup && swimlaneGroup !== 'none' && swimlaneData) {
     if (error) {
@@ -175,12 +232,14 @@ const KanbanBoard = memo(function KanbanBoard({ swimlaneGroup, swimlaneData }: K
                   </div>
                 ) : (
                   entry.pipeline.map((stage) => {
-                    const stageConfig = PIPELINE_STAGES.find((s) => s.key === stage.key);
+                    const stageDef = resolvedStages.find((s) => s.key === stage.key);
+                    const { accentColor, style } = resolveColumnProps(stage.key, stageDef?.color ?? FALLBACK_COLOR);
                     return (
                       <KanbanColumn
                         key={stage.key}
                         stage={stage}
-                        accentColor={stageConfig?.color ?? 'border-t-gray-500'}
+                        accentColor={accentColor}
+                        style={style}
                         onDrop={handleDrop}
                         onLeadClick={handleLeadClick}
                         onMoveCard={handleMoveCard}
@@ -196,7 +255,7 @@ const KanbanBoard = memo(function KanbanBoard({ swimlaneGroup, swimlaneData }: K
     );
   }
 
-  // ---------- Flat (non-swimlane) rendering ----------
+  // ── Flat (non-swimlane) rendering ──────────────────────────────
 
   // Error state
   if (error) {
@@ -217,12 +276,12 @@ const KanbanBoard = memo(function KanbanBoard({ swimlaneGroup, swimlaneData }: K
     );
   }
 
-  return (
-    <div className="flex flex-col gap-3">
-      {/* Loading skeleton */}
-      {loading ? (
+  // Loading state — use resolved stages for skeleton column count
+  if (loading || workflowStagesLoading) {
+    return (
+      <div className="flex flex-col gap-3">
         <div className="flex gap-3 overflow-x-auto pb-4">
-          {PIPELINE_STAGES.map((stage) => (
+          {(resolvedStages.length > 0 ? resolvedStages : PIPELINE_STAGES).map((stage) => (
             <div
               key={stage.key}
               className="flex w-72 flex-shrink-0 flex-col gap-3 rounded-2xl border border-border/50 p-3"
@@ -242,41 +301,47 @@ const KanbanBoard = memo(function KanbanBoard({ swimlaneGroup, swimlaneData }: K
             </div>
           ))}
         </div>
-      ) : (
-        /* Kanban columns in horizontal scroll */
-        <>
-          <span className="sr-only" role="status">Use arrow keys to move cards between stages.</span>
-          <div className="flex gap-3 overflow-x-auto pb-2 [mask-image:linear-gradient(to_right,black_0%,black_95%,transparent_100%)]">
-          {pipeline.map((stage) => {
-            const stageConfig = PIPELINE_STAGES.find((s) => s.key === stage.key);
-            return (
-              <KanbanColumn
-                key={stage.key}
-                stage={stage}
-                accentColor={stageConfig?.color ?? 'border-t-gray-500'}
-                onDrop={handleDrop}
-                onLeadClick={handleLeadClick}
-                onMoveCard={handleMoveCard}
-              />
-            );
-          })}
+      </div>
+    );
+  }
 
-          {/* Empty state if no pipeline stages */}
-          {pipeline.length === 0 && (
-            <div className="flex w-full items-center justify-center py-16">
-              <div className="text-center">
-                <h3 className="text-sm font-semibold text-muted-foreground">
-                  No pipeline data
-                </h3>
-                <p className="text-xs text-muted-foreground/60 mt-1">
-                  Add leads to see them in the pipeline
-                </p>
-              </div>
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Kanban columns in horizontal scroll */}
+      <>
+        <span className="sr-only" role="status">Use arrow keys to move cards between stages.</span>
+        <div className="flex gap-3 overflow-x-auto pb-2 [mask-image:linear-gradient(to_right,black_0%,black_95%,transparent_100%)]">
+        {pipeline.map((stage) => {
+          const stageDef = resolvedStages.find((s) => s.key === stage.key);
+          const { accentColor, style } = resolveColumnProps(stage.key, stageDef?.color ?? '');
+          return (
+            <KanbanColumn
+              key={stage.key}
+              stage={stage}
+              accentColor={accentColor}
+              style={style}
+              onDrop={handleDrop}
+              onLeadClick={handleLeadClick}
+              onMoveCard={handleMoveCard}
+            />
+          );
+        })}
+
+        {/* Empty state if no pipeline stages */}
+        {pipeline.length === 0 && (
+          <div className="flex w-full items-center justify-center py-16">
+            <div className="text-center">
+              <h3 className="text-sm font-semibold text-muted-foreground">
+                No pipeline data
+              </h3>
+              <p className="text-xs text-muted-foreground/60 mt-1">
+                Add leads to see them in the pipeline
+              </p>
             </div>
-          )}
-        </div>
-        </>
-      )}
+          </div>
+        )}
+      </div>
+      </>
     </div>
   );
 });

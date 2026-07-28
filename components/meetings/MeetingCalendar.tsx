@@ -27,7 +27,7 @@ import {
   IconBuilding,
   IconPhone,
 } from '@tabler/icons-react';
-import type { Meeting, MeetingType } from '@/types/meeting.types';
+import type { Meeting } from '@/types/meeting.types';
 
 type ViewMode = 'month' | 'week';
 

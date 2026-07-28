@@ -140,8 +140,8 @@ export function EmailHistory({ emails, loading, entityType, entityId, onSend, on
                         <span className="font-medium text-foreground truncate">
                           {email.direction === 'inbound' ? email.fromAddress : email.toAddress}
                         </span>
-                        <Badge variant="outline" className={cn('text-[10px] font-normal', statusCfg.className)}>
-                          {statusCfg.label}
+                        <Badge variant="outline" className={cn('text-[10px] font-normal', statusCfg?.className)}>
+                          {statusCfg?.label}
                         </Badge>
                       </div>
                       {email.subject && (

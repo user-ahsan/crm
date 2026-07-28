@@ -25,8 +25,6 @@ interface ColumnSpec {
   example: string;
 }
 
-type ImportEntityType = 'leads' | 'contacts' | 'companies' | 'tasks' | 'meetings';
-
 const ENTITY_COLUMNS: Record<string, ColumnSpec[]> = {
   leads: [
     { name: 'fullName', type: 'text', required: true, description: 'Lead full name', example: 'John Davis' },
@@ -346,7 +344,8 @@ export function ImportDialog({
       }
 
       // All rows valid — call the appropriate service
-      const serviceMap: Record<string, { create: (data: any) => Promise<any> }> = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const serviceMap: Record<string, { create: (...args: any[]) => Promise<any> }> = {
         leads: (await import('@/services/lead.service')).leadService,
         contacts: (await import('@/services/contact.service')).contactService,
         companies: (await import('@/services/company.service')).companyService,
@@ -398,7 +397,7 @@ export function ImportDialog({
     } finally {
       setImporting(false);
     }
-  }, [parsed, entityLabel, onImportComplete, columns]);
+  }, [parsed, entityLabel, onImportComplete, columns, entityType]);
 
   /** Preview rows (first 3) */
   const previewRows = useMemo(() => {

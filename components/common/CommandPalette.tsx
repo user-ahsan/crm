@@ -13,8 +13,6 @@ import {
   IconSearch,
 } from '@tabler/icons-react';
 
-type ResultType = 'lead' | 'contact' | 'company' | 'task' | 'meeting';
-
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   lead: <IconUsers className="h-4 w-4" />,
   contact: <IconAddressBook className="h-4 w-4" />,

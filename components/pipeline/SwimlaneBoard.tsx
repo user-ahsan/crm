@@ -1,9 +1,12 @@
 'use client';
 
 import { useMemo } from 'react';
+import type { CSSProperties } from 'react';
 import type { Lead } from '@/types/lead.types';
 import type { Deal, DealStage } from '@/types/deal.types';
 import type { SwimlaneGroup } from '@/types/swimlane.types';
+import type { WorkflowEntityType } from '@/types/workflow.types';
+import type { StageDefinition } from '@/modules/pipeline/pipelineUtils';
 import { KanbanBoard } from './KanbanBoard';
 import { DealKanbanBoard } from '@/components/deals/DealKanbanBoard';
 import { KanbanColumn } from './KanbanColumn';
@@ -25,6 +28,10 @@ interface SwimlaneBoardProps {
   leads?: Lead[];
   deals?: Deal[];
   stages?: DealStage[];
+  /** Custom workflow stage definitions for lead pipelines */
+  leadStages?: StageDefinition[];
+  /** Entity type for loading custom workflow states (defaults to 'lead') */
+  entityType?: WorkflowEntityType;
   loading?: boolean;
   onLeadDrop?: (leadId: string, stageKey: string) => void;
   onDealDrop?: (dealId: string, stageId: string) => void;
@@ -47,6 +54,8 @@ export function SwimlaneBoard({
   leads,
   deals,
   stages,
+  leadStages,
+  entityType = 'lead',
   loading,
   onLeadDrop,
   onDealDrop,
@@ -70,7 +79,7 @@ export function SwimlaneBoard({
 
   // ─── Render ───────────────────────────────────────
   if (groupBy === 'none') {
-    return type === 'leads' ? <KanbanBoard /> : <DealKanbanBoard />;
+    return type === 'leads' ? <KanbanBoard entityType={entityType} /> : <DealKanbanBoard />;
   }
 
   if (loading && (!leads || leads.length === 0) && (!deals || deals.length === 0)) {
@@ -145,7 +154,7 @@ export function SwimlaneBoard({
 
           <div className="flex gap-3 overflow-x-auto p-3 [mask-image:linear-gradient(to_right,black_0%,black_95%,transparent_100%)]">
             {type === 'leads' && lane.leads && onLeadDrop && onLeadClick && (
-              <LeadLaneColumns leads={lane.leads} onDrop={onLeadDrop} onLeadClick={onLeadClick} />
+              <LeadLaneColumns leads={lane.leads} stages={leadStages} onDrop={onLeadDrop} onLeadClick={onLeadClick} />
             )}
             {type === 'deals' && lane.deals && stages && onDealDrop && onDealClick && (
               <DealLaneColumns deals={lane.deals} stages={stages} onDrop={onDealDrop} onDealClick={onDealClick} />
@@ -177,16 +186,32 @@ function LaneAvatar({ laneId }: { laneId: string; label: string }) {
   );
 }
 
+function resolveColumnAccent(stageKey: string, stageColor?: string) {
+  const defaultStage = PIPELINE_STAGES.find((s) => s.key === stageKey);
+  if (defaultStage) {
+    return {
+      accentColor: defaultStage.color,
+      style: undefined as CSSProperties | undefined,
+    };
+  }
+  return {
+    accentColor: '',
+    style: { borderTopColor: stageColor ?? '#9ca3af' } as CSSProperties,
+  };
+}
+
 function LeadLaneColumns({
   leads,
+  stages,
   onDrop,
   onLeadClick,
 }: {
   leads: Lead[];
+  stages?: StageDefinition[];
   onDrop: (leadId: string, stageKey: string) => void;
   onLeadClick: (lead: Lead) => void;
 }) {
-  const pipeline = useMemo(() => buildPipeline(leads), [leads]);
+  const pipeline = useMemo(() => buildPipeline(leads, stages), [leads, stages]);
 
   if (pipeline.every((s) => s.count === 0)) {
     return (
@@ -199,12 +224,14 @@ function LeadLaneColumns({
   return (
     <>
       {pipeline.map((stage) => {
-        const stageConfig = PIPELINE_STAGES.find((s) => s.key === stage.key);
+        const stageDef = stages?.find((s) => s.key === stage.key);
+        const { accentColor, style } = resolveColumnAccent(stage.key, stageDef?.color);
         return (
           <KanbanColumn
             key={stage.key}
             stage={stage}
-            accentColor={stageConfig?.color ?? 'border-t-gray-500'}
+            accentColor={accentColor}
+            style={style}
             onDrop={onDrop}
             onLeadClick={onLeadClick}
           />
