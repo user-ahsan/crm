@@ -48,8 +48,10 @@ import {
   IconKey,
   IconFileInvoice,
   IconTarget,
+  IconPhoto,
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { BrandingSection } from '@/components/settings/BrandingSection';
 
 const TIMEZONE_OPTIONS = [
   { value: 'America/New_York', label: 'Eastern Time (UTC-5)' },
@@ -204,6 +206,11 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Separator />
+
+      {/* Branding Section */}
+      <BrandingSection />
 
       <Separator />
 

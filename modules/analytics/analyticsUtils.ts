@@ -98,3 +98,46 @@ export function computeMonthlyPerformance(leads: Lead[]): MonthlyPerformance[] {
       won: data.won,
     }));
 }
+
+/* ── Conversion rates between adjacent funnel stages ────────── */
+export interface ConversionRate {
+  fromStage: string;
+  toStage: string;
+  rate: number; // 0–100, NaN if fromStage has 0 entries
+}
+
+export function computeConversionRates(funnel: FunnelStage[]): ConversionRate[] {
+  // Stages excluding 'lost' — lost is an exit, not a transition
+  const stages = funnel.filter((s) => s.name.toLowerCase() !== 'lost');
+  const rates: ConversionRate[] = [];
+  for (let i = 0; i < stages.length - 1; i++) {
+    rates.push({
+      fromStage: stages[i].name,
+      toStage: stages[i + 1].name,
+      rate: stages[i].count > 0 ? Math.round((stages[i + 1].count / stages[i].count) * 100) : 0,
+    });
+  }
+  return rates;
+}
+
+/* ── Trend helper (last month vs previous month) ──────────── */
+export function computeTrend(
+  monthly: MonthlyPerformance[],
+  fn: (m: MonthlyPerformance) => number,
+): { value: number; isPositive: boolean } | undefined {
+  if (monthly.length < 2) return undefined;
+  const sorted = [...monthly].sort((a, b) => a.month.localeCompare(b.month));
+  const current = fn(sorted[sorted.length - 1]);
+  const prev = fn(sorted[sorted.length - 2]);
+  if (prev === 0) return undefined;
+  const pct = Math.round(((current - prev) / prev) * 100);
+  return { value: Math.abs(pct), isPositive: pct >= 0 };
+}
+
+/* ── Win Rate ───────────────────────────────────────────────── */
+export function computeWinRate(leads: Lead[]): number {
+  const won = leads.filter((l) => l.status === 'won').length;
+  const lost = leads.filter((l) => l.status === 'lost').length;
+  const total = won + lost;
+  return total > 0 ? Math.round((won / total) * 100) : 0;
+}

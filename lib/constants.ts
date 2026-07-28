@@ -187,33 +187,6 @@ export const NAV_GROUPS: NavGroup[] = [
     label: 'Settings',
     items: [
       { label: 'Settings', href: '/settings', icon: 'settings' },
-      { label: 'Team', href: '/settings/team', icon: 'users-group' },
-      { label: 'Forecasts', href: '/settings/forecasts', icon: 'chart-bar' },
-    ],
-  },
-  {
-    label: 'Communication',
-    items: [
-      { label: 'Email', href: '/settings/email', icon: 'mail' },
-      { label: 'SMS', href: '/settings/sms', icon: 'device-mobile-message' },
-    ],
-  },
-  {
-    label: 'Automation',
-    items: [
-      { label: 'Webhooks', href: '/settings/webhooks', icon: 'webhook' },
-      { label: 'Workflows', href: '/settings/workflows', icon: 'hierarchy' },
-      { label: 'Automation', href: '/settings/automation', icon: 'zap' },
-      { label: 'Data Quality', href: '/settings/data-quality', icon: 'filter' },
-    ],
-  },
-  {
-    label: 'Developer',
-    items: [
-      { label: 'Integrations', href: '/settings/integrations', icon: 'puzzle' },
-      { label: 'Portal', href: '/settings/portal', icon: 'world' },
-      { label: 'API Keys', href: '/settings/api-keys', icon: 'key' },
-      { label: 'Invoice Templates', href: '/settings/invoice-templates', icon: 'file-invoice' },
     ],
   },
 ];

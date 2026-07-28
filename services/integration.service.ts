@@ -1,5 +1,4 @@
 import { getSharedClient } from '@/lib/supabase/client';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
 import type { CalendarIntegration, CalendarIntegrationFormData, CalendarProvider } from '@/types/integration.types';
 import type { DbCalendarIntegration, CalendarIntegrationInsert } from '@/types/supabase.types';
 import { toServiceError } from './supabase.service';
@@ -80,7 +79,7 @@ export const integrationService = {
    */
   async saveOAuthIntegration(data: CalendarIntegrationInsert): Promise<CalendarIntegration> {
     try {
-      const supabase = await createServerSupabaseClient();
+      const supabase = await getSharedClient();
       const { data: inserted, error } = await supabase
         .from('calendar_integrations')
         .insert(data as never)
@@ -99,7 +98,7 @@ export const integrationService = {
    */
   async updateLastSynced(integrationId: string): Promise<void> {
     try {
-      const supabase = await createServerSupabaseClient();
+      const supabase = await getSharedClient();
       const { error } = await supabase
         .from('calendar_integrations')
         .update({ last_synced_at: new Date().toISOString() } as never)

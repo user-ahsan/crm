@@ -1,5 +1,5 @@
 import { getSharedClient } from '@/lib/supabase/client';
-import { isTwilioConfigured, getTwilioClientAsync } from '@/lib/twilio';
+import { isTwilioConfigured } from '@/lib/twilio-config';
 import type { SmsLog, SmsFormData, SmsRelatedEntity } from '@/types/sms.types';
 import type { DbSmsLog } from '@/types/supabase.types';
 import { toServiceError } from './supabase.service';
@@ -95,35 +95,9 @@ export const smsService = {
         );
       }
 
-      // If Twilio is configured, actually send the SMS
-      if (twilioAvailable) {
-        try {
-          const twilio = await getTwilioClientAsync();
-          const twilioMsg = await twilio.messages.create({
-            to: data.toNumber,
-            from: fromNumber,
-            body: data.body,
-          });
-
-          // Update the SMS log with the real provider message ID
-          const { error: updateError } = await supabase
-            .from('sms_logs')
-            .update({ provider_message_id: twilioMsg.sid, status: 'sent' })
-            .eq('id', sms.id);
-          if (updateError) console.error('Failed to update SMS log with provider ID:', updateError);
-
-          return { ...sms, providerMessageId: twilioMsg.sid };
-        } catch (twilioError) {
-          // Update the SMS log with failure
-          const errorMsg = twilioError instanceof Error ? twilioError.message : 'Twilio send failed';
-          await supabase
-            .from('sms_logs')
-            .update({ status: 'failed', error_message: errorMsg })
-            .eq('id', sms.id);
-          return { ...sms, status: 'failed' as const, errorMessage: errorMsg };
-        }
-      }
-
+      // ponytail: actual Twilio API call happens in the API route (/api/sms/send)
+      // which calls smsService.send() for DB persistence, then calls Twilio separately.
+      // The providerMessageId from Twilio is updated back via the API route.
       return { ...sms, errorMessage: errorMessage ?? undefined };
     } catch (e) {
       throw toServiceError(e);

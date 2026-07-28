@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTwilioClientAsync, getTwilioFromNumber, isTwilioConfigured } from '@/lib/twilio';
+import { getTwilioClientAsync, getTwilioFromNumber, isTwilioConfigured } from '@/lib/twilio'; // server-only route — safe
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';

@@ -11,7 +11,6 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'General', href: '/settings', icon: <IconSettings className="size-4" /> },
-  { label: 'Account', href: '/settings', icon: <IconUserShield className="size-4" /> },
   { label: 'Team', href: '/settings/team', icon: <IconUsers className="size-4" /> },
   { label: 'API Keys', href: '/settings/api-keys', icon: <IconKey className="size-4" /> },
   { label: 'Automation', href: '/settings/automation', icon: <IconRobot className="size-4" /> },

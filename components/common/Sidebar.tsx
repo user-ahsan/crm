@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -115,22 +115,7 @@ export function Sidebar({
       aria-label="Main navigation"
     >
       {/* ── Logo ──────────────────────────────────────── */}
-      <div
-        className={cn(
-          'flex h-14 shrink-0 items-center px-4',
-          collapsed && 'justify-center px-0',
-        )}
-      >
-        {collapsed ? (
-          <span className="text-lg font-bold tracking-tight text-sidebar-primary">
-            N
-          </span>
-        ) : (
-          <span className="text-lg font-bold tracking-tight text-sidebar-primary">
-            Nexus<span className="text-sidebar-foreground">CRM</span>
-          </span>
-        )}
-      </div>
+      <SidebarLogo collapsed={collapsed} />
 
       <Separator />
 
@@ -296,5 +281,62 @@ export function Sidebar({
         )}
       </div>
     </nav>
+  );
+}
+
+/* ── Logo sub-component — shows custom logo or fallback text ── */
+function SidebarLogo({ collapsed }: { collapsed: boolean }) {
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/branding')
+      .then(r => r.json())
+      .then(json => {
+        if (!cancelled && json.success && json.data?.logo_url) {
+          setLogoUrl(json.data.logo_url);
+        }
+      })
+      .catch(() => { /* silent — fall back to text logo */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (collapsed) {
+    if (logoUrl) {
+      return (
+        <div className="flex h-14 shrink-0 items-center justify-center px-0">
+          <img
+            src={logoUrl}
+            alt="Logo"
+            className="size-8 rounded object-contain"
+          />
+        </div>
+      );
+    }
+    return (
+      <div className="flex h-14 shrink-0 items-center justify-center px-0">
+        <span className="text-lg font-bold tracking-tight text-sidebar-primary">N</span>
+      </div>
+    );
+  }
+
+  if (logoUrl) {
+    return (
+      <div className="flex h-14 shrink-0 items-center px-4">
+        <img
+          src={logoUrl}
+          alt="Logo"
+          className="max-h-8 max-w-40 rounded object-contain"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-14 shrink-0 items-center px-4">
+      <span className="text-lg font-bold tracking-tight text-sidebar-primary">
+        Nexus<span className="text-sidebar-foreground">CRM</span>
+      </span>
+    </div>
   );
 }

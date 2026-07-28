@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Progress,
@@ -31,9 +31,7 @@ export default function OnboardingLayout({
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-zinc-50 via-white to-zinc-100 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950">
       {/* ── Branding ───────────────────────────────────────── */}
       <header className="flex shrink-0 items-center px-6 pt-5">
-        <span className="text-lg font-bold tracking-tight text-foreground">
-          NexusCRM
-        </span>
+        <OnboardingLogo />
       </header>
 
       {/* ── Step Indicator ─────────────────────────────────── */}
@@ -111,4 +109,28 @@ export default function OnboardingLayout({
       </main>
     </div>
   );
+}
+
+/** Dynamic logo for the onboarding header — shows custom logo if uploaded, falls back to text. */
+function OnboardingLogo() {
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/branding')
+      .then(r => r.json())
+      .then(json => {
+        if (!cancelled && json.success && json.data?.logo_url) {
+          setLogoUrl(json.data.logo_url);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  if (logoUrl) {
+    return <img src={logoUrl} alt="Logo" className="max-h-8 max-w-48 rounded object-contain" />;
+  }
+
+  return <span className="text-lg font-bold tracking-tight text-foreground">NexusCRM</span>;
 }

@@ -1,10 +1,16 @@
-import { isFeatureEnabled } from './feature-gates';
-
 /**
- * ponytail: thin Twilio client wrapper, dynamic import so it never
- * gets bundled into client chunks. Call from server code only —
- * client callers get a clear error message.
+ * ─── Twilio Client Wrapper (Server-Only) ──────────────────────────────
+ *
+ * Dynamic import so it never gets bundled into client chunks.
+ * Call from server code only — client callers get a clear error message.
+ *
+ * Client-safe config functions (isTwilioConfigured, getTwilioFromNumber)
+ * are re-exported from ./twilio-config for backward compatibility.
+ * ────────────────────────────────────────────────────────────────────────
  */
+
+export { getTwilioFromNumber, isTwilioConfigured } from './twilio-config';
+
 export async function getTwilioClientAsync(): Promise<{
   messages: {
     create: (opts: {
@@ -27,12 +33,4 @@ export async function getTwilioClientAsync(): Promise<{
   } catch (e) {
     throw e;
   }
-}
-
-export function getTwilioFromNumber(): string {
-  return process.env.TWILIO_FROM_NUMBER || '+15551234567';
-}
-
-export function isTwilioConfigured(): boolean {
-  return isFeatureEnabled('sms') && !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
 }
