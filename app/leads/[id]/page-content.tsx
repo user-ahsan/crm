@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { IconEdit, IconArrowLeft } from '@tabler/icons-react';
 import type { Lead } from '@/types/lead.types';

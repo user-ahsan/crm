@@ -28,7 +28,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const configs = await webhookConfigService.getAll();
     // SAFETY: Strip secret from API responses — secrets must never leave the server.
-    const sanitized = configs.map(({ secret: _secret, ...rest }) => rest);
+    const sanitized = configs.map(({ secret: _secret, ...rest }) => {
+      void _secret; // secret is stripped from API responses
+      return rest;
+    });
     return NextResponse.json({ data: sanitized }, { headers: corsHeaders() });
   } catch (e) {
     console.error(`[webhooks/config] GET Error:`, e);
@@ -118,7 +121,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
     // SAFETY: Strip secret from API responses — secrets must never leave the server.
-    const { secret: _secret, ...sanitized } = config;
+    const { secret: _unused, ...sanitized } = config;
+    void _unused;
     return NextResponse.json({ data: sanitized }, { status: 201, headers: corsHeaders() });
   } catch (e) {
     console.error(`[webhooks/config] POST Error:`, e);

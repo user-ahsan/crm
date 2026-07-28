@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { campaignService } from '@/services/campaign.service';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { validateCsrf } from '@/lib/csrf';
 import { corsHeaders } from '@/lib/cors';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -262,9 +261,8 @@ export async function POST(
     }
 
     // Upsert recipients (skip duplicates on sequence_id + recipient_type + recipient_id)
-    const { data: inserted, error } = await (supabase
-      .from('campaign_recipients') as any)
-      .upsert(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: inserted, error } = await (supabase.from('campaign_recipients') as any).upsert(
         emails.map((e) => ({
           sequence_id: sequenceId,
           recipient_type: e.recipient_type,

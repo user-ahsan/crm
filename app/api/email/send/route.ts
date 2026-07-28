@@ -160,15 +160,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<SendRespo
   try {
     const email = await communicationService.sendEmail(emailData);
 
+    if (email.status === 'sent') {
+      return NextResponse.json(
+        { success: true, emailId: email.id, providerMessageId: email.providerMessageId, status: email.status },
+        { status: 200, headers: corsHeaders() },
+      );
+    }
     return NextResponse.json(
-      {
-        success: email.status === 'sent',
-        emailId: email.id,
-        providerMessageId: email.providerMessageId,
-        status: email.status,
-        error: email.errorMessage,
-      },
-      { status: email.status === 'sent' ? 200 : 202, headers: corsHeaders() },
+      { success: false, error: email.errorMessage || 'Email delivery pending — check status later' },
+      { status: 202, headers: corsHeaders() },
     );
   } catch (e) {
     console.error(`[email/send] Error:`, e);

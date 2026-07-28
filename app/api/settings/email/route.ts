@@ -16,7 +16,7 @@ export async function GET() {
     }
 
     // Fetch email config from user_settings or notification_preferences
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('notification_preferences')
       .select('*')
       .eq('user_id', user.id)

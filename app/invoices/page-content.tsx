@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { IconPlus } from '@tabler/icons-react';
 import { toast } from 'sonner';
-import type { Invoice, InvoiceStatus } from '@/types/invoice.types';
+import type { InvoiceStatus } from '@/types/invoice.types';
 import { PageHeader } from '@/components/common/PageHeader';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -132,9 +132,12 @@ function InvoicesPageContent() {
   return (
     <div className="space-y-6">
       <PageHeader title="Invoices" description="Track and manage all invoices">
-        <Button onClick={() => router.push('/quotes')}>
+        <Button onClick={() => router.push('/invoices/new?standalone=true')}>
           <IconPlus className="mr-2 size-4" />
-          New Invoice from Quote
+          New Invoice
+        </Button>
+        <Button variant="outline" onClick={() => router.push('/quotes')}>
+          New from Quote
         </Button>
       </PageHeader>
 

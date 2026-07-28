@@ -292,13 +292,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
   // Persist webhook event to database
   try {
     const supabase = await createServerSupabaseClient();
+     
     await supabase.from('webhook_events').insert({
       source: 'n8n',
       event_type: body.event || 'unknown',
       payload: body,
       status: 'received',
       created_at: receivedAt,
-    });
+    } as never);
   } catch (dbError) {
     console.error('Failed to persist webhook event:', dbError);
   }

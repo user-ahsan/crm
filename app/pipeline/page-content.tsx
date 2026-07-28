@@ -12,7 +12,7 @@ import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { usePipeline } from '@/hooks/usePipeline';
 import { useDeals } from '@/hooks/useDeals';
 import type { SwimlaneGroup } from '@/types/swimlane.types';
-import { IconRefresh, IconColumns, IconCurrencyDollar, IconColumns3, IconUser, IconFlag } from '@tabler/icons-react';
+import { IconRefresh, IconColumns, IconCurrencyDollar, IconUser, IconFlag } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -185,6 +185,7 @@ export default function PipelinePage() {
               <KanbanBoard
                 swimlaneGroup={swimlaneGroup}
                 swimlaneData={swimlaneData}
+                entityType="lead"
               />
             </TabsContent>
 
