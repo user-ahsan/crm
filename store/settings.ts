@@ -18,8 +18,8 @@ export interface SettingsState {
 }
 
 const DEFAULT_SETTINGS = {
-  displayName: 'Alice Johnson',
-  email: 'alice@nexuscrm.com',
+  displayName: '',
+  email: '',
   timezone: 'America/New_York',
   emailNotif: true,
   taskReminders: true,

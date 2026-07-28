@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import type { Tag } from '@/types/tag.types';
+import { generateId } from '@/lib/formatters';
 import { tagService } from '@/services/tag.service';
 
 export function useTags() {
@@ -40,7 +41,7 @@ export function useTags() {
   }, []);
 
   const createTag = useCallback(async (name: string, color?: string) => {
-    const tempId = `temp-${Date.now()}`;
+    const tempId = generateId();
     const optimisticItem: Tag = { id: tempId, name, color: color ?? '#6366f1', createdAt: new Date().toISOString() };
     setTags((prev) => [optimisticItem, ...prev]);
     try {
@@ -55,8 +56,11 @@ export function useTags() {
   }, []);
 
   const updateTag = useCallback(async (id: string, updates: { name?: string; color?: string }) => {
-    const previous = tags;
-    setTags((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
+    let prevItem: Tag | undefined;
+    setTags((prev) => {
+      prevItem = prev.find((t) => t.id === id);
+      return prev.map((t) => (t.id === id ? { ...t, ...updates } : t));
+    });
     try {
       const updated = await tagService.update(id, updates);
       if (updated) {
@@ -64,24 +68,27 @@ export function useTags() {
       }
       return updated;
     } catch (e) {
-      setTags(previous);
+      if (prevItem) setTags((prev) => prev.map((t) => (t.id === id ? prevItem! : t)));
       setError(e instanceof Error ? e.message : 'Failed to update tag');
       return undefined;
     }
-  }, [tags]);
+  }, []);
 
   const deleteTag = useCallback(async (id: string) => {
-    const previous = tags;
-    setTags((prev) => prev.filter((t) => t.id !== id));
+    let prevItem: Tag | undefined;
+    setTags((prev) => {
+      prevItem = prev.find((t) => t.id === id);
+      return prev.filter((t) => t.id !== id);
+    });
     try {
       await tagService.delete(id);
       return true;
     } catch (e) {
-      setTags(previous);
+      if (prevItem) setTags((prev) => [...prev, prevItem!]);
       setError(e instanceof Error ? e.message : 'Failed to delete tag');
       return false;
     }
-  }, [tags]);
+  }, []);
 
   const getEntityTags = useCallback(async (entityType: string, entityId: string) => {
     try {

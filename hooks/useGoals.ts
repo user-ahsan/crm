@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Goal } from '@/types/goal.types';
 import type { GoalInsert, GoalUpdate } from '@/types/supabase.types';
+import { generateId } from '@/lib/formatters';
 import { goalService } from '@/services/goal.service';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
@@ -45,7 +46,7 @@ export function useGoals() {
   const create = useCallback(async (data: Omit<GoalInsert, 'created_by'>) => {
     if (!user?.id) return undefined;
     const optimistic: Goal = {
-      id: `temp-${Date.now()}`,
+      id: generateId(),
       title: data.title,
       description: data.description ?? '',
       type: data.type,
@@ -72,32 +73,38 @@ export function useGoals() {
   }, [user]);
 
   const update = useCallback(async (id: string, data: GoalUpdate) => {
-    const previous = goals;
-    const existing = goals.find((g) => g.id === id);
-    if (!existing) return undefined;
-    const optimistic: Goal = { ...existing, ...data as Partial<Goal>, updatedAt: new Date().toISOString() };
-    setGoals((prev) => prev.map((g) => (g.id === id ? optimistic : g)));
+    let prevItem: Goal | undefined;
+    setGoals((prev) => {
+      const existing = prev.find((g) => g.id === id);
+      if (!existing) return prev;
+      prevItem = { ...existing };
+      return prev.map((g) => (g.id === id ? { ...existing, ...data as Partial<Goal>, updatedAt: new Date().toISOString() } : g));
+    });
+    if (!prevItem) return undefined;
     try {
       const updated = await goalService.update(id, data);
       setGoals((prev) => prev.map((g) => (g.id === id ? updated : g)));
       return updated;
     } catch (e) {
-      setGoals(previous);
+      if (prevItem) setGoals((prev) => prev.map((g) => (g.id === id ? prevItem! : g)));
       setError(e instanceof Error ? e.message : 'Failed to update goal');
       return undefined;
     }
-  }, [goals]);
+  }, []);
 
   const remove = useCallback(async (id: string) => {
-    const previous = goals;
-    setGoals((prev) => prev.filter((g) => g.id !== id));
+    let prevItem: Goal | undefined;
+    setGoals((prev) => {
+      prevItem = prev.find((g) => g.id === id);
+      return prev.filter((g) => g.id !== id);
+    });
     try {
       await goalService.delete(id);
     } catch (e) {
-      setGoals(previous);
+      if (prevItem) setGoals((prev) => [...prev, prevItem!]);
       setError(e instanceof Error ? e.message : 'Failed to delete goal');
     }
-  }, [goals]);
+  }, []);
 
   const getProgress = useCallback((goal: Goal): number => {
     return goalService.getProgress(goal);

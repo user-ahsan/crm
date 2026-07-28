@@ -1,20 +1,22 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { Meeting, MeetingFormData } from '@/types/meeting.types';
 import type { DbMeeting, MeetingInsert } from '@/types/supabase.types';
-import { formatSupabaseError } from './supabase.service';
+import { asEnum, toServiceError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
+
+const MEETING_TYPES = ['online', 'offline', 'call', 'video', 'in_person', 'other'] as const;
 
 function mapRowToMeeting(row: DbMeeting): Meeting {
   return {
     id: row.id,
     title: row.title,
     participants: row.participants ?? [],
-    relatedToType: row.related_to_type ?? undefined,
+    relatedToType: (row.related_to_type as Meeting['relatedToType']) ?? undefined,
     relatedToId: row.related_to_id ?? undefined,
     dateTime: row.date_time,
     duration: row.duration,
-    type: row.type as Meeting['type'],
+    type: asEnum(row.type, MEETING_TYPES),
     notes: row.notes ?? undefined,
     outcome: row.outcome ?? undefined,
     createdAt: row.created_at,
@@ -45,10 +47,10 @@ export const meetingService = {
         .select('*')
         .order('date_time', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToMeeting) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -62,11 +64,11 @@ export const meetingService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return data ? mapRowToMeeting(data) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -80,10 +82,10 @@ export const meetingService = {
         .eq('related_to_id', entityId)
         .order('date_time', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToMeeting) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -97,10 +99,10 @@ export const meetingService = {
         .lte('date_time', end)
         .order('date_time', { ascending: true })
         .range((page - 1) * pageSize, page * pageSize - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToMeeting) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -114,10 +116,10 @@ export const meetingService = {
         .gte('date_time', now)
         .order('date_time', { ascending: true })
         .limit(limit);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToMeeting) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -132,7 +134,7 @@ export const meetingService = {
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       const meeting = mapRowToMeeting(inserted);
       activityService.log('meeting', meeting.id, 'meeting_scheduled', `Meeting scheduled: ${meeting.title}`, {
         date: meeting.dateTime,
@@ -146,7 +148,7 @@ export const meetingService = {
       });
       return meeting;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -162,27 +164,37 @@ export const meetingService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       const meeting = mapRowToMeeting(updated);
+      activityService.log('meeting', id, 'updated', `Meeting "${meeting.title}" updated`, {
+        title: meeting.title,
+        dateTime: meeting.dateTime,
+        type: meeting.type,
+        outcome: data.outcome,
+      });
       triggerWebhook('meeting.updated', { id, ...data });
       return meeting;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async delete(id: string): Promise<boolean> {
     try {
       const supabase = await getSharedClient();
-      await supabase.from('activities').delete().eq('entity_id', id);
+      const ops = [
+        supabase.from('activities').delete().eq('entity_id', id),
+      ];
+      const results = await Promise.all(ops);
+      for (const r of results) if (r.error) console.error(`Cascade delete error: ${r.error.message}`);
       const { error } = await supabase.from('meetings').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       activityService.log('meeting', id, 'deleted', `Meeting deleted`);
       triggerWebhook('meeting.deleted', { id });
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 };

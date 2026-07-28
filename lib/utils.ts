@@ -9,12 +9,14 @@ export function cn(...inputs: ClassValue[]) {
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /* ── Phone Normalization ─────────────────────────────────── */
-export function normalizePhone(phone: string): string {
+// ponytail: only used internally by findDuplicates — not exported
+function normalizePhone(phone: string): string {
   return phone.replace(/[\s\-().]/g, '');
 }
 
 /* ── Fuzzy Name Match ────────────────────────────────────── */
-export function fuzzyNameMatch(a: string, b: string): boolean {
+// ponytail: only used internally by findDuplicates — not exported
+function fuzzyNameMatch(a: string, b: string): boolean {
   const normA = a.toLowerCase().replace(/\s+/g, ' ').trim();
   const normB = b.toLowerCase().replace(/\s+/g, ' ').trim();
   if (normA === normB) return true;

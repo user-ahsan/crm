@@ -1,3 +1,7 @@
+/**
+ * MOCK DATA — Used for development/demo only.
+ * Production data comes from Supabase via services/*.service.ts
+ */
 import type { TeamInvitation } from '@/types/team.types';
 
 export const teamInvitations: TeamInvitation[] = [
@@ -8,8 +12,8 @@ export const teamInvitations: TeamInvitation[] = [
     role: 'agent',
     invitedBy: 'user-1',
     status: 'pending',
-    expiresAt: '2026-06-20T12:00:00.000Z',
-    createdAt: '2026-06-13T12:00:00.000Z',
+    expiresAt: '2026-06-20T12:00:00Z',
+    createdAt: '2026-06-13T12:00:00Z',
   },
   {
     id: 'inv-002',
@@ -18,7 +22,7 @@ export const teamInvitations: TeamInvitation[] = [
     role: 'viewer',
     invitedBy: 'user-1',
     status: 'expired',
-    expiresAt: '2026-05-01T12:00:00.000Z',
-    createdAt: '2026-04-24T12:00:00.000Z',
+    expiresAt: '2026-05-01T12:00:00Z',
+    createdAt: '2026-04-24T12:00:00Z',
   },
 ];

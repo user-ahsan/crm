@@ -1,4 +1,4 @@
-export type InvoiceStatus = 'draft' | 'paid' | 'overdue' | 'cancelled' | 'refunded';
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled' | 'refunded';
 export type PaymentTerms = 'net-15' | 'net-30' | 'net-45' | 'net-60';
 
 export interface InvoiceItem {
@@ -14,6 +14,7 @@ export interface InvoiceItem {
 export interface Invoice {
   id: string;
   invoiceNumber: string;
+  title?: string;
   quoteId?: string;
   leadId?: string;
   contactId?: string;
@@ -28,6 +29,10 @@ export interface Invoice {
   dueDate?: string;
   paidAt?: string;
   paymentTerms?: PaymentTerms;
+  companyName?: string;
+  companyAddress?: string;
+  companyEmail?: string;
+  companyPhone?: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -36,6 +41,7 @@ export interface Invoice {
 
 export interface InvoiceFormData {
   invoiceNumber?: string;
+  title?: string;
   quoteId?: string;
   leadId?: string;
   contactId?: string;
@@ -46,6 +52,10 @@ export interface InvoiceFormData {
   notes?: string;
   dueDate?: string;
   paymentTerms?: PaymentTerms;
+  companyName?: string;
+  companyAddress?: string;
+  companyEmail?: string;
+  companyPhone?: string;
   items: { description: string; quantity: number; unitPrice: number }[];
 }
 

@@ -33,11 +33,13 @@ export interface Email {
   subject: string;
   body: string;
   direction: 'inbound' | 'outbound';
-  status: 'draft' | 'sent' | 'failed';
+  status: 'draft' | 'pending' | 'queued' | 'sent' | 'failed';
   relatedToType?: string;
   relatedToId?: string;
   sentAt?: string;
   createdAt: string;
+  providerMessageId?: string;
+  errorMessage?: string;
 }
 
 export interface EmailFormData {

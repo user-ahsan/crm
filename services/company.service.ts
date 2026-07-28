@@ -1,9 +1,10 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { Company, CompanyFormData } from '@/types/company.types';
 import type { DbCompany, CompanyInsert } from '@/types/supabase.types';
-import { formatSupabaseError } from './supabase.service';
+import { ServiceError, toServiceError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
+import { DUPE_WEIGHT_NAME_EXACT, DUPE_WEIGHT_NAME_PARTIAL, DUPE_WEIGHT_WEBSITE, DUPE_WEIGHT_INDUSTRY, DUPE_MIN_SCORE } from '@/lib/constants';
 
 interface DuplicateGroup {
   item: Company;
@@ -49,10 +50,10 @@ export const companyService = {
         .select('*')
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToCompany) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -66,11 +67,11 @@ export const companyService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return data ? mapRowToCompany(data) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -84,10 +85,10 @@ export const companyService = {
         .or(`name.ilike.%${s}%,industry.ilike.%${s}%,location.ilike.%${s}%`)
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToCompany) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -104,7 +105,7 @@ export const companyService = {
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       const company = mapRowToCompany(inserted);
       activityService.log('company', company.id, 'created', `Company created: ${company.name}`);
       triggerWebhook('company.created', {
@@ -115,7 +116,7 @@ export const companyService = {
       });
       return company;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -131,30 +132,34 @@ export const companyService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       const company = mapRowToCompany(updated);
       activityService.log('company', id, 'updated', `Company updated: ${company.name}`);
       triggerWebhook('company.updated', { id, ...data });
       return company;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async delete(id: string): Promise<boolean> {
     try {
       const supabase = await getSharedClient();
-      await supabase.from('tasks').delete().eq('related_to_id', id);
-      await supabase.from('meetings').delete().eq('related_to_id', id);
-      await supabase.from('activities').delete().eq('entity_id', id);
+      const ops = [
+        supabase.from('tasks').delete().eq('related_to_id', id),
+        supabase.from('meetings').delete().eq('related_to_id', id),
+        supabase.from('activities').delete().eq('entity_id', id),
+      ];
+      const results = await Promise.all(ops);
+      for (const r of results) if (r.error) console.error(`Cascade delete error: ${r.error.message}`);
       const { error } = await supabase.from('companies').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       activityService.log('company', id, 'deleted', `Company deleted`);
       triggerWebhook('company.deleted', { id });
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -176,22 +181,26 @@ export const companyService = {
           let score = 0;
 
           if (a.name && b.name && a.name.toLowerCase() === b.name.toLowerCase()) {
-            score += 40;
+            score += DUPE_WEIGHT_NAME_EXACT;
           } else if (a.name && b.name) {
             const na = a.name.toLowerCase().trim();
             const nb = b.name.toLowerCase().trim();
             if ((na.includes(nb) || nb.includes(na)) && Math.min(na.length, nb.length) >= 3) {
-              score += 20;
+              score += DUPE_WEIGHT_NAME_PARTIAL;
             }
           }
-          if (a.website && b.website && a.website.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '') === b.website.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')) {
-            score += 35;
+          if (a.website && b.website) {
+            const wa = a.website.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+            const wb = b.website.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+            if (wa === wb) {
+              score += DUPE_WEIGHT_WEBSITE;
+            }
           }
           if (a.industry && b.industry && a.industry.toLowerCase() === b.industry.toLowerCase()) {
-            score += 10;
+            score += DUPE_WEIGHT_INDUSTRY;
           }
 
-          if (score >= 20) {
+          if (score >= DUPE_MIN_SCORE) {
             matches.push(b);
             if (score > maxScore) maxScore = score;
           }
@@ -206,7 +215,7 @@ export const companyService = {
 
       return groups.sort((a, b) => b.score - a.score);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -214,31 +223,44 @@ export const companyService = {
     try {
       const supabase = await getSharedClient();
 
-      await supabase.from('tasks').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'company');
-      await supabase.from('meetings').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'company');
-      await supabase.from('activities').update({ entity_id: survivorId }).in('entity_id', mergeIds);
-      await supabase.from('taggings').update({ taggable_id: survivorId }).in('taggable_id', mergeIds).eq('taggable_type', 'company');
-      await supabase.from('contacts').update({ company_id: survivorId }).in('company_id', mergeIds);
+      const { error: tasksErr } = await supabase.from('tasks').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'company');
+      if (tasksErr) console.error(`Merge tasks update error: ${tasksErr.message}`);
+
+      const { error: meetingsErr } = await supabase.from('meetings').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'company');
+      if (meetingsErr) console.error(`Merge meetings update error: ${meetingsErr.message}`);
+
+      const { error: activitiesErr } = await supabase.from('activities').update({ entity_id: survivorId }).in('entity_id', mergeIds);
+      if (activitiesErr) console.error(`Merge activities update error: ${activitiesErr.message}`);
+
+      const { error: taggingsErr } = await supabase.from('taggings').update({ taggable_id: survivorId }).in('taggable_id', mergeIds).eq('taggable_type', 'company');
+      if (taggingsErr) console.error(`Merge taggings update error: ${taggingsErr.message}`);
+
+      const { error: contactsErr } = await supabase.from('contacts').update({ company_id: survivorId }).in('company_id', mergeIds);
+      if (contactsErr) console.error(`Merge contacts update error: ${contactsErr.message}`);
 
       for (const id of mergeIds) {
         await this.delete(id);
       }
 
       const survivor = await this.getById(survivorId);
-      if (!survivor) throw new Error('Survivor company not found after merge');
+      if (!survivor) throw new ServiceError('Survivor company not found after merge', 'MERGE_FAILED');
       activityService.log('company', survivorId, 'updated', `Company merged: merged ${mergeIds.length} duplicates`);
       return survivor;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async getRevenueEstimate(): Promise<number> {
     try {
-      const all = await this.getAll();
-      return all.reduce((sum, c) => sum + c.revenue, 0);
+      const supabase = await getSharedClient();
+      const { data, error } = await supabase
+        .from('companies')
+        .select('revenue');
+      if (error) throw toServiceError(error);
+      return (data ?? []).reduce((sum: number, row: Record<string, unknown>) => sum + ((row.revenue as number) ?? 0), 0);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 };

@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Activity, ActivityType } from '@/types/activity.types';
+import { generateId } from '@/lib/formatters';
 import { activityService } from '@/services/activity.service';
 
 export function useActivities() {
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const refreshCounterRef = useRef(0);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -23,10 +25,29 @@ export function useActivities() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    const requestId = ++refreshCounterRef.current;
     (async () => {
-      await refresh();
+      if (cancelled) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await activityService.getAll();
+        if (!cancelled && refreshCounterRef.current === requestId) {
+          setActivities(data);
+        }
+      } catch (e) {
+        if (!cancelled && refreshCounterRef.current === requestId) {
+          setError(e instanceof Error ? e.message : 'Failed to load activities');
+        }
+      } finally {
+        if (!cancelled && refreshCounterRef.current === requestId) {
+          setLoading(false);
+        }
+      }
     })();
-  }, [refresh]);
+    return () => { cancelled = true; };
+  }, []);
 
   const getByEntity = useCallback(async (entityType: string, entityId: string) => {
     try {
@@ -43,7 +64,7 @@ export function useActivities() {
     description: string,
     metadata?: Record<string, unknown>,
   ) => {
-    const tempId = `temp-${Date.now()}`;
+    const tempId = generateId();
     const optimisticItem: Activity = {
       id: tempId,
       entityType,

@@ -21,8 +21,8 @@ function escapeCsvValue(value: string): string {
  * @param columns - Column definitions with key (property name) and label (header text).
  * @returns A CSV-formatted string with BOM for Excel UTF-8 compatibility.
  */
-export function convertToCSV(
-  data: Record<string, any>[],
+export function convertToCSV<T extends Record<string, unknown>>(
+  data: T[],
   columns: { key: string; label: string }[],
 ): string {
   if (columns.length === 0) {
@@ -59,6 +59,7 @@ export function convertToCSV(
  * @param filename - The desired filename (e.g. 'leads-export-2026-06-13.csv').
  */
 export function downloadCSV(csv: string, filename: string): void {
+  if (typeof window === 'undefined') throw new Error('downloadCSV can only be used in browser');
   // BOM for UTF-8 — ensures Excel opens the file correctly
   const bom = '\uFEFF';
   const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });

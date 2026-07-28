@@ -1,3 +1,7 @@
+/**
+ * MOCK DATA — Used for development/demo only.
+ * Production data comes from Supabase via services/*.service.ts
+ */
 import type { TeamMember } from '@/types/team.types';
 
 export const teamMembers: TeamMember[] = [
@@ -6,7 +10,7 @@ export const teamMembers: TeamMember[] = [
     teamId: 'team-001',
     userId: 'user-1',
     role: 'admin',
-    joinedAt: '2026-01-15T08:00:00.000Z',
+    joinedAt: '2026-01-15T08:00:00Z',
     user: { name: 'Alice Johnson', email: 'alice@nexuscrm.com' },
   },
   {
@@ -14,7 +18,7 @@ export const teamMembers: TeamMember[] = [
     teamId: 'team-001',
     userId: 'user-2',
     role: 'manager',
-    joinedAt: '2026-01-16T09:00:00.000Z',
+    joinedAt: '2026-01-16T09:00:00Z',
     user: { name: 'Bob Smith', email: 'bob@nexuscrm.com' },
   },
   {
@@ -22,7 +26,7 @@ export const teamMembers: TeamMember[] = [
     teamId: 'team-001',
     userId: 'user-3',
     role: 'agent',
-    joinedAt: '2026-01-20T10:00:00.000Z',
+    joinedAt: '2026-01-20T10:00:00Z',
     user: { name: 'Carol Williams', email: 'carol@nexuscrm.com' },
   },
   {
@@ -30,7 +34,7 @@ export const teamMembers: TeamMember[] = [
     teamId: 'team-001',
     userId: 'user-4',
     role: 'agent',
-    joinedAt: '2026-02-01T10:00:00.000Z',
+    joinedAt: '2026-02-01T10:00:00Z',
     user: { name: 'David Brown', email: 'david@nexuscrm.com' },
   },
   {
@@ -38,7 +42,7 @@ export const teamMembers: TeamMember[] = [
     teamId: 'team-001',
     userId: 'user-5',
     role: 'viewer',
-    joinedAt: '2026-02-10T10:00:00.000Z',
+    joinedAt: '2026-02-10T10:00:00Z',
     user: { name: 'Eva Martinez', email: 'eva@nexuscrm.com' },
   },
 ];

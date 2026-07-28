@@ -1,7 +1,7 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { WorkflowState, WorkflowTransition, WorkflowStateFormData, WorkflowTransitionFormData, WorkflowEntityType } from '@/types/workflow.types';
 import type { DbWorkflowState, DbWorkflowTransition } from '@/types/supabase.types';
-import { formatSupabaseError } from './supabase.service';
+import { ServiceError, toServiceError } from './supabase.service';
 
 function mapState(row: DbWorkflowState): WorkflowState {
   return {
@@ -34,10 +34,10 @@ export const workflowService = {
         .select('*')
         .eq('entity_type', entityType)
         .order('sort_order', { ascending: true });
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapState) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -63,10 +63,10 @@ export const workflowService = {
         })
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return mapState(row);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -81,34 +81,53 @@ export const workflowService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return data ? mapState(data) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async deleteState(id: string): Promise<boolean> {
     try {
       const supabase = await getSharedClient();
+      // Also delete transitions referencing this state
+      const { error: transErr } = await supabase
+        .from('workflow_transitions')
+        .delete()
+        .or(`from_state_id.eq.${id},to_state_id.eq.${id}`);
+      if (transErr) throw toServiceError(transErr);
       const { error } = await supabase.from('workflow_states').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async reorderStates(ids: string[]): Promise<boolean> {
     try {
       const supabase = await getSharedClient();
+      // Validate that IDs exist before upsert
+      const { data: existing, error: fetchErr } = await supabase
+        .from('workflow_states')
+        .select('id')
+        .in('id', ids);
+      if (fetchErr) throw toServiceError(fetchErr);
+
+      if (!existing || existing.length !== ids.length) {
+        const found = new Set(existing?.map((e: { id: string }) => e.id) ?? []);
+        const missing = ids.filter(id => !found.has(id));
+        throw new ServiceError(`Cannot reorder: states not found: ${missing.join(', ')}`, 'STATES_NOT_FOUND');
+      }
+
       const updates = ids.map((id, index) => ({ id, sort_order: index }));
       const { error } = await supabase.from('workflow_states').upsert(updates);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -119,10 +138,10 @@ export const workflowService = {
         .from('workflow_transitions')
         .select('*')
         .order('created_at', { ascending: true });
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapTransition) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -138,10 +157,10 @@ export const workflowService = {
         })
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return mapTransition(row);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -149,10 +168,10 @@ export const workflowService = {
     try {
       const supabase = await getSharedClient();
       const { error } = await supabase.from('workflow_transitions').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 };

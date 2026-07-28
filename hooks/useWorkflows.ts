@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { WorkflowState, WorkflowTransition, WorkflowStateFormData, WorkflowTransitionFormData, WorkflowEntityType } from '@/types/workflow.types';
 import { workflowService } from '@/services/workflow.service';
+import { generateId } from '@/lib/formatters';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export function useWorkflows(entityType: WorkflowEntityType) {
@@ -10,7 +11,7 @@ export function useWorkflows(entityType: WorkflowEntityType) {
   const [transitions, setTransitions] = useState<WorkflowTransition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const currentUser = useCurrentUser();
+  const { user: currentUser } = useCurrentUser();
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -53,19 +54,21 @@ export function useWorkflows(entityType: WorkflowEntityType) {
   }, [entityType]);
 
   const createState = useCallback(async (data: WorkflowStateFormData) => {
-    const tempId = `temp-${Date.now()}`;
+    const tempId = generateId();
+    let sortOrder = 0;
+    setStates((prev) => { sortOrder = prev.length; return prev; });
     const optimisticItem: WorkflowState = {
       id: tempId,
       name: data.name,
       color: data.color,
       entityType: data.entityType,
-      sortOrder: states.length,
-      createdBy: currentUser.user?.id ?? '',
+      sortOrder,
+      createdBy: currentUser?.id ?? '',
       createdAt: new Date().toISOString(),
     };
     setStates((prev) => [...prev, optimisticItem]);
     try {
-      const created = await workflowService.createState({ ...data, createdBy: currentUser.user?.id ?? '' });
+      const created = await workflowService.createState({ ...data, createdBy: currentUser?.id ?? '' });
       setStates((prev) => prev.map((s) => (s.id === tempId ? created : s)));
       return created;
     } catch (e) {
@@ -73,11 +76,14 @@ export function useWorkflows(entityType: WorkflowEntityType) {
       setError(e instanceof Error ? e.message : 'Failed to create state');
       return undefined;
     }
-  }, [states, currentUser]);
+  }, [currentUser]);
 
   const updateState = useCallback(async (id: string, updates: { name?: string; color?: string }) => {
-    const previous = states;
-    setStates((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
+    let prevItem: WorkflowState | undefined;
+    setStates((prev) => {
+      prevItem = prev.find((s) => s.id === id);
+      return prev.map((s) => (s.id === id ? { ...s, ...updates } : s));
+    });
     try {
       const updated = await workflowService.updateState(id, updates);
       if (updated) {
@@ -85,29 +91,38 @@ export function useWorkflows(entityType: WorkflowEntityType) {
       }
       return updated;
     } catch (e) {
-      setStates(previous);
+      if (prevItem) setStates((prev) => prev.map((s) => (s.id === id ? prevItem! : s)));
       setError(e instanceof Error ? e.message : 'Failed to update state');
       return undefined;
     }
-  }, [states]);
+  }, []);
 
   const deleteState = useCallback(async (id: string) => {
-    const previous = states;
-    setStates((prev) => prev.filter((s) => s.id !== id));
-    setTransitions((prev) => prev.filter((t) => t.fromStateId !== id && t.toStateId !== id));
+    let prevItem: WorkflowState | undefined;
+    let prevTransitions: WorkflowTransition[] | undefined;
+    setStates((prev) => {
+      prevItem = prev.find((s) => s.id === id);
+      return prev.filter((s) => s.id !== id);
+    });
+    setTransitions((prev) => {
+      prevTransitions = prev.filter((t) => t.fromStateId === id || t.toStateId === id);
+      return prev.filter((t) => t.fromStateId !== id && t.toStateId !== id);
+    });
     try {
       await workflowService.deleteState(id);
       return true;
     } catch (e) {
-      setStates(previous);
+      if (prevItem) setStates((prev) => [...prev, prevItem!]);
+      if (prevTransitions && prevTransitions.length > 0) setTransitions((prev) => [...prev, ...(prevTransitions ?? [])]);
       setError(e instanceof Error ? e.message : 'Failed to delete state');
       return false;
     }
-  }, [states]);
+  }, []);
 
   const reorderStates = useCallback(async (ids: string[]) => {
-    const previous = states;
+    let previous: WorkflowState[] | undefined;
     setStates((prev) => {
+      previous = [...prev];
       const reordered = ids.map((id, i) => {
         const existing = prev.find((s) => s.id === id);
         return existing ? { ...existing, sortOrder: i } : existing;
@@ -118,14 +133,14 @@ export function useWorkflows(entityType: WorkflowEntityType) {
       await workflowService.reorderStates(ids);
       return true;
     } catch (e) {
-      setStates(previous);
+      if (previous) setStates(previous);
       setError(e instanceof Error ? e.message : 'Failed to reorder states');
       return false;
     }
-  }, [states]);
+  }, []);
 
   const createTransition = useCallback(async (data: WorkflowTransitionFormData) => {
-    const tempId = `temp-${Date.now()}`;
+    const tempId = generateId();
     const optimistic: WorkflowTransition = {
       id: tempId,
       fromStateId: data.fromStateId,
@@ -146,17 +161,20 @@ export function useWorkflows(entityType: WorkflowEntityType) {
   }, []);
 
   const deleteTransition = useCallback(async (id: string) => {
-    const previous = transitions;
-    setTransitions((prev) => prev.filter((t) => t.id !== id));
+    let prevItem: WorkflowTransition | undefined;
+    setTransitions((prev) => {
+      prevItem = prev.find((t) => t.id === id);
+      return prev.filter((t) => t.id !== id);
+    });
     try {
       await workflowService.deleteTransition(id);
       return true;
     } catch (e) {
-      setTransitions(previous);
+      if (prevItem) setTransitions((prev) => [...prev, prevItem!]);
       setError(e instanceof Error ? e.message : 'Failed to delete transition');
       return false;
     }
-  }, [transitions]);
+  }, []);
 
   const getFilteredTransitions = useCallback((fromIds: string[]) => {
     return transitions.filter((t) => fromIds.includes(t.fromStateId));

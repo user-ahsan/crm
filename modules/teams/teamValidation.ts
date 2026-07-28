@@ -1,5 +1,5 @@
 import type { TeamFormData, InviteMemberFormData } from '@/types/team.types';
-import type { ValidationResult } from '@/types/common.types';
+import type { ValidationErrors, ValidationResult } from '@/types/common.types';
 import { EMAIL_REGEX } from '@/lib/utils';
 
 /**
@@ -8,7 +8,7 @@ import { EMAIL_REGEX } from '@/lib/utils';
  * - description is optional
  */
 export function validateTeamForm(data: Partial<TeamFormData>): ValidationResult {
-  const errors: Record<string, string> = {};
+  const errors: ValidationErrors = {};
 
   if (!data.name || data.name.trim().length === 0) {
     errors.name = 'Team name is required';
@@ -25,7 +25,7 @@ export function validateTeamForm(data: Partial<TeamFormData>): ValidationResult 
  * - role is required and must be a valid TeamRole
  */
 export function validateInviteForm(data: Partial<InviteMemberFormData>): ValidationResult {
-  const errors: Record<string, string> = {};
+  const errors: ValidationErrors = {};
 
   if (!data.email || data.email.trim().length === 0) {
     errors.email = 'Email is required';

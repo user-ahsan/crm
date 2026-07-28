@@ -1,3 +1,7 @@
+/**
+ * MOCK DATA — Used for development/demo only.
+ * Production data comes from Supabase via services/*.service.ts
+ */
 import type { Task } from '@/types/task.types';
 
 export const tasks: Task[] = [

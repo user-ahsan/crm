@@ -1,27 +1,26 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
+import { useDebounce } from './useDebounce';
 import { globalSearch, type SearchResult } from '@/modules/search/globalSearch';
-import { useLeads } from '@/hooks/useLeads';
-import { useContacts } from '@/hooks/useContacts';
-import { useCompanies } from '@/hooks/useCompanies';
-import { useTasks } from '@/hooks/useTasks';
-import { useMeetings } from '@/hooks/useMeetings';
+import { useLeadsCache, useContactsCache, useCompaniesCache, useTasksCache, useMeetingsCache } from '@/store/entity-cache';
 
 export function useSearch() {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const debouncedQuery = useDebounce(query, 250);
 
-  const { leads } = useLeads();
-  const { contacts } = useContacts();
-  const { companies } = useCompanies();
-  const { tasks } = useTasks();
-  const { meetings } = useMeetings();
+  // Use individual selectors to avoid re-rendering when unrelated entities change (P6)
+  const leads = useLeadsCache();
+  const contacts = useContactsCache();
+  const companies = useCompaniesCache();
+  const tasks = useTasksCache();
+  const meetings = useMeetingsCache();
 
   const results = useMemo((): SearchResult[] => {
-    if (query.trim().length < 1) return [];
-    return globalSearch(query, leads, contacts, companies, tasks, meetings);
-  }, [query, leads, contacts, companies, tasks, meetings]);
+    if (debouncedQuery.trim().length < 1) return [];
+    return globalSearch(debouncedQuery, leads, contacts, companies, tasks, meetings);
+  }, [debouncedQuery, leads, contacts, companies, tasks, meetings]);
 
   const grouped = useMemo(() => {
     const groups: Record<string, SearchResult[]> = {};

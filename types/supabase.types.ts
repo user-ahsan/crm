@@ -4,7 +4,8 @@ import type {
   LeadSource,
 } from '@/types/lead.types';
 import type { CompanySize } from '@/types/company.types';
-import type { TaskPriority, TaskStatus, RelatedEntityType } from '@/types/task.types';
+import type { TaskPriority, TaskStatus } from '@/types/task.types';
+import type { RelatedEntityType } from '@/types/attachment.types';
 import type { MeetingType } from '@/types/meeting.types';
 import type { ActivityType } from '@/types/activity.types';
 import type { AutomationTriggerEvent, AutomationCondition, AutomationAction } from '@/types/automation.types';
@@ -13,6 +14,7 @@ import type { QuoteStatus } from '@/types/quote.types';
 import type { InvoiceStatus } from '@/types/invoice.types';
 import type { GoalType, GoalPeriod } from '@/types/goal.types';
 import type { WorkflowEntityType } from '@/types/workflow.types';
+import type { CampaignStatus } from '@/types/campaign.types';
 
 // ──────────────────────────────────────────────
 // Database public schema definition
@@ -156,6 +158,11 @@ export interface Database {
         Insert: CampaignEmailInsert;
         Update: CampaignEmailUpdate;
       };
+      campaign_recipients: {
+        Row: CampaignRecipientRow;
+        Insert: CampaignRecipientInsert;
+        Update: CampaignRecipientUpdate;
+      };
       saved_views: {
         Row: SavedViewRow;
         Insert: SavedViewInsert;
@@ -165,6 +172,21 @@ export interface Database {
         Row: ApiKeyRow;
         Insert: ApiKeyInsert;
         Update: ApiKeyUpdate;
+      };
+      webhook_configs: {
+        Row: WebhookConfigRow;
+        Insert: WebhookConfigInsert;
+        Update: WebhookConfigUpdate;
+      };
+      webhook_deliveries: {
+        Row: WebhookDeliveryRow;
+        Insert: WebhookDeliveryInsert;
+        Update: WebhookDeliveryUpdate;
+      };
+      notification_preferences: {
+        Row: NotificationPreferenceRow;
+        Insert: NotificationPreferenceInsert;
+        Update: NotificationPreferenceUpdate;
       };
       workflow_states: {
         Row: WorkflowStateRow;
@@ -216,6 +238,7 @@ export interface LeadRow {
   status: LeadStatus;
   priority: LeadPriority;
   assigned_to: string | null;
+  owner_id: string | null;
   estimated_value: number;
   tags: string[];
   notes: string | null;
@@ -489,11 +512,13 @@ export interface EmailHistoryRow {
   to_address: string;
   subject: string;
   body: string;
-  direction: string;
-  status: string;
+  direction: 'inbound' | 'outbound';
+  status: 'draft' | 'pending' | 'sent' | 'failed';
   related_to_type: string | null;
   related_to_id: string | null;
   sent_at: string | null;
+  error_message: string | null;
+  provider_message_id: string | null;
   created_at: string;
 }
 
@@ -503,11 +528,13 @@ export interface EmailHistoryInsert {
   to_address: string;
   subject: string;
   body: string;
-  direction: string;
+  direction: 'inbound' | 'outbound';
   status?: string;
   related_to_type?: string | null;
   related_to_id?: string | null;
   sent_at?: string | null;
+  error_message?: string | null;
+  provider_message_id?: string | null;
 }
 
 export interface EmailHistoryUpdate {
@@ -521,6 +548,8 @@ export interface EmailHistoryUpdate {
   related_to_type?: string | null;
   related_to_id?: string | null;
   sent_at?: string | null;
+  error_message?: string | null;
+  provider_message_id?: string | null;
 }
 
 // ──────────────────────────────────────────────
@@ -563,6 +592,7 @@ export interface TeamUpdate {
   description?: string | null;
   created_by?: string;
   invite_code?: string;
+  updated_at?: string;
 }
 
 export interface TeamMemberRow {
@@ -1294,7 +1324,7 @@ export interface EmailSequenceRow {
   id: string;
   name: string;
   description: string;
-  status: string;
+  status: CampaignStatus;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -1304,7 +1334,7 @@ export interface EmailSequenceInsert {
   id?: string;
   name: string;
   description?: string;
-  status?: string;
+  status?: CampaignStatus;
   created_by: string;
   created_at?: string;
   updated_at?: string;
@@ -1314,7 +1344,7 @@ export interface EmailSequenceUpdate {
   id?: string;
   name?: string;
   description?: string;
-  status?: string;
+  status?: CampaignStatus;
   created_by?: string;
   updated_at?: string;
 }
@@ -1350,6 +1380,53 @@ export interface CampaignEmailUpdate {
 
 export type DbEmailSequence = EmailSequenceRow;
 export type DbCampaignEmail = CampaignEmailRow;
+
+// ── Campaign Recipient types ─────────────────────────────────────
+
+export interface CampaignRecipientRow {
+  id: string;
+  sequence_id: string;
+  campaign_email_id: string | null;
+  recipient_type: string;
+  recipient_id: string;
+  recipient_email: string;
+  status: string;
+  provider_message_id: string | null;
+  scheduled_send_at: string | null;
+  sent_at: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface CampaignRecipientInsert {
+  id?: string;
+  sequence_id: string;
+  campaign_email_id?: string | null;
+  recipient_type: string;
+  recipient_id: string;
+  recipient_email: string;
+  status?: string;
+  provider_message_id?: string | null;
+  scheduled_send_at?: string | null;
+  sent_at?: string | null;
+  error_message?: string | null;
+}
+
+export interface CampaignRecipientUpdate {
+  id?: string;
+  sequence_id?: string;
+  campaign_email_id?: string | null;
+  recipient_type?: string;
+  recipient_id?: string;
+  recipient_email?: string;
+  status?: string;
+  provider_message_id?: string | null;
+  scheduled_send_at?: string | null;
+  sent_at?: string | null;
+  error_message?: string | null;
+}
+
+export type DbCampaignRecipient = CampaignRecipientRow;
 
 // ── Saved View types ─────────────────────────────────────────
 
@@ -1534,6 +1611,8 @@ export interface SmsLogRow {
   body: string;
   direction: string;
   status: string;
+  provider_message_id: string | null;
+  error_message: string | null;
   related_to_type: string | null;
   related_to_id: string | null;
   created_by: string;
@@ -1547,6 +1626,8 @@ export interface SmsLogInsert {
   body: string;
   direction: string;
   status?: string;
+  provider_message_id?: string | null;
+  error_message?: string | null;
   related_to_type?: string | null;
   related_to_id?: string | null;
   created_by: string;
@@ -1560,6 +1641,8 @@ export interface SmsLogUpdate {
   body?: string;
   direction?: string;
   status?: string;
+  provider_message_id?: string | null;
+  error_message?: string | null;
   related_to_type?: string | null;
   related_to_id?: string | null;
   created_by?: string;
@@ -1567,3 +1650,127 @@ export interface SmsLogUpdate {
 }
 
 export type DbSmsLog = SmsLogRow;
+
+// ── Webhook Config types ──────────────────────────────────────
+
+export interface WebhookConfigRow {
+  id: string;
+  name: string;
+  url: string;
+  secret: string | null;
+  events: string[] | null;
+  active: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WebhookConfigInsert {
+  id?: string;
+  name: string;
+  url: string;
+  secret?: string | null;
+  events?: string[] | null;
+  active?: boolean;
+  created_by: string;
+}
+
+export interface WebhookConfigUpdate {
+  id?: string;
+  name?: string;
+  url?: string;
+  secret?: string | null;
+  events?: string[] | null;
+  active?: boolean;
+}
+
+export type DbWebhookConfig = WebhookConfigRow;
+
+// ── Webhook Delivery types ───────────────────────────────────
+
+export interface WebhookDeliveryRow {
+  id: string;
+  webhook_config_id: string;
+  event: string;
+  payload: Record<string, unknown>;
+  status: string;
+  status_code: number | null;
+  request_headers: Record<string, string> | null;
+  response_body: string | null;
+  duration_ms: number | null;
+  error_message: string | null;
+  retry_count: number;
+  next_retry_at: string | null;
+  created_at: string;
+}
+
+export interface WebhookDeliveryInsert {
+  id?: string;
+  webhook_config_id: string;
+  event: string;
+  payload: Record<string, unknown>;
+  status?: string;
+  status_code?: number | null;
+  request_headers?: Record<string, string> | null;
+  response_body?: string | null;
+  duration_ms?: number | null;
+  error_message?: string | null;
+  retry_count?: number;
+  next_retry_at?: string | null;
+}
+
+export interface WebhookDeliveryUpdate {
+  id?: string;
+  webhook_config_id?: string;
+  event?: string;
+  payload?: Record<string, unknown>;
+  status?: string;
+  status_code?: number | null;
+  request_headers?: Record<string, string> | null;
+  response_body?: string | null;
+  duration_ms?: number | null;
+  error_message?: string | null;
+  retry_count?: number;
+  next_retry_at?: string | null;
+}
+
+export type DbWebhookDelivery = WebhookDeliveryRow;
+
+// ── Notification Preference types ────────────────────────────
+
+export interface NotificationPreferenceRow {
+  id: string;
+  user_id: string;
+  email_notifications: boolean;
+  push_notifications: boolean;
+  in_app_notifications: boolean;
+  digest_frequency: string;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationPreferenceInsert {
+  id?: string;
+  user_id: string;
+  email_notifications?: boolean;
+  push_notifications?: boolean;
+  in_app_notifications?: boolean;
+  digest_frequency?: string;
+  quiet_hours_start?: string | null;
+  quiet_hours_end?: string | null;
+}
+
+export interface NotificationPreferenceUpdate {
+  id?: string;
+  user_id?: string;
+  email_notifications?: boolean;
+  push_notifications?: boolean;
+  in_app_notifications?: boolean;
+  digest_frequency?: string;
+  quiet_hours_start?: string | null;
+  quiet_hours_end?: string | null;
+}
+
+export type DbNotificationPreference = NotificationPreferenceRow;

@@ -12,7 +12,6 @@ export function useTeam() {
 
   useEffect(() => {
     let cancelled = false;
-    const controller = new AbortController();
     (async () => {
       if (team) {
         try {
@@ -27,7 +26,6 @@ export function useTeam() {
     })();
     return () => {
       cancelled = true;
-      controller.abort();
     };
   }, [team]);
 

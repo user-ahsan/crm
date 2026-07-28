@@ -1,7 +1,7 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { Goal } from '@/types/goal.types';
 import type { DbGoal, GoalInsert, GoalUpdate } from '@/types/supabase.types';
-import { formatSupabaseError } from './supabase.service';
+import { toServiceError } from './supabase.service';
 
 function mapRow(row: DbGoal): Goal {
   return {
@@ -22,21 +22,22 @@ function mapRow(row: DbGoal): Goal {
 }
 
 export const goalService = {
-  async getAll(): Promise<Goal[]> {
+  async getAll(page = 1, pageSize = 50): Promise<Goal[]> {
     try {
       const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('goals')
         .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw new Error(error.message);
+        .order('created_at', { ascending: false })
+        .range((page - 1) * pageSize, page * pageSize - 1);
+      if (error) throw toServiceError(error);
       return data?.map(mapRow) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
-  async getById(id: string): Promise<Goal | null> {
+  async getById(id: string): Promise<Goal | undefined> {
     try {
       const supabase = await getSharedClient();
       const { data, error } = await supabase
@@ -44,10 +45,13 @@ export const goalService = {
         .select('*')
         .eq('id', id)
         .single();
-      if (error) throw new Error(error.message);
-      return data ? mapRow(data) : null;
+      if (error) {
+        if (error.code === 'PGRST116') return undefined;
+        throw toServiceError(error);
+      }
+      return data ? mapRow(data) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -59,10 +63,10 @@ export const goalService = {
         .insert(data)
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return mapRow(inserted);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -75,20 +79,21 @@ export const goalService = {
         .eq('id', id)
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return mapRow(updated);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string): Promise<boolean> {
     try {
       const supabase = await getSharedClient();
       const { error } = await supabase.from('goals').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
+      return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -99,10 +104,10 @@ export const goalService = {
       if (startDate) query = query.gte('start_date', startDate);
       if (endDate) query = query.lte('end_date', endDate);
       const { data, error } = await query.order('end_date', { ascending: true });
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRow) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 

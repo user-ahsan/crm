@@ -54,7 +54,7 @@ export function useTeamData(): TeamDataState {
 
       /* 3. Load team data */
       const currentTeam = await teamService.getCurrentTeam();
-      setTeam(currentTeam);
+      setTeam(currentTeam ?? null);
 
       if (currentTeam) {
         const teamMembers = await teamService.getMembers(currentTeam.id);
@@ -74,34 +74,9 @@ export function useTeamData(): TeamDataState {
   /* Load on mount */
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const user = await getCachedUser();
-        const uid = user?.id ?? null;
-        if (!cancelled) setUserId(uid);
-        if (!uid) {
-          if (!cancelled) { setTeam(null); setMembers([]); }
-          return;
-        }
-        const currentTeam = await teamService.getCurrentTeam();
-        if (!cancelled) setTeam(currentTeam);
-        if (currentTeam) {
-          const teamMembers = await teamService.getMembers(currentTeam.id);
-          if (!cancelled) setMembers(teamMembers);
-        } else {
-          if (!cancelled) setMembers([]);
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'An unexpected error occurred while loading team data';
-        if (!cancelled) setError(message);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
+    load().then(() => { if (cancelled) return; });
     return () => { cancelled = true; };
-  }, []);
+  }, [load]);
 
   return { team, members, userId, loading, error, refresh: load };
 }

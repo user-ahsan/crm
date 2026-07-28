@@ -2,7 +2,7 @@ import type { Lead, LeadSource } from '@/types/lead.types';
 import type { Task } from '@/types/task.types';
 import type { Meeting } from '@/types/meeting.types';
 import { LEAD_STATUSES, LEAD_SOURCES } from '@/lib/constants';
-import { getDueTodayTasks, getOverdueTasks } from '@/modules/tasks/taskUtils';
+import { getDueTodayTasks, getOverdueTasks } from '@/lib/task-utils';
 
 export interface DashboardKPIs {
   totalLeads: number;

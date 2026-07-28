@@ -1,24 +1,28 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { ApiKey, ApiKeyFormData, ApiKeyCreateResponse } from '@/types/api-key.types';
 import type { DbApiKey } from '@/types/supabase.types';
-import { formatSupabaseError } from './supabase.service';
+import { ServiceError, toServiceError } from './supabase.service';
 
-function generateApiKey(): { fullKey: string; prefix: string; hash: string } {
+async function sha256(str: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  // Check for Edge runtime compatibility
+  if (typeof crypto !== 'undefined' && typeof crypto.subtle !== 'undefined') {
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  // Fallback: use Web Crypto API via dynamic import (Node.js)
+  const { createHash } = await import('crypto');
+  return createHash('sha256').update(str).digest('hex');
+}
+
+async function generateApiKey(): Promise<{ fullKey: string; prefix: string; hash: string }> {
   const raw = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
   const fullKey = 'sk_' + raw;
   const prefix = fullKey.slice(0, 12);
-  const hash = sha256(fullKey);
+  const hash = await sha256(fullKey);
   return { fullKey, prefix, hash };
-}
-
-function sha256(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const chr = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + chr;
-    hash |= 0;
-  }
-  return Math.abs(hash).toString(16).padStart(8, '0');
 }
 
 function mapRow(row: DbApiKey): ApiKey {
@@ -42,34 +46,35 @@ export const apiKeyService = {
         .from('api_keys')
         .select('*')
         .order('created_at', { ascending: false });
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRow) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async create(data: ApiKeyFormData): Promise<ApiKeyCreateResponse> {
     try {
       const supabase = await getSharedClient();
-      const { fullKey, prefix, hash } = generateApiKey();
+      const { data: { user } } = await supabase.auth.getUser();
+      const { fullKey, prefix, hash } = await generateApiKey();
       const dbRow = {
         name: data.name,
         key_prefix: prefix,
         key_hash: hash,
         scopes: data.scopes,
         expires_at: data.expiresAt ?? null,
-        created_by: 'system',
+        created_by: user?.id ?? 'system',
       };
       const { data: inserted, error } = await supabase
         .from('api_keys')
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return { key: mapRow(inserted), fullKey };
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -77,27 +82,27 @@ export const apiKeyService = {
     try {
       const supabase = await getSharedClient();
       const { error } = await supabase.from('api_keys').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async regenerate(id: string): Promise<ApiKeyCreateResponse> {
     try {
       const supabase = await getSharedClient();
-      const { fullKey, prefix, hash } = generateApiKey();
+      const { fullKey, prefix, hash } = await generateApiKey();
       const { data: updated, error } = await supabase
         .from('api_keys')
         .update({ key_prefix: prefix, key_hash: hash })
         .eq('id', id)
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return { key: mapRow(updated), fullKey };
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 };

@@ -1,3 +1,7 @@
+/**
+ * MOCK DATA — Used for development/demo only.
+ * Production data comes from Supabase via services/*.service.ts
+ */
 import type { Team } from '@/types/team.types';
 
 export const teams: Team[] = [
@@ -6,7 +10,7 @@ export const teams: Team[] = [
     name: 'NexusCRM Sales Team',
     description: 'Primary sales team handling all inbound leads',
     createdBy: 'user-1',
-    createdAt: '2026-01-15T08:00:00.000Z',
-    updatedAt: '2026-01-15T08:00:00.000Z',
+    createdAt: '2026-01-15T08:00:00Z',
+    updatedAt: '2026-01-15T08:00:00Z',
   },
 ];

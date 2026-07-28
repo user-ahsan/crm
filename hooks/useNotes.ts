@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import type { Note, NoteFormData } from '@/types/communication.types';
+import { generateId } from '@/lib/formatters';
 import { communicationService } from '@/services/communication.service';
 
 export function useNotes(entityType?: string, entityId?: string) {
@@ -38,7 +39,7 @@ export function useNotes(entityType?: string, entityId?: string) {
   }, [entityType, entityId]);
 
   const createNote = useCallback(async (data: NoteFormData & { createdBy: string }) => {
-    const tempId = `temp-${Date.now()}`;
+    const tempId = generateId();
     const optimisticItem: Note = {
       id: tempId,
       title: data.title ?? '',
@@ -62,8 +63,11 @@ export function useNotes(entityType?: string, entityId?: string) {
   }, []);
 
   const updateNote = useCallback(async (id: string, data: Partial<NoteFormData>) => {
-    const previous = notes;
-    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, ...data } : n)));
+    let prevItem: Note | undefined;
+    setNotes((prev) => {
+      prevItem = prev.find((n) => n.id === id);
+      return prev.map((n) => (n.id === id ? { ...n, ...data } : n));
+    });
     try {
       const updated = await communicationService.updateNote(id, data);
       if (updated) {
@@ -71,24 +75,27 @@ export function useNotes(entityType?: string, entityId?: string) {
       }
       return updated;
     } catch (e) {
-      setNotes(previous);
+      if (prevItem) setNotes((prev) => prev.map((n) => (n.id === id ? prevItem! : n)));
       setError(e instanceof Error ? e.message : 'Failed to update note');
       return undefined;
     }
-  }, [notes]);
+  }, []);
 
   const deleteNote = useCallback(async (id: string) => {
-    const previous = notes;
-    setNotes((prev) => prev.filter((n) => n.id !== id));
+    let prevItem: Note | undefined;
+    setNotes((prev) => {
+      prevItem = prev.find((n) => n.id === id);
+      return prev.filter((n) => n.id !== id);
+    });
     try {
       await communicationService.deleteNote(id);
       return true;
     } catch (e) {
-      setNotes(previous);
+      if (prevItem) setNotes((prev) => [...prev, prevItem!]);
       setError(e instanceof Error ? e.message : 'Failed to delete note');
       return false;
     }
-  }, [notes]);
+  }, []);
 
   return {
     notes,

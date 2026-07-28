@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto';
+
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -28,18 +30,25 @@ export function formatDateTime(dateString: string): string {
 }
 
 export function formatRelativeTime(dateString: string): string {
-  const now = new Date();
   const date = new Date(dateString);
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
+  if (isNaN(date.getTime())) return '';
 
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return formatDate(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+
+  if (diffSec < 60) return 'just now';
+  if (diffMin < 60) return rtf.format(-diffMin, 'minute');
+  if (diffHour < 24) return rtf.format(-diffHour, 'hour');
+  if (diffDay < 7) return rtf.format(-diffDay, 'day');
+  if (diffDay < 30) return rtf.format(-Math.floor(diffDay / 7), 'week');
+
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
 }
 
 export function formatDuration(minutes: number): string {
@@ -49,15 +58,27 @@ export function formatDuration(minutes: number): string {
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 }
 
+/** @deprecated Not used in any component. Use `new Date().toISOString()` directly instead. */
 export function toISOString(date: Date): string {
   return date.toISOString();
 }
 
 export function generateId(): string {
+  // Use crypto.randomUUID() on modern browsers/Node 19+
+  // Fallback to crypto.getRandomValues for older environments
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  // Node.js crypto module fallback — import at top of file for tree-shaking
+  try {
+    return randomUUID();
+  } catch {
+    // ponytail: last resort — use timestamp + random hex, add when crypto is unavailable
+    const array = new Uint8Array(8);
+    crypto.getRandomValues(array);
+    const hex = Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('');
+    return `${Date.now()}-${hex}`;
+  }
 }
 
 export function getInitials(name: string): string {
@@ -69,11 +90,13 @@ export function getInitials(name: string): string {
     .slice(0, 2);
 }
 
+/** @deprecated Not currently imported by any component. Kept as a shared utility for potential future use. */
 export function truncate(str: string, length: number): string {
   if (str.length <= length) return str;
   return str.slice(0, length) + '...';
 }
 
+/** @deprecated Not currently imported by any component. Kept as a shared utility for potential future use. */
 export function pluralize(count: number, singular: string, plural?: string): string {
   return count === 1 ? singular : plural || `${singular}s`;
 }

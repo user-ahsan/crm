@@ -12,6 +12,7 @@
  */
 
 import { createBrowserClient } from '@supabase/ssr';
+import type { Database } from '@/types/supabase.types';
 
 // ── Singleton instance ─────────────────────────────────────────────────
 
@@ -34,19 +35,45 @@ export function getSupabaseClient() {
       );
     }
 
-    _client = createBrowserClient(supabaseUrl, supabaseAnonKey);
+    _client = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
   }
   return _client;
 }
 
 // ── Backward Compatibility ─────────────────────────────────────────────
 
+/**
+ * Returns the shared Supabase client (alias for backward compatibility).
+ * Previously async `createClient`, now delegates to the sync singleton.
+ */
+export function getSharedClient() {
+  return getSupabaseClient();
+}
+
 /** @deprecated Use getSupabaseClient() instead — synchronous singleton. */
 export async function createClient() {
   return getSupabaseClient();
 }
 
-/** @deprecated Use getSupabaseClient() instead — same, synchronous. */
-export async function getSharedClient() {
-  return getSupabaseClient();
+export const getSupabaseUrl = () => process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+
+/**
+ * Typed table query helper. Returns a typed query builder for the given table.
+ * Use this instead of raw `supabase.from('table')` to get proper row types.
+ *
+ * @example
+ * const { data } = await fromTable('leads').select('*');
+ * // data is typed as LeadRow[] | null
+ */
+export function fromTable<T extends keyof Database['public']['Tables']>(table: T) {
+  const supabase = getSupabaseClient();
+  return supabase.from(table);
+}
+
+/**
+ * Formats an unknown error into a human-readable string for use in
+ * try/catch blocks and API error responses.
+ */
+export function formatSupabaseError(error: unknown): string {
+  return error instanceof Error ? error.message : 'Database error';
 }

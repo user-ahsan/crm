@@ -2,12 +2,15 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import type { CallLog, CallLogFormData } from '@/types/communication.types';
+import { generateId } from '@/lib/formatters';
 import { communicationService } from '@/services/communication.service';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export function useCallLogs(entityType?: string, entityId?: string) {
   const [callLogs, setCallLogs] = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useCurrentUser();
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -40,7 +43,7 @@ export function useCallLogs(entityType?: string, entityId?: string) {
   }, [entityType, entityId]);
 
   const logCall = useCallback(async (data: CallLogFormData) => {
-    const tempId = `temp-${Date.now()}`;
+    const tempId = generateId();
     const optimisticItem: CallLog = {
       id: tempId,
       direction: data.direction,
@@ -51,7 +54,7 @@ export function useCallLogs(entityType?: string, entityId?: string) {
       callResult: data.callResult ?? 'completed',
       relatedToType: data.relatedToType,
       relatedToId: data.relatedToId,
-      createdBy: 'current-user',
+      createdBy: user?.id ?? 'system',
       createdAt: new Date().toISOString(),
     };
     setCallLogs((prev) => [optimisticItem, ...prev]);

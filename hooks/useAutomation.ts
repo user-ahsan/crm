@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import type { AutomationRule, AutomationRuleFormData, AutomationTriggerEvent } from '@/types/automation.types';
+import { generateId } from '@/lib/formatters';
 import { automationService } from '@/services/automation.service';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
@@ -42,7 +43,7 @@ export function useAutomation() {
   }, []);
 
   const createRule = useCallback(async (data: AutomationRuleFormData) => {
-    const tempId = `temp-${Date.now()}`;
+    const tempId = generateId();
     const optimisticItem = {
       id: tempId,
       ...data,
@@ -65,31 +66,37 @@ export function useAutomation() {
   }, [user]);
 
   const updateRule = useCallback(async (id: string, data: Partial<AutomationRuleFormData>) => {
-    const previous = rules;
-    setRules((prev) => prev.map((r) => (r.id === id ? { ...r, ...data } : r)));
+    let prevItem: AutomationRule | undefined;
+    setRules((prev) => {
+      prevItem = prev.find((r) => r.id === id);
+      return prev.map((r) => (r.id === id ? { ...r, ...data } : r));
+    });
     try {
       const updated = await automationService.update(id, data);
       if (updated) setRules((prev) => prev.map((r) => (r.id === id ? updated : r)));
       return updated;
     } catch (e) {
-      setRules(previous);
+      if (prevItem) setRules((prev) => prev.map((r) => (r.id === id ? prevItem! : r)));
       setError(e instanceof Error ? e.message : 'Failed to update rule');
       return undefined;
     }
-  }, [rules]);
+  }, []);
 
   const deleteRule = useCallback(async (id: string) => {
-    const previous = rules;
-    setRules((prev) => prev.filter((r) => r.id !== id));
+    let prevItem: AutomationRule | undefined;
+    setRules((prev) => {
+      prevItem = prev.find((r) => r.id === id);
+      return prev.filter((r) => r.id !== id);
+    });
     try {
       await automationService.delete(id);
       return true;
     } catch (e) {
-      setRules(previous);
+      if (prevItem) setRules((prev) => [...prev, prevItem!]);
       setError(e instanceof Error ? e.message : 'Failed to delete rule');
       return false;
     }
-  }, [rules]);
+  }, []);
 
   const getRulesByTrigger = useCallback(async (event: AutomationTriggerEvent) => {
     try {

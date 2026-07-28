@@ -1,11 +1,20 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { AutomationRule, AutomationRuleFormData, AutomationTriggerEvent, AutomationAction } from '@/types/automation.types';
 import type { DbAutomationRule, AutomationRuleInsert, AutomationRuleUpdate } from '@/types/supabase.types';
-import { formatSupabaseError } from './supabase.service';
+import { ServiceError, toServiceError } from './supabase.service';
 import { tagService } from './tag.service';
 import { communicationService } from './communication.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
+
+const ENTITY_TABLE_MAP: Record<string, string> = {
+  lead: 'leads',
+  contact: 'contacts',
+  company: 'companies',
+  task: 'tasks',
+  meeting: 'meetings',
+  deal: 'deals',
+};
 
 function mapRowToRule(row: DbAutomationRule): AutomationRule {
   return {
@@ -43,10 +52,10 @@ export const automationService = {
         .select('*')
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToRule) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -60,11 +69,11 @@ export const automationService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return data ? mapRowToRule(data) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -77,10 +86,10 @@ export const automationService = {
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return mapRowToRule(inserted);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -102,11 +111,11 @@ export const automationService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return updated ? mapRowToRule(updated) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -117,10 +126,10 @@ export const automationService = {
         .from('automation_rules')
         .delete()
         .eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -132,10 +141,10 @@ export const automationService = {
         .select('*')
         .eq('trigger_event', event)
         .eq('enabled', true);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToRule) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -152,10 +161,19 @@ export const automationService = {
           return actualStr !== condition.value;
         case 'contains':
           return actualStr.toLowerCase().includes(condition.value.toLowerCase());
-        case 'greater_than':
-          return Number(actualStr) > Number(condition.value);
-        case 'less_than':
-          return Number(actualStr) < Number(condition.value);
+        case 'greater_than': {
+          const numVal = Number(condition.value);
+          const numActual = Number(actualStr);
+          // Guard against NaN from Number() comparisons
+          if (isNaN(numVal) || isNaN(numActual)) return false;
+          return numActual > numVal;
+        }
+        case 'less_than': {
+          const numVal = Number(condition.value);
+          const numActual = Number(actualStr);
+          if (isNaN(numVal) || isNaN(numActual)) return false;
+          return numActual < numVal;
+        }
         case 'changed':
           return true;
         default:
@@ -172,53 +190,50 @@ export const automationService = {
     const entityId = context.entityId as string;
     const results: { action: string; success: boolean; error?: string }[] = [];
 
-    const entityTableMap: Record<string, string> = {
-      lead: 'leads',
-      contact: 'contacts',
-      company: 'companies',
-      task: 'tasks',
-      meeting: 'meetings',
-      deal: 'deals',
-    };
-
     for (const action of actions) {
       try {
         switch (action.type) {
           case 'assign_user': {
-            const table = entityTableMap[entityType];
-            if (!table) {
-              results.push({ action: action.type, success: false, error: `Unknown entity type: ${entityType}` });
-              break;
-            }
+            const table = ENTITY_TABLE_MAP[entityType];
+            if (!table) throw new ServiceError(`Unknown entity type: ${entityType}`, 'INVALID_ENTITY_TYPE');
             const supabase = await getSharedClient();
             const { error } = await supabase
               .from(table)
               .update({ assigned_to: action.config.targetUser })
               .eq('id', entityId);
-            if (error) throw new Error(error.message);
+            if (error) throw toServiceError(error);
             activityService.log(entityType, entityId, 'assigned', `Assigned to user ${action.config.targetUser}`);
             results.push({ action: action.type, success: true });
             break;
           }
 
           case 'change_status': {
-            const table = entityTableMap[entityType];
-            if (!table) {
-              results.push({ action: action.type, success: false, error: `Unknown entity type: ${entityType}` });
-              break;
-            }
+            const table = ENTITY_TABLE_MAP[entityType];
+            if (!table) throw new ServiceError(`Unknown entity type: ${entityType}`, 'INVALID_ENTITY_TYPE');
             const supabase = await getSharedClient();
             const { error } = await supabase
               .from(table)
               .update({ status: action.config.status })
               .eq('id', entityId);
-            if (error) throw new Error(error.message);
+            if (error) throw toServiceError(error);
             results.push({ action: action.type, success: true });
             break;
           }
 
           case 'add_tag': {
-            await tagService.addTagToEntity(entityType, entityId, action.config.tag);
+            // If tag is a name, find tag ID first, else use as ID
+            const tagName = action.config.tag;
+            if (tagName) {
+              const allTags = await tagService.getAll();
+              const matchedTag = allTags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
+              if (matchedTag) {
+                await tagService.addTagToEntity(entityType, entityId, matchedTag.id);
+              } else {
+                // Create tag by name then use ID
+                const newTag = await tagService.create(tagName);
+                await tagService.addTagToEntity(entityType, entityId, newTag.id);
+              }
+            }
             results.push({ action: action.type, success: true });
             break;
           }
@@ -226,8 +241,8 @@ export const automationService = {
           case 'send_email': {
             await communicationService.sendEmail({
               toAddress: action.config.recipient,
-              subject: `Automated message: ${action.config.templateId}`,
-              body: '',
+              subject: action.config.subject || `Automated message`,
+              body: action.config.body || '',
               relatedToType: entityType,
               relatedToId: entityId,
             });

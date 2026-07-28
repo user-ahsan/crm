@@ -1,3 +1,7 @@
+/**
+ * MOCK DATA — Used for development/demo only.
+ * Production data comes from Supabase via services/*.service.ts
+ */
 import type { Contact } from '@/types/contact.types';
 
 export const contacts: Contact[] = [

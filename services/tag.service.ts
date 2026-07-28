@@ -1,7 +1,11 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { Tag } from '@/types/tag.types';
-import type { DbTag } from '@/types/supabase.types';
-import { formatSupabaseError } from './supabase.service';
+import type { DbTag, DbTagging } from '@/types/supabase.types';
+import { toServiceError } from './supabase.service';
+
+// Inline types for Supabase join and aggregate query results
+type TaggingJoinRow = { tag: DbTag | null };
+type UsageCountRow = { tag_id: string; count: number };
 
 function mapTag(row: DbTag): Tag {
   return {
@@ -20,10 +24,10 @@ export const tagService = {
         .from('tags')
         .select('*')
         .order('name', { ascending: true });
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapTag) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -37,11 +41,11 @@ export const tagService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return data ? mapTag(data) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -53,10 +57,10 @@ export const tagService = {
         .insert({ name, color: color ?? '#6366f1' })
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return mapTag(data);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -71,46 +75,51 @@ export const tagService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return data ? mapTag(data) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async delete(id: string): Promise<boolean> {
     try {
       const supabase = await getSharedClient();
+      // Delete associated taggings first with error checking
+      const { error: tgErr } = await supabase.from('taggings').delete().eq('tag_id', id);
+      if (tgErr) {
+        console.error(`Delete taggings error for tag ${id}: ${tgErr.message}`);
+        throw toServiceError(tgErr);
+      }
       const { error } = await supabase.from('tags').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async getTagsForEntity(entityType: string, entityId: string): Promise<Tag[]> {
     try {
       const supabase = await getSharedClient();
-      const { data: taggings, error: tgError } = await supabase
+      // Use join query instead of two separate queries
+      const { data, error } = await supabase
         .from('taggings')
-        .select('tag_id')
+        .select('tag:tag_id(id, name, color, created_at)')
         .eq('taggable_type', entityType)
         .eq('taggable_id', entityId);
-      if (tgError) throw new Error(tgError.message);
-      if (!taggings || taggings.length === 0) return [];
 
-      const tagIds = taggings.map((t: { tag_id: string }) => t.tag_id);
-      const { data: tags, error: tError } = await supabase
-        .from('tags')
-        .select('*')
-        .in('id', tagIds)
-        .order('name', { ascending: true });
-      if (tError) throw new Error(tError.message);
-      return tags?.map(mapTag) ?? [];
+      if (error) throw toServiceError(error);
+      if (!data || data.length === 0) return [];
+
+      const tags = (data as unknown as TaggingJoinRow[])
+        .map((row) => row.tag)
+        .filter((t): t is DbTag => t !== null)
+        .map(mapTag);
+      return tags;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -122,11 +131,11 @@ export const tagService = {
         .insert({ tag_id: tagId, taggable_id: entityId, taggable_type: entityType });
       if (error) {
         if (error.code === '23505') return true;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -139,10 +148,10 @@ export const tagService = {
         .eq('tag_id', tagId)
         .eq('taggable_id', entityId)
         .eq('taggable_type', entityType);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -166,7 +175,7 @@ export const tagService = {
           .eq('taggable_type', entityType)
           .eq('taggable_id', entityId)
           .in('tag_id', toRemove);
-        if (delErr) throw new Error(delErr.message);
+        if (delErr) throw toServiceError(delErr);
       }
 
       if (toAdd.length > 0) {
@@ -176,29 +185,32 @@ export const tagService = {
           taggable_type: entityType,
         }));
         const { error: insErr } = await supabase.from('taggings').insert(inserts);
-        if (insErr) throw new Error(insErr.message);
+        if (insErr) throw toServiceError(insErr);
       }
 
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async getUsageCounts(): Promise<Record<string, number>> {
     try {
       const supabase = await getSharedClient();
+      // Use SQL GROUP BY via aggregate query
       const { data, error } = await supabase
         .from('taggings')
-        .select('tag_id');
-      if (error) throw new Error(error.message);
+        .select('tag_id, count:count(*)')
+        .order('tag_id');
+
+      if (error) throw toServiceError(error);
       const counts: Record<string, number> = {};
-      for (const row of data ?? []) {
-        counts[row.tag_id] = (counts[row.tag_id] ?? 0) + 1;
+      for (const row of (data as unknown as UsageCountRow[]) ?? []) {
+        counts[row.tag_id] = Number(row.count);
       }
       return counts;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 };

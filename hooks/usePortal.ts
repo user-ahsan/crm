@@ -37,22 +37,34 @@ export function usePortalUsers() {
     return () => { cancelled = true; };
   }, []);
 
-  const createUser = async (data: PortalUserFormData) => {
-    const user = await portalService.createUser(data);
-    setUsers((prev) => [user, ...prev]);
-  };
+  const createUser = useCallback(async (data: PortalUserFormData) => {
+    try {
+      const user = await portalService.createUser(data);
+      setUsers((prev) => [user, ...prev]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create portal user');
+    }
+  }, []);
 
-  const toggleActive = async (id: string, active: boolean) => {
-    await portalService.toggleUserActive(id, active);
-    setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, active } : u)),
-    );
-  };
+  const toggleActive = useCallback(async (id: string, active: boolean) => {
+    try {
+      await portalService.toggleUserActive(id, active);
+      setUsers((prev) =>
+        prev.map((u) => (u.id === id ? { ...u, active } : u)),
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to toggle user status');
+    }
+  }, []);
 
-  const deleteUser = async (id: string) => {
-    await portalService.deleteUser(id);
-    setUsers((prev) => prev.filter((u) => u.id !== id));
-  };
+  const deleteUser = useCallback(async (id: string) => {
+    try {
+      await portalService.deleteUser(id);
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete portal user');
+    }
+  }, []);
 
   return { users, loading, error, reload: load, createUser, toggleActive, deleteUser };
 }
@@ -103,15 +115,23 @@ export function usePortalShares(portalUserId: string | null) {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [portalUserId]);
 
-  const shareRecord = async (data: PortalShareFormData) => {
-    const share = await portalService.shareRecord(data);
-    setShares((prev) => [share, ...prev]);
-  };
+  const shareRecord = useCallback(async (data: PortalShareFormData) => {
+    try {
+      const share = await portalService.shareRecord(data);
+      setShares((prev) => [share, ...prev]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to share record');
+    }
+  }, []);
 
-  const removeShare = async (id: string) => {
-    await portalService.removeShare(id);
-    setShares((prev) => prev.filter((s) => s.id !== id));
-  };
+  const removeShare = useCallback(async (id: string) => {
+    try {
+      await portalService.removeShare(id);
+      setShares((prev) => prev.filter((s) => s.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to remove share');
+    }
+  }, []);
 
   return { shares, loading, error, reload: load, shareRecord, removeShare };
 }

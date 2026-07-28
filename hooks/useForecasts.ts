@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import type { Forecast, ForecastSummary } from '@/types/forecast.types';
 import type { ForecastInsert } from '@/types/supabase.types';
 import { forecastService } from '@/services/forecast.service';
+import { generateId } from '@/lib/formatters';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export function useForecasts(year?: number) {
@@ -49,10 +50,13 @@ export function useForecasts(year?: number) {
   }, [currentYear]);
 
   const upsert = useCallback(async (data: Omit<ForecastInsert, 'created_by'>) => {
-    if (!user?.id) return undefined;
-    const previous = forecasts;
+    if (!user?.id) {
+      setError('User not authenticated');
+      return undefined;
+    }
+    let prevItem: Forecast | undefined;
     const optimistic = {
-      id: `temp-${Date.now()}`,
+      id: generateId(),
       year: data.year,
       month: data.month,
       target: data.target ?? 0,
@@ -64,6 +68,7 @@ export function useForecasts(year?: number) {
     setForecasts((prev) => {
       const idx = prev.findIndex((f) => f.month === data.month);
       if (idx >= 0) {
+        prevItem = prev[idx];
         const next = [...prev];
         next[idx] = { ...next[idx], ...optimistic };
         return next;
@@ -75,11 +80,11 @@ export function useForecasts(year?: number) {
       setForecasts((prev) => prev.map((f) => (f.id === optimistic.id || f.month === data.month ? { ...created } : f)));
       return created;
     } catch (e) {
-      setForecasts(previous);
+      if (prevItem) setForecasts((prev) => prev.map((f) => (f.month === data.month ? prevItem! : f)));
       setError(e instanceof Error ? e.message : 'Failed to save forecast');
       return undefined;
     }
-  }, [user, forecasts]);
+  }, [user]);
 
   return { forecasts, summary, loading, error, upsert, refresh };
 }

@@ -5,7 +5,6 @@ import type { Session, User } from '@supabase/supabase-js';
 export interface AuthState {
   session: Session | null;
   user: User | null;
-  isAuthenticated: boolean;
   isLoading: boolean;
   setSession: (session: Session | null) => void;
   setUser: (user: User | null) => void;
@@ -13,18 +12,21 @@ export interface AuthState {
   signOut: () => void;
 }
 
+/* ── Derived Selectors ────────────────────────────────────────── */
+/** Derived from `session` — no stale writable state needed. */
+export const useIsAuthenticated = () => useAuthStore((state) => !!state.session);
+
 /* ── Auth Store ──────────────────────────────────────────────── */
 export const useAuthStore = create<AuthState>()(
   (set) => ({
     session: null,
     user: null,
-    isAuthenticated: false,
-    isLoading: true,
+    isLoading: false,
 
-    setSession: (session) => set({ session, isAuthenticated: !!session }),
+    setSession: (session) => set({ session }),
     setUser: (user) => set({ user }),
     setLoading: (isLoading) => set({ isLoading }),
     signOut: () =>
-      set({ session: null, user: null, isAuthenticated: false }),
+      set({ session: null, user: null, isLoading: false }),
   }),
 );

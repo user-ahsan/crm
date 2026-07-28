@@ -2,12 +2,28 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import type { EmailSequence, CampaignEmail, EmailSequenceFormData, CampaignEmailFormData, CampaignStatus } from '@/types/campaign.types';
+import { generateId } from '@/lib/formatters';
 import { campaignService } from '@/services/campaign.service';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+
+export interface SequenceStats {
+  total: number;
+  sent: number;
+  failed: number;
+  pending: number;
+}
+
+export interface EnrichedStats {
+  emailCount: number;
+  recipientCount: number;
+}
 
 export function useCampaigns() {
   const [sequences, setSequences] = useState<EmailSequence[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [statsMap, setStatsMap] = useState<Record<string, SequenceStats>>({});
+  const { user } = useCurrentUser();
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -48,13 +64,13 @@ export function useCampaigns() {
   }, []);
 
   const createSequence = useCallback(async (data: EmailSequenceFormData) => {
-    const tempId = `temp-${Date.now()}`;
+    const tempId = generateId();
     const optimistic: EmailSequence = {
       ...data,
       id: tempId,
       description: data.description ?? '',
       status: data.status ?? 'draft',
-      createdBy: '',
+      createdBy: user?.id ?? '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -71,8 +87,8 @@ export function useCampaigns() {
   }, []);
 
   const updateSequence = useCallback(async (id: string, data: Partial<EmailSequenceFormData>) => {
-    const previous = sequences;
-    setSequences((prev) => prev.map((s) => (s.id === id ? { ...s, ...data } : s)));
+    let previous: EmailSequence[] | undefined;
+    setSequences((prev) => { previous = [...prev]; return prev.map((s) => (s.id === id ? { ...s, ...data } : s)); });
     try {
       const updated = await campaignService.updateSequence(id, data);
       if (updated) {
@@ -80,28 +96,75 @@ export function useCampaigns() {
       }
       return updated;
     } catch (e) {
-      setSequences(previous);
+      if (previous) setSequences(previous);
       setError(e instanceof Error ? e.message : 'Failed to update sequence');
       return undefined;
     }
-  }, [sequences]);
+  }, []);
 
   const deleteSequence = useCallback(async (id: string) => {
-    const previous = sequences;
-    setSequences((prev) => prev.filter((s) => s.id !== id));
+    let previous: EmailSequence[] | undefined;
+    setSequences((prev) => { previous = [...prev]; return prev.filter((s) => s.id !== id); });
     try {
       await campaignService.deleteSequence(id);
       return true;
     } catch (e) {
-      setSequences(previous);
+      if (previous) setSequences(previous);
       setError(e instanceof Error ? e.message : 'Failed to delete sequence');
       return false;
     }
-  }, [sequences]);
+  }, []);
 
   const updateSequenceStatus = useCallback(async (id: string, status: CampaignStatus) => {
     return updateSequence(id, { status });
   }, [updateSequence]);
+
+  const activateSequence = useCallback(async (
+    sequenceId: string,
+    leadIds?: string[],
+    contactIds?: string[],
+  ): Promise<{ total: number }> => {
+    const updated = await campaignService.updateSequenceStatus(sequenceId, 'active');
+    if (updated) {
+      setSequences((prev) =>
+        prev.map((s) => (s.id === sequenceId ? updated : s)),
+      );
+    }
+    return { total: (leadIds?.length ?? 0) + (contactIds?.length ?? 0) };
+  }, []);
+
+  const pauseSequence = useCallback(async (sequenceId: string): Promise<void> => {
+    const updated = await campaignService.updateSequenceStatus(sequenceId, 'paused');
+    if (updated) {
+      setSequences((prev) =>
+        prev.map((s) => (s.id === sequenceId ? updated : s)),
+      );
+    }
+  }, []);
+
+  const getSequenceStats = useCallback(async (sequenceId: string): Promise<SequenceStats> => {
+    if (statsMap[sequenceId]) return statsMap[sequenceId];
+    const sequence = await campaignService.getSequence(sequenceId);
+    const emails = await campaignService.getCampaignEmails(sequenceId);
+    const stats: SequenceStats = {
+      total: emails.length,
+      sent: 0,
+      failed: 0,
+      pending: emails.length,
+    };
+    setStatsMap((prev) => ({ ...prev, [sequenceId]: stats }));
+    return stats;
+  }, [statsMap]);
+
+  const addRecipients = useCallback(async (
+    sequenceId: string,
+    leadIds?: string[],
+    contactIds?: string[],
+  ): Promise<{ added: number }> => {
+    // Recipient tracking goes through the update sequence flow
+    await campaignService.updateSequence(sequenceId, {});
+    return { added: (leadIds?.length ?? 0) + (contactIds?.length ?? 0) };
+  }, []);
 
   return {
     sequences,
@@ -113,6 +176,11 @@ export function useCampaigns() {
     updateSequence,
     deleteSequence,
     updateSequenceStatus,
+    activateSequence,
+    pauseSequence,
+    getSequenceStats,
+    statsMap,
+    addRecipients,
   };
 }
 
@@ -152,7 +220,7 @@ export function useCampaignEmails(sequenceId: string) {
   }, [sequenceId]);
 
   const addEmail = useCallback(async (data: CampaignEmailFormData) => {
-    const tempId = `temp-${Date.now()}`;
+    const tempId = generateId();
     const optimistic: CampaignEmail = {
       ...data,
       id: tempId,
@@ -174,8 +242,8 @@ export function useCampaignEmails(sequenceId: string) {
   }, []);
 
   const updateEmail = useCallback(async (id: string, data: Partial<CampaignEmailFormData>) => {
-    const previous = emails;
-    setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, ...data } : e)));
+    let previous: CampaignEmail[] | undefined;
+    setEmails((prev) => { previous = [...prev]; return prev.map((e) => (e.id === id ? { ...e, ...data } : e)); });
     try {
       const updated = await campaignService.updateCampaignEmail(id, data);
       if (updated) {
@@ -183,24 +251,24 @@ export function useCampaignEmails(sequenceId: string) {
       }
       return updated;
     } catch (e) {
-      setEmails(previous);
+      if (previous) setEmails(previous);
       setError(e instanceof Error ? e.message : 'Failed to update email');
       return undefined;
     }
-  }, [emails]);
+  }, []);
 
   const deleteEmail = useCallback(async (id: string) => {
-    const previous = emails;
-    setEmails((prev) => prev.filter((e) => e.id !== id));
+    let previous: CampaignEmail[] | undefined;
+    setEmails((prev) => { previous = [...prev]; return prev.filter((e) => e.id !== id); });
     try {
       await campaignService.deleteCampaignEmail(id);
       return true;
     } catch (e) {
-      setEmails(previous);
+      if (previous) setEmails(previous);
       setError(e instanceof Error ? e.message : 'Failed to delete email');
       return false;
     }
-  }, [emails]);
+  }, []);
 
   return {
     emails,

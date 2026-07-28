@@ -19,7 +19,7 @@ export interface Deal {
   companyId?: string;
   assignedTo?: string;
   closeDate?: string;
-  winLossReason: string;
+  winLossReason?: string;
   tags: string[];
   createdBy: string;
   createdAt: string;

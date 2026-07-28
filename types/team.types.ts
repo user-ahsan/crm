@@ -13,6 +13,7 @@ export interface Team {
   name: string;
   description?: string;
   createdBy: string;
+  inviteCode?: string;
   createdAt: string;
   updatedAt: string;
 }

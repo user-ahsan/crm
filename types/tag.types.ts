@@ -14,10 +14,7 @@ export interface Tagging {
   createdAt: string;
 }
 
-export interface TagWithEntity extends Tag {
-  entityCount?: number;
-}
-
+// ponytail: removed TagWithEntity — never imported anywhere, add back if needed
 export interface TagFormData {
   name: string;
   color?: string;

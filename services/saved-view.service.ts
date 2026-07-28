@@ -1,7 +1,7 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { SavedView, SavedViewFormData, ViewEntityType } from '@/types/saved-view.types';
 import type { DbSavedView, SavedViewUpdate } from '@/types/supabase.types';
-import { formatSupabaseError } from './supabase.service';
+import { toServiceError } from './supabase.service';
 
 function mapRow(row: DbSavedView): SavedView {
   return {
@@ -10,7 +10,7 @@ function mapRow(row: DbSavedView): SavedView {
     entityType: row.entity_type as ViewEntityType,
     filters: row.filters,
     sortBy: row.sort_by,
-    sortOrder: (row.sort_order as 'asc' | 'desc') ?? null,
+    sortOrder: row.sort_order === 'asc' || row.sort_order === 'desc' ? row.sort_order : null,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -26,33 +26,34 @@ export const savedViewService = {
         .select('*')
         .eq('entity_type', entityType)
         .order('name', { ascending: true });
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRow) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async create(data: SavedViewFormData): Promise<SavedView> {
     try {
       const supabase = await getSharedClient();
+      const { data: { user } } = await supabase.auth.getUser();
       const dbRow = {
         name: data.name,
         entity_type: data.entityType,
         filters: data.filters,
         sort_by: data.sortBy ?? null,
         sort_order: data.sortOrder ?? null,
-        created_by: 'system',
+        created_by: user?.id ?? 'system',
       };
       const { data: inserted, error } = await supabase
         .from('saved_views')
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return mapRow(inserted);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -72,11 +73,11 @@ export const savedViewService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return updated ? mapRow(updated) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -84,10 +85,10 @@ export const savedViewService = {
     try {
       const supabase = await getSharedClient();
       const { error } = await supabase.from('saved_views').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 };

@@ -20,6 +20,7 @@ export interface ContactFormData {
   phone?: string;
   jobTitle?: string;
   companyId?: string;
+  leadIds?: string[];
   location?: string;
   socialLinks: string[];
   tags: string[];

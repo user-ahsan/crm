@@ -3,7 +3,7 @@ import type { Contact, ContactFormData } from '@/types/contact.types';
 import type { DbContact, ContactInsert } from '@/types/supabase.types';
 import { findDuplicates } from '@/lib/utils';
 import type { DuplicateGroup } from '@/lib/utils';
-import { formatSupabaseError } from './supabase.service';
+import { asEnum, ServiceError, toServiceError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
 
@@ -48,10 +48,10 @@ export const contactService = {
         .select('*')
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToContact) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -65,11 +65,11 @@ export const contactService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return data ? mapRowToContact(data) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -82,10 +82,10 @@ export const contactService = {
         .eq('company_id', companyId)
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToContact) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -98,14 +98,15 @@ export const contactService = {
         .contains('lead_ids', [leadId])
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToContact) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async search(query: string, page = 1, pageSize = 50): Promise<Contact[]> {
+    if (!query || query.length < 2) return [];
     try {
       const supabase = await getSharedClient();
       const s = query.toLowerCase();
@@ -115,10 +116,10 @@ export const contactService = {
         .or(`name.ilike.%${s}%,email.ilike.%${s}%`)
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToContact) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -134,7 +135,7 @@ export const contactService = {
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       const contact = mapRowToContact(inserted);
       activityService.log('contact', contact.id, 'created', `Contact created: ${contact.name}`);
       triggerWebhook('contact.created', {
@@ -145,7 +146,7 @@ export const contactService = {
       });
       return contact;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -161,30 +162,34 @@ export const contactService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       const contact = mapRowToContact(updated);
       activityService.log('contact', id, 'updated', `Contact updated: ${contact.name}`);
       triggerWebhook('contact.updated', { id, ...data });
       return contact;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async delete(id: string): Promise<boolean> {
     try {
       const supabase = await getSharedClient();
-      await supabase.from('tasks').delete().eq('related_to_id', id);
-      await supabase.from('meetings').delete().eq('related_to_id', id);
-      await supabase.from('activities').delete().eq('entity_id', id);
+      const ops = [
+        supabase.from('tasks').delete().eq('related_to_id', id),
+        supabase.from('meetings').delete().eq('related_to_id', id),
+        supabase.from('activities').delete().eq('entity_id', id),
+      ];
+      const results = await Promise.all(ops);
+      for (const r of results) if (r.error) console.error(`Cascade delete error: ${r.error.message}`);
       const { error } = await supabase.from('contacts').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       activityService.log('contact', id, 'deleted', `Contact deleted`);
       triggerWebhook('contact.deleted', { id });
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -206,7 +211,7 @@ export const contactService = {
         25,
       );
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -214,21 +219,28 @@ export const contactService = {
     try {
       const supabase = await getSharedClient();
 
-      await supabase.from('tasks').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'contact');
-      await supabase.from('meetings').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'contact');
-      await supabase.from('activities').update({ entity_id: survivorId }).in('entity_id', mergeIds);
-      await supabase.from('taggings').update({ taggable_id: survivorId }).in('taggable_id', mergeIds).eq('taggable_type', 'contact');
+      const { error: tasksErr } = await supabase.from('tasks').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'contact');
+      if (tasksErr) console.error(`Merge tasks update error: ${tasksErr.message}`);
+
+      const { error: meetingsErr } = await supabase.from('meetings').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'contact');
+      if (meetingsErr) console.error(`Merge meetings update error: ${meetingsErr.message}`);
+
+      const { error: activitiesErr } = await supabase.from('activities').update({ entity_id: survivorId }).in('entity_id', mergeIds);
+      if (activitiesErr) console.error(`Merge activities update error: ${activitiesErr.message}`);
+
+      const { error: taggingsErr } = await supabase.from('taggings').update({ taggable_id: survivorId }).in('taggable_id', mergeIds).eq('taggable_type', 'contact');
+      if (taggingsErr) console.error(`Merge taggings update error: ${taggingsErr.message}`);
 
       for (const id of mergeIds) {
         await this.delete(id);
       }
 
       const survivor = await this.getById(survivorId);
-      if (!survivor) throw new Error('Survivor contact not found after merge');
+      if (!survivor) throw new ServiceError('Survivor contact not found after merge', 'MERGE_FAILED');
       activityService.log('contact', survivorId, 'updated', `Contact merged: merged ${mergeIds.length} duplicates`);
       return survivor;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -242,7 +254,7 @@ export const contactService = {
         .single();
       if (fetchError) {
         if (fetchError.code === 'PGRST116') return undefined;
-        throw new Error(fetchError.message);
+        throw toServiceError(fetchError);
       }
       const currentLeadIds: string[] = (contact as { lead_ids: string[] } | null)?.lead_ids ?? [];
       if (currentLeadIds.includes(leadId)) {
@@ -254,10 +266,10 @@ export const contactService = {
         .eq('id', contactId)
         .select()
         .single();
-      if (updateError) throw new Error(updateError.message);
+      if (updateError) throw toServiceError(updateError);
       return mapRowToContact(updated);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 };

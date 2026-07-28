@@ -1,9 +1,11 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { Task, TaskFormData, TaskStatus } from '@/types/task.types';
 import type { DbTask, TaskInsert } from '@/types/supabase.types';
-import { formatSupabaseError } from './supabase.service';
+import { asEnum, ServiceError, toServiceError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
+
+const TASK_STATUSES = ['pending', 'in_progress', 'completed', 'overdue'] as const;
 
 function mapRowToTask(row: DbTask): Task {
   return {
@@ -15,7 +17,7 @@ function mapRowToTask(row: DbTask): Task {
     assignedTo: row.assigned_to ?? undefined,
     dueDate: row.due_date ?? undefined,
     priority: row.priority as Task['priority'],
-    status: row.status as Task['status'],
+    status: asEnum(row.status, TASK_STATUSES),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -47,36 +49,31 @@ export const taskService = {
         .select('*')
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       const tasks = data?.map(mapRowToTask) ?? [];
-      const now = new Date();
-      const updatedTasks = await Promise.all(tasks.map(async (task: Task) => {
-        if (task.dueDate && task.status === 'pending') {
-          const dueDate = new Date(task.dueDate);
-          if (dueDate < now) {
-            await this.update(task.id, { status: 'overdue' });
-            return { ...task, status: 'overdue' as TaskStatus };
-          }
-        }
-        return task;
-      }));
-      return updatedTasks;
+      return this.applyOverdue(tasks);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
-  applyOverdue(tasks: Task[]): Task[] {
+  async applyOverdue(tasks: Task[]): Promise<Task[]> {
+    const supabase = await getSharedClient();
     const now = new Date();
-    return tasks.map((task) => {
+    const updatedTasks = tasks.map((task) => {
       if (task.dueDate && task.status === 'pending') {
         const dueDate = new Date(task.dueDate);
         if (dueDate < now) {
+          // Persist overdue status to DB
+          supabase.from('tasks').update({ status: 'overdue' }).eq('id', task.id).then(
+            ({ error }: { error: { message: string } | null }) => { if (error) console.error(`Failed to persist overdue status for task ${task.id}: ${error.message}`); }
+          );
           return { ...task, status: 'overdue' as TaskStatus };
         }
       }
       return task;
     });
+    return updatedTasks;
   },
 
   async getById(id: string): Promise<Task | undefined> {
@@ -89,20 +86,13 @@ export const taskService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       if (!data) return undefined;
       const task = mapRowToTask(data);
-      if (task.dueDate && task.status === 'pending') {
-        const dueDate = new Date(task.dueDate);
-        if (dueDate < new Date()) {
-          await this.update(id, { status: 'overdue' });
-          return { ...task, status: 'overdue' as TaskStatus };
-        }
-      }
-      return task;
+      return (await this.applyOverdue([task]))[0];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -116,11 +106,11 @@ export const taskService = {
         .eq('related_to_id', entityId)
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       const tasks = data?.map(mapRowToTask) ?? [];
       return this.applyOverdue(tasks);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -133,11 +123,11 @@ export const taskService = {
         .eq('assigned_to', userId)
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       const tasks = data?.map(mapRowToTask) ?? [];
       return this.applyOverdue(tasks);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -153,7 +143,7 @@ export const taskService = {
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       const task = mapRowToTask(inserted);
       activityService.log('task', task.id, 'task_created', `Task created: ${task.title}`, {
         priority: task.priority,
@@ -167,7 +157,7 @@ export const taskService = {
       });
       return task;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -183,7 +173,7 @@ export const taskService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       const task = mapRowToTask(updated);
       if (data.status === 'completed') {
@@ -192,7 +182,7 @@ export const taskService = {
       triggerWebhook('task.updated', { id, ...data });
       return task;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -206,7 +196,8 @@ export const taskService = {
         .not('status', 'eq', 'completed')
         .select()
         .maybeSingle();
-      if (!completedErr && completedData) {
+      if (completedErr) throw toServiceError(completedErr);
+      if (completedData) {
         const task = mapRowToTask(completedData);
         activityService.log('task', id, 'task_completed', `Task completed: ${task.title}`);
         triggerWebhook('task.updated', { id, status: 'completed' });
@@ -219,7 +210,8 @@ export const taskService = {
         .eq('status', 'completed')
         .select()
         .maybeSingle();
-      if (!pendingErr && pendingData) {
+      if (pendingErr) throw toServiceError(pendingErr);
+      if (pendingData) {
         const task = mapRowToTask(pendingData);
         activityService.log('task', id, 'updated', `Task reopened: ${task.title}`);
         triggerWebhook('task.updated', { id, status: 'pending' });
@@ -227,20 +219,25 @@ export const taskService = {
       }
       return undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async delete(id: string): Promise<boolean> {
     try {
       const supabase = await getSharedClient();
+      const ops = [
+        supabase.from('activities').delete().eq('entity_id', id),
+      ];
+      const results = await Promise.all(ops);
+      for (const r of results) if (r.error) console.error(`Cascade delete error: ${r.error.message}`);
       const { error } = await supabase.from('tasks').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       activityService.log('task', id, 'deleted', `Task deleted`);
       triggerWebhook('task.deleted', { id });
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 };

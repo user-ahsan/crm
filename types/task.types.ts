@@ -1,6 +1,8 @@
+import type { RelatedEntityType } from './attachment.types';
+export type { RelatedEntityType };
+
 export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
-export type TaskStatus = 'pending' | 'completed' | 'overdue';
-export type RelatedEntityType = 'lead' | 'contact' | 'company';
+export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'overdue';
 
 export interface Task {
   id: string;

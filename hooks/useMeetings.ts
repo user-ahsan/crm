@@ -2,8 +2,9 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import type { Meeting, MeetingFormData } from '@/types/meeting.types';
+import { generateId } from '@/lib/formatters';
 import { meetingService } from '@/services/meeting.service';
-import { useEntityCache } from '@/store/entity-cache';
+import { useEntityCache, isCacheStale } from '@/store/entity-cache';
 
 export function useMeetings() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -16,7 +17,9 @@ export function useMeetings() {
     try {
       const data = await meetingService.getAll();
       setMeetings(data);
-      useEntityCache.getState().setMeetings(data);
+      const store = useEntityCache.getState();
+      store.setMeetings(data);
+      store.setLastFetched('meetings');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load meetings');
     } finally {
@@ -25,22 +28,15 @@ export function useMeetings() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    meetingService.getAll()
-      .then((data) => {
-        if (cancelled) return;
-        setMeetings(data);
-        useEntityCache.getState().setMeetings(data);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : 'Failed to load meetings');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, []);
+    // P8: Skip fetch if cache is fresh
+    const store = useEntityCache.getState();
+    if (!isCacheStale(store, 'meetings') && store.meetings.length > 0) {
+      setMeetings(store.meetings);
+      setLoading(false);
+      return;
+    }
+    refresh();
+  }, [refresh]);
 
   const getByEntity = useCallback(async (entityType: string, entityId: string) => {
     try {
@@ -59,8 +55,20 @@ export function useMeetings() {
   }, []);
 
   const createMeeting = useCallback(async (data: MeetingFormData) => {
-    const tempId = `temp-${Date.now()}`;
-    const optimisticItem = { ...data, id: tempId, createdAt: new Date().toISOString() } as Meeting;
+    const tempId = generateId();
+    const optimisticItem: Meeting = {
+      id: tempId,
+      title: data.title,
+      participants: data.participants ?? [],
+      relatedToType: data.relatedToType,
+      relatedToId: data.relatedToId,
+      dateTime: data.dateTime,
+      duration: data.duration,
+      type: data.type,
+      notes: data.notes,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
     setMeetings((prev) => [optimisticItem, ...prev]);
     try {
       const created = await meetingService.create(data);
@@ -76,8 +84,11 @@ export function useMeetings() {
   }, []);
 
   const updateMeeting = useCallback(async (id: string, data: Partial<MeetingFormData & { outcome: string }>) => {
-    const previous = meetings;
-    setMeetings((prev) => prev.map((m) => (m.id === id ? { ...m, ...data } : m)));
+    let prevItem: Meeting | undefined;
+    setMeetings((prev) => {
+      prevItem = prev.find((m) => m.id === id);
+      return prev.map((m) => (m.id === id ? { ...m, ...data } : m));
+    });
     try {
       const updated = await meetingService.update(id, data);
       if (updated) {
@@ -86,25 +97,28 @@ export function useMeetings() {
       }
       return updated;
     } catch (e) {
-      setMeetings(previous);
+      if (prevItem) setMeetings((prev) => prev.map((m) => (m.id === id ? prevItem! : m)));
       setError(e instanceof Error ? e.message : 'Failed to update meeting');
       return undefined;
     }
-  }, [meetings]);
+  }, []);
 
   const deleteMeeting = useCallback(async (id: string) => {
-    const previous = meetings;
-    setMeetings((prev) => prev.filter((m) => m.id !== id));
+    let prevItem: Meeting | undefined;
+    setMeetings((prev) => {
+      prevItem = prev.find((m) => m.id === id);
+      return prev.filter((m) => m.id !== id);
+    });
     try {
       await meetingService.delete(id);
       useEntityCache.getState().removeMeeting(id);
       return true;
     } catch (e) {
-      setMeetings(previous);
+      if (prevItem) setMeetings((prev) => [...prev, prevItem!]);
       setError(e instanceof Error ? e.message : 'Failed to delete meeting');
       return false;
     }
-  }, [meetings]);
+  }, []);
 
   return { meetings, loading, error, refresh, getByEntity, getUpcoming, createMeeting, updateMeeting, deleteMeeting };
 }

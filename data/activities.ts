@@ -1,3 +1,7 @@
+/**
+ * MOCK DATA — Used for development/demo only.
+ * Production data comes from Supabase via services/*.service.ts
+ */
 import type { Activity } from '@/types/activity.types';
 
 export const activities: Activity[] = [

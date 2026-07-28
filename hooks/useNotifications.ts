@@ -1,6 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { startListening, getPendingNotifications, type RealtimeNotification } from '@/services/realtime.service';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { toast } from 'sonner';
 
 export interface Notification {
   id: string;
@@ -9,15 +12,98 @@ export interface Notification {
   description: string;
   timestamp: string;
   read: boolean;
+  data?: Record<string, unknown>;
 }
 
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const { user } = useCurrentUser();
+  const initialisedRef = useRef(false);
+
+  // Subscribe to Supabase Realtime when user is available
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const unsubscribe = startListening(user.id, {
+      onNotification: (realtimeNotif: RealtimeNotification) => {
+        setNotifications((prev) => {
+          // Dedup: skip if same type + entity ID already exists
+          const isDuplicate = prev.some(n =>
+            n.type === realtimeNotif.type &&
+            n.data?.leadId === realtimeNotif.data?.leadId
+          );
+          if (isDuplicate) return prev;
+
+          const notif: Notification = {
+            id: realtimeNotif.id,
+            type: realtimeNotif.type,
+            title: realtimeNotif.title,
+            description: realtimeNotif.description,
+            timestamp: realtimeNotif.timestamp,
+            read: false,
+            data: realtimeNotif.data,
+          };
+          return [notif, ...prev].slice(0, 200);
+        });
+
+        // Show a sonner toast for critical notification types
+        if (['lead_created', 'deal_won', 'task_due'].includes(realtimeNotif.type)) {
+          toast(realtimeNotif.title, {
+            description: realtimeNotif.description,
+          });
+        }
+      },
+    });
+
+    return () => {
+      unsubscribe();
+      initialisedRef.current = false;
+    };
+  }, [user?.id]);
+
+  // Poll fallback: fetch missed notifications on mount
+  useEffect(() => {
+    if (!user?.id || initialisedRef.current) return;
+    initialisedRef.current = true;
+
+    getPendingNotifications(user.id)
+      .then((pending) => {
+        if (pending.length > 0) {
+          setNotifications(prev => [...pending.slice(0, 200), ...prev.filter(n => !pending.some(p => p.id === n.id))].slice(0, 200));
+        }
+      })
+      .catch(() => {
+        // Silently fail — Realtime will catch new notifications going forward
+      });
+  }, [user?.id]);
+
+  // Fallback polling every 2 minutes for missed notifications
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      if (cancelled) return;
+      try {
+        const pending = await getPendingNotifications(user.id);
+        if (cancelled) return;
+        if (pending.length > 0) {
+          setNotifications(prev => {
+            const existing = new Set(prev.map(n => n.id));
+            const newOnes = pending.filter(n => !existing.has(n.id));
+            return [...newOnes, ...prev].slice(0, 200);
+          });
+        }
+      } catch {} // silent poll
+    }, 120000);
+    return () => { clearInterval(interval); cancelled = true; };
+  }, [user?.id]);
+
+  // ── Local state helpers (same interface as before) ──────────
 
   const addNotification = useCallback((notif: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
     const newNotif: Notification = {
       ...notif,
-      id: `notif-${crypto.randomUUID().slice(0, 8)}`,
+      id: `notif-${crypto.randomUUID()}`,
       timestamp: new Date().toISOString(),
       read: false,
     };

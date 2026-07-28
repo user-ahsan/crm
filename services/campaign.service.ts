@@ -1,7 +1,7 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { EmailSequence, CampaignEmail, EmailSequenceFormData, CampaignEmailFormData, CampaignStatus } from '@/types/campaign.types';
 import type { DbEmailSequence, DbCampaignEmail, EmailSequenceInsert, EmailSequenceUpdate, CampaignEmailInsert } from '@/types/supabase.types';
-import { formatSupabaseError } from './supabase.service';
+import { toServiceError } from './supabase.service';
 
 function mapSequenceRow(row: DbEmailSequence): EmailSequence {
   return {
@@ -30,21 +30,21 @@ function mapEmailRow(row: DbCampaignEmail): CampaignEmail {
 export const campaignService = {
   async getSequences(): Promise<EmailSequence[]> {
     try {
-      const supabase = await getSharedClient();
+      const supabase = getSharedClient();
       const { data, error } = await supabase
         .from('email_sequences')
         .select('*')
         .order('created_at', { ascending: false });
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapSequenceRow) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async getSequence(id: string): Promise<EmailSequence | undefined> {
     try {
-      const supabase = await getSharedClient();
+      const supabase = getSharedClient();
       const { data, error } = await supabase
         .from('email_sequences')
         .select('*')
@@ -52,23 +52,23 @@ export const campaignService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return data ? mapSequenceRow(data) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async createSequence(data: EmailSequenceFormData): Promise<EmailSequence> {
     try {
-      const supabase = await getSharedClient();
+      const supabase = getSharedClient();
       const { data: session } = await supabase.auth.getSession();
       const dbRow: Partial<EmailSequenceInsert> = {
         name: data.name,
         description: data.description ?? '',
         status: data.status ?? 'draft',
-        created_by: session?.session?.user?.id ?? 'unknown',
+        created_by: session?.session?.user?.id ?? 'system',
       };
 
       const { data: inserted, error } = await supabase
@@ -76,16 +76,16 @@ export const campaignService = {
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return mapSequenceRow(inserted);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async updateSequence(id: string, data: Partial<EmailSequenceFormData>): Promise<EmailSequence | undefined> {
     try {
-      const supabase = await getSharedClient();
+      const supabase = getSharedClient();
       const dbData: Partial<EmailSequenceUpdate> = {};
       if (data.name !== undefined) dbData.name = data.name;
       if (data.description !== undefined) dbData.description = data.description;
@@ -99,22 +99,29 @@ export const campaignService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return updated ? mapSequenceRow(updated) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async deleteSequence(id: string): Promise<boolean> {
     try {
-      const supabase = await getSharedClient();
+      const supabase = getSharedClient();
+      // Cascade delete campaign_emails and campaign_recipients
+      const ops = [
+        supabase.from('campaign_recipients').delete().eq('sequence_id', id),
+        supabase.from('campaign_emails').delete().eq('sequence_id', id),
+      ];
+      const results = await Promise.all(ops);
+      for (const r of results) if (r.error) console.error(`Cascade delete error: ${r.error.message}`);
       const { error } = await supabase.from('email_sequences').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -124,22 +131,22 @@ export const campaignService = {
 
   async getCampaignEmails(sequenceId: string): Promise<CampaignEmail[]> {
     try {
-      const supabase = await getSharedClient();
+      const supabase = getSharedClient();
       const { data, error } = await supabase
         .from('campaign_emails')
         .select('*')
         .eq('sequence_id', sequenceId)
         .order('sort_order', { ascending: true });
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapEmailRow) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async addCampaignEmail(data: CampaignEmailFormData): Promise<CampaignEmail> {
     try {
-      const supabase = await getSharedClient();
+      const supabase = getSharedClient();
       const dbRow: Partial<CampaignEmailInsert> = {
         sequence_id: data.sequenceId,
         subject: data.subject,
@@ -152,16 +159,16 @@ export const campaignService = {
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return mapEmailRow(inserted);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async updateCampaignEmail(id: string, data: Partial<CampaignEmailFormData>): Promise<CampaignEmail | undefined> {
     try {
-      const supabase = await getSharedClient();
+      const supabase = getSharedClient();
       const dbData: Partial<CampaignEmailInsert> = {};
       if (data.subject !== undefined) dbData.subject = data.subject;
       if (data.body !== undefined) dbData.body = data.body;
@@ -176,22 +183,22 @@ export const campaignService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return updated ? mapEmailRow(updated) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async deleteCampaignEmail(id: string): Promise<boolean> {
     try {
-      const supabase = await getSharedClient();
+      const supabase = getSharedClient();
       const { error } = await supabase.from('campaign_emails').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 };

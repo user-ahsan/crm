@@ -1,7 +1,7 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { Quote, QuoteFormData, QuoteStatus } from '@/types/quote.types';
 import type { DbQuote, DbQuoteItem, QuoteInsert } from '@/types/supabase.types';
-import { formatSupabaseError } from './supabase.service';
+import { ServiceError, toServiceError } from './supabase.service';
 
 function mapRowToQuote(row: DbQuote, items: DbQuoteItem[] = []): Quote {
   return {
@@ -51,6 +51,10 @@ function mapFormToQuoteDb(data: Partial<QuoteFormData>): Partial<QuoteInsert> {
 }
 
 function computeTotals(items: { description: string; quantity: number; unitPrice: number }[], discount: number = 0) {
+  for (const item of items) {
+    if (item.quantity < 0) throw new ServiceError(`Negative quantity not allowed: ${item.description}`, 'INVALID_QUANTITY');
+    if (item.unitPrice < 0) throw new ServiceError(`Negative unit price not allowed: ${item.description}`, 'INVALID_PRICE');
+  }
   const itemTotals = items.map((i) => ({
     ...i,
     total: i.quantity * i.unitPrice,
@@ -69,12 +73,12 @@ export const quoteService = {
         .select('*, quote_items(*)')
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return (data ?? []).map((row: DbQuote & { quote_items?: DbQuoteItem[] }) =>
         mapRowToQuote(row, row.quote_items ?? []),
       );
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -88,13 +92,13 @@ export const quoteService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return data
         ? mapRowToQuote(data as DbQuote, (data as { quote_items?: DbQuoteItem[] }).quote_items ?? [])
         : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -112,7 +116,7 @@ export const quoteService = {
         })
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
 
       const quoteId = inserted.id;
 
@@ -127,13 +131,13 @@ export const quoteService = {
             sort_order: idx,
           })),
         );
-        if (itemsError) throw new Error(itemsError.message);
+        if (itemsError) throw toServiceError(itemsError);
       }
 
       const quote = await this.getById(quoteId);
       return quote!;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -144,26 +148,32 @@ export const quoteService = {
       const existing = await this.getById(id);
       if (!existing) return undefined;
 
-      const items: { description: string; quantity: number; unitPrice: number }[] =
-        data.items ?? existing.items.map((i) => ({
-          description: i.description,
-          quantity: i.quantity,
-          unitPrice: i.unitPrice,
-        }));
-      const discount = data.discount ?? existing.discount;
-      const { itemTotals, subtotal, total } = computeTotals(items, discount);
-
-      const dbData = {
-        ...mapFormToQuoteDb(data),
-        subtotal,
-        total,
-      };
-
-      const { error } = await supabase.from('quotes').update(dbData).eq('id', id);
-      if (error) throw new Error(error.message);
-
+      // Only re-insert items when items actually changed
       if (data.items) {
-        await supabase.from('quote_items').delete().eq('quote_id', id);
+        const items: { description: string; quantity: number; unitPrice: number }[] =
+          data.items ?? existing.items.map((i) => ({
+            description: i.description,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+          }));
+        const discount = data.discount ?? existing.discount;
+        const { itemTotals, subtotal, total } = computeTotals(items, discount);
+
+        const dbData = {
+          ...mapFormToQuoteDb(data),
+          subtotal,
+          total,
+        };
+
+        const { error: updateError } = await supabase
+          .from('quotes')
+          .update(dbData)
+          .eq('id', id);
+        if (updateError) throw toServiceError(updateError);
+
+        // Delete old items and insert new ones in sequence (simulated transaction)
+        const { error: delErr } = await supabase.from('quote_items').delete().eq('quote_id', id);
+        if (delErr) throw toServiceError(delErr);
 
         if (itemTotals.length > 0) {
           const { error: itemsError } = await supabase.from('quote_items').insert(
@@ -176,24 +186,43 @@ export const quoteService = {
               sort_order: idx,
             })),
           );
-          if (itemsError) throw new Error(itemsError.message);
+          if (itemsError) throw toServiceError(itemsError);
         }
+      } else {
+        // Only update header fields
+        const dbData = mapFormToQuoteDb(data);
+        if (data.discount !== undefined) {
+          const { subtotal, total } = computeTotals(
+            existing.items.map(i => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice })),
+            data.discount,
+          );
+          dbData.subtotal = subtotal;
+          dbData.total = total;
+        }
+        const { error: updateError } = await supabase
+          .from('quotes')
+          .update(dbData)
+          .eq('id', id);
+        if (updateError) throw toServiceError(updateError);
       }
 
       return this.getById(id);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async delete(id: string): Promise<boolean> {
     try {
       const supabase = await getSharedClient();
+      // Also delete quote_items
+      const { error: itemsErr } = await supabase.from('quote_items').delete().eq('quote_id', id);
+      if (itemsErr) console.error(`Delete quote_items error: ${itemsErr.message}`);
       const { error } = await supabase.from('quotes').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return true;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -208,11 +237,11 @@ export const quoteService = {
         .single();
       if (error) {
         if (error.code === 'PGRST116') return undefined;
-        throw new Error(error.message);
+        throw toServiceError(error);
       }
       return data ? mapRowToQuote(data as DbQuote) : undefined;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 };

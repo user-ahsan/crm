@@ -1,8 +1,10 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { Activity, ActivityType } from '@/types/activity.types';
 import type { DbActivity } from '@/types/supabase.types';
-import { formatSupabaseError } from './supabase.service';
+import { asEnum, toServiceError } from './supabase.service';
 import { triggerWebhook } from './webhook.service';
+
+const ALLOWED_ENTITY_TYPES = ['lead', 'contact', 'company', 'deal', 'task', 'meeting', 'note', 'email', 'sms'] as const;
 
 function mapRowToActivity(row: DbActivity): Activity {
   return {
@@ -25,10 +27,10 @@ export const activityService = {
         .select('*')
         .order('timestamp', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToActivity) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -41,10 +43,10 @@ export const activityService = {
         .eq('entity_type', entityType)
         .eq('entity_id', entityId)
         .order('timestamp', { ascending: false });
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToActivity) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -56,10 +58,10 @@ export const activityService = {
         .select('*')
         .eq('type', type)
         .order('timestamp', { ascending: false });
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToActivity) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -71,10 +73,10 @@ export const activityService = {
         .select('*')
         .order('timestamp', { ascending: false })
         .range(0, limit - 1);
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRowToActivity) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -88,6 +90,9 @@ export const activityService = {
     const timestamp = new Date().toISOString();
     try {
       const supabase = await getSharedClient();
+      // Validate entityType against allowed values
+      asEnum(entityType, ALLOWED_ENTITY_TYPES);
+
       const dbRow = {
         entity_type: entityType,
         entity_id: entityId,
@@ -101,18 +106,23 @@ export const activityService = {
         .insert(dbRow)
         .select()
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       const activity = mapRowToActivity(inserted);
-      triggerWebhook('activity.created', {
-        id: activity.id,
-        entityType: activity.entityType,
-        entityId: activity.entityId,
-        type: activity.type,
-        description: activity.description,
-      });
+      // Fire-and-forget webhook with error handling
+      try {
+        await triggerWebhook('activity.created', {
+          id: activity.id,
+          entityType: activity.entityType,
+          entityId: activity.entityId,
+          type: activity.type,
+          description: activity.description,
+        });
+      } catch (webhookErr) {
+        console.error(`Activity webhook trigger failed: ${webhookErr instanceof Error ? webhookErr.message : 'Unknown webhook error'}`);
+      }
       return activity;
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 };

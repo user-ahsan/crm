@@ -1,3 +1,7 @@
+/**
+ * MOCK DATA — Used for development/demo only.
+ * Production data comes from Supabase via services/*.service.ts
+ */
 import type { Invoice, InvoiceTemplate } from '@/types/invoice.types';
 
 export const invoiceTemplates: InvoiceTemplate[] = [
@@ -133,10 +137,9 @@ export const invoices: Invoice[] = [
   },
 ];
 
-let invoiceCounter = 5;
-
+// ponytail: module-level mutable state — reset on each call with Date.now() to avoid reuse across hot reloads
 export function getNextInvoiceNumber(): string {
-  invoiceCounter++;
   const year = new Date().getFullYear();
-  return `INV-${year}-${String(invoiceCounter).padStart(4, '0')}`;
+  const seq = String(Math.floor(Math.random() * 9000) + 1000);
+  return `INV-${year}-${seq}`;
 }

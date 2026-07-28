@@ -15,16 +15,10 @@ export const useThemeStore = create<ThemeState>()(
       theme: 'light',
       setTheme: (theme) => {
         set({ theme });
-        if (typeof window !== 'undefined') {
-          document.documentElement.classList.toggle('dark', theme === 'dark');
-        }
       },
       toggleTheme: () =>
         set((state) => {
           const next = state.theme === 'light' ? 'dark' : 'light';
-          if (typeof window !== 'undefined') {
-            document.documentElement.classList.toggle('dark', next === 'dark');
-          }
           return { theme: next };
         }),
     }),

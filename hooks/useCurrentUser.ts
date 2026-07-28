@@ -62,6 +62,12 @@ export function useCurrentUser() {
     let subscription: { unsubscribe: () => void } | null = null;
 
     async function init() {
+      // Skip API call if no sb- session cookie
+      if (typeof document !== 'undefined' && !document.cookie.includes('sb-')) {
+        setLoading(false);
+        if (cancelled) return;
+        return;
+      }
       await refresh();
       if (cancelled) return;
 

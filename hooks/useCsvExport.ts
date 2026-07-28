@@ -9,19 +9,23 @@ import type { ExportColumn } from '@/lib/csv-export-definitions';
 /** Small delay helper to space out sequential downloads */
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/** Entity types that support CSV export */
+type ExportEntityType = 'leads' | 'contacts' | 'companies' | 'tasks' | 'meetings' | 'all';
+
 /**
  * Generic CSV export helper. Writes typed data to a CSV file and triggers download.
  */
-function exportToCsv(
-  data: any[],
+function exportToCsv<T>(
+  data: T[],
   filename: string,
   columns: ExportColumn[],
 ): void {
-  const mappedData = data.map((item: Record<string, any>) => {
+  const mappedData = data.map((item: T) => {
     const row: Record<string, unknown> = {};
+    const record = item as unknown as Record<string, unknown>;
     for (const col of columns) {
-      const rawValue = item[col.key];
-      row[col.key] = col.format ? col.format(rawValue, item) : rawValue;
+      const rawValue = record[col.key];
+      row[col.key] = col.format ? col.format(rawValue, record) : rawValue;
     }
     return row;
   });
@@ -54,32 +58,32 @@ export function useCsvExport() {
     switch (entityType) {
       case 'leads': {
         const { leadService } = await import('@/services/lead.service');
-        const data = await leadService.getAll();
-        exportToCsv(data, filename, columns);
+        const raw = await leadService.getAll();
+        exportToCsv(raw, filename, columns);
         break;
       }
       case 'contacts': {
         const { contactService } = await import('@/services/contact.service');
-        const data = await contactService.getAll();
-        exportToCsv(data, filename, columns);
+        const raw = await contactService.getAll();
+        exportToCsv(raw, filename, columns);
         break;
       }
       case 'companies': {
         const { companyService } = await import('@/services/company.service');
-        const data = await companyService.getAll();
-        exportToCsv(data, filename, columns);
+        const raw = await companyService.getAll();
+        exportToCsv(raw, filename, columns);
         break;
       }
       case 'tasks': {
         const { taskService } = await import('@/services/task.service');
-        const data = await taskService.getAll();
-        exportToCsv(data, filename, columns);
+        const raw = await taskService.getAll();
+        exportToCsv(raw, filename, columns);
         break;
       }
       case 'meetings': {
         const { meetingService } = await import('@/services/meeting.service');
-        const data = await meetingService.getAll();
-        exportToCsv(data, filename, columns);
+        const raw = await meetingService.getAll();
+        exportToCsv(raw, filename, columns);
         break;
       }
       default:
@@ -97,7 +101,7 @@ export function useCsvExport() {
       try {
         if (entityType === 'all') {
           // Export each entity type sequentially with a small delay
-          const allTypes = ['leads', 'contacts', 'companies', 'tasks', 'meetings'];
+          const allTypes = ['leads', 'contacts', 'companies', 'tasks', 'meetings'] as const;
           for (const type of allTypes) {
             await exportSingle(type);
             // Small delay between downloads so the browser can handle them

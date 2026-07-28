@@ -1,15 +1,20 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import type { Forecast, ForecastSummary } from '@/types/forecast.types';
 import type { DbForecast, ForecastInsert, ForecastUpdate } from '@/types/supabase.types';
-import { formatSupabaseError } from './supabase.service';
+import { ServiceError, toServiceError } from './supabase.service';
+
+function safeNumber(val: unknown, fallback: number = 0): number {
+  const n = Number(val);
+  return isNaN(n) ? fallback : n;
+}
 
 function mapRow(row: DbForecast): Forecast {
   return {
     id: row.id,
     year: row.year,
     month: row.month,
-    target: Number(row.target),
-    actual: Number(row.actual),
+    target: safeNumber(row.target),
+    actual: safeNumber(row.actual),
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -25,49 +30,34 @@ export const forecastService = {
         .select('*')
         .eq('year', year)
         .order('month', { ascending: true });
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       return data?.map(mapRow) ?? [];
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
   async upsert(data: ForecastInsert): Promise<Forecast> {
     try {
       const supabase = await getSharedClient();
-      const { data: existing } = await supabase
+      const { data: result, error } = await supabase
         .from('forecasts')
-        .select('id')
-        .eq('year', data.year)
-        .eq('month', data.month)
-        .eq('created_by', data.created_by)
-        .maybeSingle();
-
-      let result: DbForecast;
-      if (existing) {
-        const update: ForecastUpdate = {};
-        if (data.target !== undefined) update.target = data.target;
-        if (data.actual !== undefined) update.actual = data.actual;
-        const { data: updated, error } = await supabase
-          .from('forecasts')
-          .update(update)
-          .eq('id', existing.id)
-          .select()
-          .single();
-        if (error) throw new Error(error.message);
-        result = updated;
-      } else {
-        const { data: inserted, error } = await supabase
-          .from('forecasts')
-          .insert(data)
-          .select()
-          .single();
-        if (error) throw new Error(error.message);
-        result = inserted;
-      }
+        .upsert({
+          year: data.year,
+          month: data.month,
+          target: safeNumber(data.target),
+          actual: safeNumber(data.actual),
+          created_by: data.created_by,
+        }, {
+          onConflict: 'year,month,created_by',
+          ignoreDuplicates: false,
+        })
+        .select()
+        .single();
+      if (error) throw toServiceError(error);
       return mapRow(result);
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 
@@ -86,7 +76,7 @@ export const forecastService = {
         .from('forecasts')
         .select('*')
         .order('year', { ascending: false });
-      if (error) throw new Error(error.message);
+      if (error) throw toServiceError(error);
       const rows = data?.map(mapRow) ?? [];
       const grouped = new Map<number, { totalTarget: number; totalActual: number }>();
       for (const r of rows) {
@@ -102,7 +92,7 @@ export const forecastService = {
         achievement: totalTarget > 0 ? Math.round((totalActual / totalTarget) * 100) : 0,
       }));
     } catch (e) {
-      throw new Error(formatSupabaseError(e));
+      throw toServiceError(e);
     }
   },
 };

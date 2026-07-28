@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import type { FileAttachment, RelatedEntityType } from '@/types/attachment.types';
-import { attachmentService } from '@/services/attachment.service';
+import { generateId } from '@/lib/formatters';
+import { attachmentService, validateFile } from '@/services/attachment.service';
 
 export function useAttachments(relatedToType: RelatedEntityType, relatedToId: string) {
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
@@ -39,7 +40,12 @@ export function useAttachments(relatedToType: RelatedEntityType, relatedToId: st
   }, [relatedToType, relatedToId]);
 
   const upload = useCallback(async (file: File, uploadedBy: string) => {
-    const tempId = `temp-${Date.now()}`;
+    const validationError = validateFile(file);
+    if (validationError) {
+      setError(validationError);
+      return undefined;
+    }
+    const tempId = generateId();
     const optimisticItem: FileAttachment = {
       id: tempId,
       filename: file.name,
@@ -61,12 +67,15 @@ export function useAttachments(relatedToType: RelatedEntityType, relatedToId: st
           return prev + 10;
         });
       }, 200);
-      const created = await attachmentService.upload(file, relatedToType, relatedToId, uploadedBy);
-      clearInterval(interval);
-      setUploadProgress(100);
-      setAttachments((prev) => prev.map((a) => (a.id === tempId ? created : a)));
-      setTimeout(() => setUploadProgress(null), 500);
-      return created;
+      try {
+        const created = await attachmentService.upload(file, relatedToType, relatedToId, uploadedBy);
+        setUploadProgress(100);
+        setAttachments((prev) => prev.map((a) => (a.id === tempId ? created : a)));
+        setTimeout(() => setUploadProgress(null), 500);
+        return created;
+      } finally {
+        clearInterval(interval);
+      }
     } catch (e) {
       setAttachments((prev) => prev.filter((a) => a.id !== tempId));
       setError(e instanceof Error ? e.message : 'Failed to upload file');
@@ -76,17 +85,17 @@ export function useAttachments(relatedToType: RelatedEntityType, relatedToId: st
   }, [relatedToType, relatedToId]);
 
   const remove = useCallback(async (id: string) => {
-    const previous = attachments;
-    setAttachments((prev) => prev.filter((a) => a.id !== id));
+    let previous: FileAttachment[] | undefined;
+    setAttachments((prev) => { previous = [...prev]; return prev.filter((a) => a.id !== id); });
     try {
       await attachmentService.delete(id);
       return true;
     } catch (e) {
-      setAttachments(previous);
+      if (previous) setAttachments(previous);
       setError(e instanceof Error ? e.message : 'Failed to delete attachment');
       return false;
     }
-  }, [attachments]);
+  }, []);
 
   return {
     attachments,
