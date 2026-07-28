@@ -28,3 +28,22 @@ export interface PortalShareFormData {
   relatedToId: string;
   permission: string;
 }
+
+export interface PortalAuthResponse {
+  session: {
+    accessToken: string;
+    refreshToken: string;
+    expiresAt: number;
+  } | null;
+  user: PortalUser | null;
+  error: string | null;
+}
+
+export interface PortalLoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface PortalPasswordResetRequest {
+  email: string;
+}

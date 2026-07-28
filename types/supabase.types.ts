@@ -1557,7 +1557,7 @@ export interface PortalUserInsert {
   id?: string;
   email: string;
   name: string;
-  password_hash: string;
+  password_hash?: string | null;
   last_login?: string | null;
   active?: boolean;
 }
@@ -1566,7 +1566,7 @@ export interface PortalUserUpdate {
   id?: string;
   email?: string;
   name?: string;
-  password_hash?: string;
+  password_hash?: string | null;
   last_login?: string | null;
   active?: boolean;
 }
