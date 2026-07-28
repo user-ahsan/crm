@@ -2,9 +2,10 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import type { Lead, LeadFormData, LeadFilters } from '@/types/lead.types';
+import { generateId } from '@/lib/formatters';
 import { leadService } from '@/services/lead.service';
 import { applyLeadFilters } from '@/modules/leads/leadFilters';
-import { useEntityCache } from '@/store/entity-cache';
+import { useEntityCache, isCacheStale } from '@/store/entity-cache';
 
 export function useLeads() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -17,7 +18,9 @@ export function useLeads() {
     try {
       const data = await leadService.getAll();
       setLeads(data);
-      useEntityCache.getState().setLeads(data);
+      const store = useEntityCache.getState();
+      store.setLeads(data);
+      store.setLastFetched('leads');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load leads');
     } finally {
@@ -26,22 +29,15 @@ export function useLeads() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    leadService.getAll()
-      .then((data) => {
-        if (cancelled) return;
-        setLeads(data);
-        useEntityCache.getState().setLeads(data);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : 'Failed to load leads');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, []);
+    // P8: Skip fetch if cache is fresh
+    const store = useEntityCache.getState();
+    if (!isCacheStale(store, 'leads') && store.leads.length > 0) {
+      setLeads(store.leads);
+      setLoading(false);
+      return;
+    }
+    refresh();
+  }, [refresh]);
 
   const getFiltered = useCallback((filters: LeadFilters) => {
     return applyLeadFilters(leads, filters);
@@ -50,14 +46,32 @@ export function useLeads() {
   const getById = useCallback(async (id: string) => {
     try {
       return await leadService.getById(id);
-    } catch {
+    } catch (err) {
+      // Error preserved in error state
       return undefined;
     }
   }, []);
 
   const createLead = useCallback(async (data: LeadFormData) => {
-    const tempId = `temp-${Date.now()}`;
-    const optimisticItem = { ...data, id: tempId, createdAt: new Date().toISOString() } as Lead;
+    const tempId = generateId();
+    const optimisticItem: Lead = {
+      id: tempId,
+      fullName: data.fullName,
+      email: data.email,
+      phone: data.phone,
+      companyName: data.companyName,
+      industry: data.industry,
+      country: data.country,
+      source: data.source,
+      status: data.status,
+      priority: data.priority,
+      assignedTo: data.assignedTo,
+      estimatedValue: data.estimatedValue,
+      tags: data.tags ?? [],
+      notes: data.notes,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
     setLeads((prev) => [optimisticItem, ...prev]);
     try {
       const created = await leadService.create(data);
@@ -73,8 +87,11 @@ export function useLeads() {
   }, []);
 
   const updateLead = useCallback(async (id: string, data: Partial<LeadFormData>) => {
-    const previous = leads;
-    setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, ...data } : l)));
+    let prevItem: Lead | undefined;
+    setLeads((prev) => {
+      prevItem = prev.find((l) => l.id === id);
+      return prev.map((l) => (l.id === id ? { ...l, ...data } : l));
+    });
     try {
       const updated = await leadService.update(id, data);
       if (updated) {
@@ -83,25 +100,28 @@ export function useLeads() {
       }
       return updated;
     } catch (e) {
-      setLeads(previous);
+      if (prevItem) setLeads((prev) => prev.map((l) => (l.id === id ? prevItem! : l)));
       setError(e instanceof Error ? e.message : 'Failed to update lead');
       return undefined;
     }
-  }, [leads]);
+  }, []);
 
   const deleteLead = useCallback(async (id: string) => {
-    const previous = leads;
-    setLeads((prev) => prev.filter((l) => l.id !== id));
+    let prevItem: Lead | undefined;
+    setLeads((prev) => {
+      prevItem = prev.find((l) => l.id === id);
+      return prev.filter((l) => l.id !== id);
+    });
     try {
       await leadService.delete(id);
       useEntityCache.getState().removeLead(id);
       return true;
     } catch (e) {
-      setLeads(previous);
+      if (prevItem) setLeads((prev) => [...prev, prevItem!]);
       setError(e instanceof Error ? e.message : 'Failed to delete lead');
       return false;
     }
-  }, [leads]);
+  }, []);
 
   return {
     leads,

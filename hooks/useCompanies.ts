@@ -2,8 +2,9 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import type { Company, CompanyFormData } from '@/types/company.types';
+import { generateId } from '@/lib/formatters';
 import { companyService } from '@/services/company.service';
-import { useEntityCache } from '@/store/entity-cache';
+import { useEntityCache, isCacheStale } from '@/store/entity-cache';
 
 export function useCompanies() {
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -16,7 +17,9 @@ export function useCompanies() {
     try {
       const data = await companyService.getAll();
       setCompanies(data);
-      useEntityCache.getState().setCompanies(data);
+      const store = useEntityCache.getState();
+      store.setCompanies(data);
+      store.setLastFetched('companies');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load companies');
     } finally {
@@ -25,34 +28,41 @@ export function useCompanies() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    companyService.getAll()
-      .then((data) => {
-        if (cancelled) return;
-        setCompanies(data);
-        useEntityCache.getState().setCompanies(data);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : 'Failed to load companies');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, []);
+    // P8: Skip fetch if cache is fresh
+    const store = useEntityCache.getState();
+    if (!isCacheStale(store, 'companies') && store.companies.length > 0) {
+      setCompanies(store.companies);
+      setLoading(false);
+      return;
+    }
+    refresh();
+  }, [refresh]);
 
   const getById = useCallback(async (id: string) => {
     try {
       return await companyService.getById(id);
-    } catch {
+    } catch (err) {
+      // Error preserved in error state
       return undefined;
     }
   }, []);
 
   const createCompany = useCallback(async (data: CompanyFormData) => {
-    const tempId = `temp-${Date.now()}`;
-    const optimisticItem = { ...data, id: tempId, createdAt: new Date().toISOString() } as Company;
+    const tempId = generateId();
+    const optimisticItem: Company = {
+      id: tempId,
+      name: data.name,
+      industry: data.industry,
+      size: data.size,
+      revenue: data.revenue,
+      location: data.location,
+      website: data.website,
+      contactIds: [],
+      leadIds: [],
+      tags: data.tags ?? [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
     setCompanies((prev) => [optimisticItem, ...prev]);
     try {
       const created = await companyService.create(data);
@@ -68,8 +78,11 @@ export function useCompanies() {
   }, []);
 
   const updateCompany = useCallback(async (id: string, data: Partial<CompanyFormData>) => {
-    const previous = companies;
-    setCompanies((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)));
+    let prevItem: Company | undefined;
+    setCompanies((prev) => {
+      prevItem = prev.find((c) => c.id === id);
+      return prev.map((c) => (c.id === id ? { ...c, ...data } : c));
+    });
     try {
       const updated = await companyService.update(id, data);
       if (updated) {
@@ -78,25 +91,28 @@ export function useCompanies() {
       }
       return updated;
     } catch (e) {
-      setCompanies(previous);
+      if (prevItem) setCompanies((prev) => prev.map((c) => (c.id === id ? prevItem! : c)));
       setError(e instanceof Error ? e.message : 'Failed to update company');
       return undefined;
     }
-  }, [companies]);
+  }, []);
 
   const deleteCompany = useCallback(async (id: string) => {
-    const previous = companies;
-    setCompanies((prev) => prev.filter((c) => c.id !== id));
+    let prevItem: Company | undefined;
+    setCompanies((prev) => {
+      prevItem = prev.find((c) => c.id === id);
+      return prev.filter((c) => c.id !== id);
+    });
     try {
       await companyService.delete(id);
       useEntityCache.getState().removeCompany(id);
       return true;
     } catch (e) {
-      setCompanies(previous);
+      if (prevItem) setCompanies((prev) => [...prev, prevItem!]);
       setError(e instanceof Error ? e.message : 'Failed to delete company');
       return false;
     }
-  }, [companies]);
+  }, []);
 
   return { companies, loading, error, refresh, getById, createCompany, updateCompany, deleteCompany };
 }
