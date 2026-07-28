@@ -305,6 +305,7 @@ function SidebarLogo({ collapsed }: { collapsed: boolean }) {
     if (logoUrl) {
       return (
         <div className="flex h-14 shrink-0 items-center justify-center px-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={logoUrl}
             alt="Logo"
@@ -323,6 +324,7 @@ function SidebarLogo({ collapsed }: { collapsed: boolean }) {
   if (logoUrl) {
     return (
       <div className="flex h-14 shrink-0 items-center px-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={logoUrl}
           alt="Logo"

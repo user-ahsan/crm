@@ -59,7 +59,7 @@ export function PipelineFunnel({ funnel, conversions }: PipelineFunnelProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
-        {funnel.map((stage, i) => {
+        {funnel.map((stage) => {
           const width = (stage.count / maxCount) * 100;
           const color = STAGE_COLORS[stage.name] ?? 'bg-primary';
           const bg = STAGE_BG[stage.name] ?? 'bg-muted';

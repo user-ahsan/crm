@@ -48,7 +48,6 @@ import {
   IconKey,
   IconFileInvoice,
   IconTarget,
-  IconPhoto,
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { BrandingSection } from '@/components/settings/BrandingSection';

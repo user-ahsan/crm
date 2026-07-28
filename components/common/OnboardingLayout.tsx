@@ -129,6 +129,7 @@ function OnboardingLogo() {
   }, []);
 
   if (logoUrl) {
+    // eslint-disable-next-line @next/next/no-img-element
     return <img src={logoUrl} alt="Logo" className="max-h-8 max-w-48 rounded object-contain" />;
   }
 

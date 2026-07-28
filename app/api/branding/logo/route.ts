@@ -101,7 +101,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       success: true,
       data: { logo_url: logoUrl, logo_path: filePath },
     }, { headers: corsHeaders() });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Internal error' }, { status: 500, headers: corsHeaders() });
   }
 }
@@ -148,7 +148,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     }
 
     return NextResponse.json({ success: true }, { headers: corsHeaders() });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Internal error' }, { status: 500, headers: corsHeaders() });
   }
 }

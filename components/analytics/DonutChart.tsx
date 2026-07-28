@@ -108,7 +108,16 @@ export function DonutChart({
     );
   }
 
-  let cumulative = 0;
+  // Pre-compute segment offsets immutably — avoids react-hooks/immutability error
+  const segmentsWithOffset = nonZero.reduce<{ value: number; segLen: number; offset: number; color: string; label: string }[]>(
+    (acc, seg) => {
+      const segLen = (seg.value / total) * circumference;
+      const offset = acc.length > 0 ? acc[acc.length - 1].offset + acc[acc.length - 1].segLen : 0;
+      acc.push({ value: seg.value, segLen, offset, color: seg.color, label: seg.label });
+      return acc;
+    },
+    [],
+  );
 
   return (
     <svg
@@ -117,27 +126,22 @@ export function DonutChart({
       viewBox={`0 0 ${size} ${size}`}
       className={className}
     >
-      {nonZero.map((seg, i) => {
-        const segLen = (seg.value / total) * circumference;
-        const offset = cumulative;
-        cumulative += segLen;
-        return (
-          <circle
-            key={`${uid}-${i}`}
-            cx={center}
-            cy={center}
-            r={radius}
-            fill="none"
-            stroke={seg.color}
-            strokeWidth={strokeWidth}
-            strokeDasharray={`${segLen} ${circumference - segLen}`}
-            strokeDashoffset={-offset}
-            transform={`rotate(-90 ${center} ${center})`}
-            className="transition-opacity duration-200 hover:opacity-80"
-            style={{ cursor: 'pointer' }}
-          />
-        );
-      })}
+      {segmentsWithOffset.map((seg, i) => (
+        <circle
+          key={`${uid}-${i}`}
+          cx={center}
+          cy={center}
+          r={radius}
+          fill="none"
+          stroke={seg.color}
+          strokeWidth={strokeWidth}
+          strokeDasharray={`${seg.segLen} ${circumference - seg.segLen}`}
+          strokeDashoffset={-seg.offset}
+          transform={`rotate(-90 ${center} ${center})`}
+          className="transition-opacity duration-200 hover:opacity-80"
+          style={{ cursor: 'pointer' }}
+        />
+      ))}
       {centerLabel && (
         <text
           x={center}

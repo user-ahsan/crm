@@ -28,7 +28,7 @@ export async function GET(): Promise<NextResponse> {
       success: true,
       data: data ?? { logo_url: null, logo_path: null, company_name: null },
     }, { headers: corsHeaders() });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Internal error' }, { status: 500, headers: corsHeaders() });
   }
 }
@@ -67,7 +67,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     }
 
     return NextResponse.json({ success: true, data }, { headers: corsHeaders() });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Internal error' }, { status: 500, headers: corsHeaders() });
   }
 }

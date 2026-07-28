@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { IconPhoto, IconTrash, IconLoader2, IconBuilding } from '@tabler/icons-react';
 import { useBranding } from '@/hooks/useBranding';
-import { toast } from 'sonner';
 
 export function BrandingSection() {
   const { branding, loading, uploading, uploadLogo, removeLogo, updateCompanyName } = useBranding();
@@ -72,6 +71,7 @@ export function BrandingSection() {
           <div className="space-y-2">
             <Label>Current Logo</Label>
             <div className="flex items-center gap-4 rounded-lg border bg-muted/30 p-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={branding.logo_url}
                 alt="Organization logo"

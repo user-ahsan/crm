@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
-import { getSupabaseClient } from '@/lib/supabase/client';
 
 export interface BrandingSettings {
   logo_url: string | null;
@@ -47,6 +46,7 @@ export function useBranding() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
   }, [refresh]);
 

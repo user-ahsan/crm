@@ -26,6 +26,7 @@ export function AuthFooter() {
     <footer className="absolute bottom-6 text-center text-xs text-muted-foreground/60">
       <Link href="/" className="transition-colors hover:text-muted-foreground/90">
         {logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img src={logoUrl} alt="Logo" className="mx-auto max-h-6 max-w-32 rounded object-contain" />
         ) : (
           '© NexusCRM'
