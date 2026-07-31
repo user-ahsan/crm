@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
-import { IconUsers, IconKey, IconRobot, IconShieldCheck, IconMail, IconChartBar, IconPlugConnected, IconFileText, IconUserShield, IconEye, IconMessage, IconWebhook, IconSettings, IconGitBranch } from '@tabler/icons-react';
+import { IconUsers, IconKey, IconRobot, IconShieldCheck, IconMail, IconChartBar, IconPlugConnected, IconFileText, IconUserShield, IconEye, IconMessage, IconWebhook, IconSettings, IconGitBranch, IconBolt } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -11,6 +11,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'General', href: '/settings', icon: <IconSettings className="size-4" /> },
+  { label: 'Services', href: '/settings/services', icon: <IconBolt className="size-4" /> },
   { label: 'Team', href: '/settings/team', icon: <IconUsers className="size-4" /> },
   { label: 'API Keys', href: '/settings/api-keys', icon: <IconKey className="size-4" /> },
   { label: 'Automation', href: '/settings/automation', icon: <IconRobot className="size-4" /> },

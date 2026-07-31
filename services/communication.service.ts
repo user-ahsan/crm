@@ -1,14 +1,16 @@
 import { getSharedClient } from '@/lib/supabase/client';
-import { getResendClient, isResendConfigured } from '@/lib/email';
+import { createResendClientFromConfig } from '@/lib/email';
+import { getServiceConfig } from '@/lib/service-config';
 import type { Email, EmailFormData, CallLog, CallLogFormData, Note, NoteFormData } from '@/types/communication.types';
 import type { DbEmailHistory, DbCallLog, DbNote, EmailHistoryInsert, CallLogInsert, NoteInsert } from '@/types/supabase.types';
 import { ServiceError, toServiceError } from './supabase.service';
 import { activityService } from './activity.service';
 import { triggerWebhook } from './webhook.service';
 
-/** Safe getter — never throws. Falls back to env or a placeholder so the UI never hard-crashes. */
-function getFromAddress(): string {
-  return process.env.RESEND_FROM_EMAIL
+/** Safe getter — never throws. Falls back to Supabase UI config, then env, then a placeholder. */
+function getFromAddress(config: Record<string, string | null> | null = null): string {
+  return config?.from_email
+    || process.env.RESEND_FROM_EMAIL
     || process.env.NEXT_PUBLIC_DEFAULT_FROM_EMAIL
     || 'noreply@nexuscrm.app';
 }
@@ -248,7 +250,11 @@ export const communicationService = {
     }
     try {
       const supabase = await getSharedClient();
-      const fromAddress = getFromAddress();
+
+      // Load config: Supabase (UI-configured) first, env-var fallback
+      const emailConfig = await getServiceConfig('email');
+      const fromAddress = getFromAddress(emailConfig);
+      const apiKey = emailConfig.api_key || process.env.RESEND_API_KEY;
 
       // 1. Insert DB record FIRST with status='pending' — no provider_message_id yet
       const dbRow: Partial<EmailHistoryInsert> = {
@@ -274,14 +280,14 @@ export const communicationService = {
       let providerMessageId: string | undefined;
       let errorMessage: string | undefined;
 
-      if (!isResendConfigured()) {
+      if (!apiKey) {
         // ponytail: no email provider — save as queued so the UI shows a clear signal
         status = 'queued';
         sentAt = undefined;
-        errorMessage = 'Email provider not configured. Set RESEND_API_KEY in your environment to send emails.';
+        errorMessage = 'Email provider not configured. Add your Resend API key in Settings > Services.';
       } else {
         try {
-          const resend = getResendClient();
+          const resend = createResendClientFromConfig(emailConfig);
           const result = await resend.emails.send({
             from: fromAddress,
             to: data.toAddress,
@@ -357,8 +363,9 @@ export const communicationService = {
   async saveDraft(data: EmailFormData): Promise<Email> {
     try {
       const supabase = await getSharedClient();
+      const emailConfig = await getServiceConfig('email');
       const dbRow = {
-        ...mapEmailToDb({ ...data, fromAddress: getFromAddress(), direction: 'outbound', status: 'draft' }),
+        ...mapEmailToDb({ ...data, fromAddress: getFromAddress(emailConfig), direction: 'outbound', status: 'draft' }),
       };
       const { data: inserted, error } = await supabase
         .from('email_history')

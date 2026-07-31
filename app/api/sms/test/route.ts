@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTwilioClientAsync, getTwilioFromNumber, isTwilioConfigured } from '@/lib/twilio'; // server-only route — safe
+import { getTwilioClientAsync, getTwilioFromNumber } from '@/lib/twilio'; // server-only route — safe
+import { getServiceConfig } from '@/lib/service-config';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
@@ -113,15 +114,16 @@ export async function POST(
   }
 
   // ── Send via Twilio ─────────────────────────────────────────────────
-  if (!isTwilioConfigured()) {
+  const smsConfig = await getServiceConfig('sms');
+  if (!(smsConfig.account_sid && smsConfig.auth_token)) {
     return NextResponse.json(
-      { success: false, error: 'Twilio not configured. Set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.' },
+      { success: false, error: 'Twilio not configured. Add credentials in Settings > Services.' },
       { status: 400, headers: corsHeaders() },
     );
   }
   try {
     const client = await getTwilioClientAsync();
-    const fromNumber = getTwilioFromNumber();
+    const fromNumber = smsConfig.from_number || getTwilioFromNumber();
 
     const message = await client.messages.create({
       body: body.body?.trim() || 'Test from NexusCRM',

@@ -15,6 +15,7 @@ import type { WebhookEvent } from '@/types/webhook.types';
 import { webhookConfigService } from './webhook-config.service';
 import { isPrivateHost } from '@/lib/ssrf';
 import { isFeatureEnabled } from '@/lib/feature-gates';
+import { getServiceConfig } from '@/lib/service-config';
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -108,22 +109,33 @@ async function sendToUrl(
 // ── Public API ────────────────────────────────────────────────────────
 
 /**
- * Quick guard — true when at least one webhook output is configured (legacy env-var or DB configs).
+ * Quick guard — true when at least one webhook output is configured (env-var, Supabase UI config, or DB configs).
  * Used to skip unnecessary work when no webhooks are set up.
- * This is a fast check that avoids a DB query on every entity CRUD when webhooks aren't used.
  */
-let _anyWebhookConfigured: boolean | null = null;
-export function isAnyWebhookConfigured(): boolean {
+export async function isAnyWebhookConfigured(): Promise<boolean> {
   if (!isFeatureEnabled('webhooks')) return false;
-  if (_anyWebhookConfigured === null) {
-    _anyWebhookConfigured = !!(process.env.N8N_WEBHOOK_URL);
+  // Fast path: env var set
+  if (process.env.N8N_WEBHOOK_URL) return true;
+  // Check Supabase UI config (Settings > Services)
+  try {
+    const config = await getServiceConfig('webhooks');
+    if (config.webhook_url) return true;
+  } catch {
+    // ignore — fall through to DB configs check
   }
-  return _anyWebhookConfigured;
+  // Check DB webhook configs (Settings > Webhooks)
+  try {
+    const all = await webhookConfigService.getAll();
+    if (all.some(c => c.active && c.url)) return true;
+  } catch {
+    // ignore
+  }
+  return false;
 }
 
 /** Resets the cached guard so the next call re-checks env vars. Used during testing only. */
 export function resetWebhookGuard(): void {
-  _anyWebhookConfigured = null;
+  // no-op — guard is now fully async, no cache to clear
 }
 
 /**
@@ -208,9 +220,12 @@ export async function triggerWebhookWithDetails(
     // ponytail: no DB webhook configs — silently skip, no noise
   }
 
-  // 2. Legacy env-var webhook
-  if (webhookConfig.enabled) {
-    promises.push(sendToUrl(webhookConfig.url, webhookConfig.secret, payload));
+  // 2. Legacy env-var webhook — also checks Supabase UI config
+  const webhookConfigFromDb = await getServiceConfig('webhooks');
+  const legacyUrl = webhookConfig.url || webhookConfigFromDb.webhook_url || '';
+  const legacySecret = webhookConfig.secret || webhookConfigFromDb.webhook_secret || '';
+  if (legacyUrl) {
+    promises.push(sendToUrl(legacyUrl, legacySecret, payload));
   }
 
   if (promises.length === 0) {

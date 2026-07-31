@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getResendClient, isResendConfigured } from '@/lib/email';
+import { createResendClientFromConfig } from '@/lib/email';
+import { getServiceConfig } from '@/lib/service-config';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
@@ -97,25 +98,27 @@ export async function POST(request: NextRequest): Promise<NextResponse<TestRespo
     );
   }
 
-  // Validate from address + API key — environment variables must be set
-  const fromAddress = process.env.RESEND_FROM_EMAIL;
+  // Validate from address + API key — Supabase UI config first, env fallback
+  const emailConfig = await getServiceConfig('email');
+  const fromAddress = emailConfig.from_email || process.env.RESEND_FROM_EMAIL;
+  const apiKey = emailConfig.api_key || process.env.RESEND_API_KEY;
   if (!fromAddress) {
     return NextResponse.json(
-      { success: false, error: 'RESEND_FROM_EMAIL not configured' },
+      { success: false, error: 'RESEND_FROM_EMAIL not configured. Add it in Settings > Services.' },
       { status: 400, headers: corsHeaders() },
     );
   }
-  if (!isResendConfigured()) {
+  if (!apiKey) {
     return NextResponse.json(
-      { success: false, error: 'RESEND_API_KEY not configured — email provider is disabled' },
+      { success: false, error: 'RESEND_API_KEY not configured. Add it in Settings > Services.' },
       { status: 400, headers: corsHeaders() },
     );
   }
-  const fromName = process.env.RESEND_FROM_NAME || 'NexusCRM';
+  const fromName = emailConfig.from_name || process.env.RESEND_FROM_NAME || 'NexusCRM';
 
   // Attempt to send test email via Resend
   try {
-    const resend = getResendClient();
+    const resend = createResendClientFromConfig(emailConfig);
 
     const result = await resend.emails.send({
       from: fromName ? `${fromName} <${fromAddress}>` : fromAddress,

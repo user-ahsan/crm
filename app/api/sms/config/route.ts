@@ -1,40 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { corsHeaders } from '@/lib/cors';
+import { validateCsrf } from '@/lib/csrf';
+import { getServiceConfig, saveServiceConfig } from '@/lib/service-config';
 
 /**
- * ─── SMS Config Route ──────────────────────────────────────────────────
+ * ─── SMS Config Route (Legacy) ─────────────────────────────────────────
  *
- * GET /api/sms/config
+ * GET /api/sms/config — returns whether Twilio is configured (masked).
+ * PUT /api/sms/config — saves Twilio credentials.
  *
- * Returns whether Twilio environment variables are configured, with
- * masked values for display in the settings UI. Secrets are never
- * fully exposed — only the first few characters of Account SID are shown.
- *
- * Response (200):
- *   - configured: boolean       — true if both SID and token are set
- *   - accountSid: string|null   — masked SID (e.g. "AC••••••••••"), null if unset
- *   - fromNumber: string|null   — the configured sender number, null if unset
+ * Both delegate to the centralized service_configs table — the same
+ * source the Settings > Services page uses. No duplicate storage.
  * ───────────────────────────────────────────────────────────────────────
  */
 
-interface ConfigSuccessResponse {
-  configured: boolean;
-  accountSid: string | null;
-  fromNumber: string | null;
-}
-
-interface ConfigErrorResponse {
-  success: false;
-  error: string;
-}
-
-type ConfigResponse = ConfigSuccessResponse | ConfigErrorResponse;
-
-/**
- * Masks the middle of a string, keeping only the first N characters
- * visible. If the value is short or falsy, returns null.
- */
 function maskValue(value: string | undefined, visiblePrefix: number = 4): string | null {
   if (!value) return null;
   if (value.length <= visiblePrefix + 4) return `${value.slice(0, visiblePrefix)}••••`;
@@ -43,17 +23,16 @@ function maskValue(value: string | undefined, visiblePrefix: number = 4): string
   return `${prefix}••••••${suffix}`;
 }
 
-export async function GET(request: NextRequest): Promise<NextResponse<ConfigResponse>> {
-  // Auth is optional for this read-only config endpoint
-  // (returns env var status, never secrets in full)
+export async function GET(request: NextRequest): Promise<NextResponse> {
   const ip = request.headers.get('x-forwarded-for') || 'unknown';
   if (!checkRateLimit('sms-config:' + ip, 60, 60000)) {
     return NextResponse.json({ success: false, error: 'Too many requests' }, { status: 429, headers: corsHeaders() });
   }
 
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_FROM_NUMBER;
+  const config = await getServiceConfig('sms');
+  const sid = config.account_sid || undefined;
+  const token = config.auth_token || undefined;
+  const fromNumber = config.from_number || undefined;
 
   const configured = Boolean(sid && token);
 
@@ -65,6 +44,41 @@ export async function GET(request: NextRequest): Promise<NextResponse<ConfigResp
     },
     { status: 200, headers: corsHeaders() },
   );
+}
+
+export async function PUT(request: NextRequest): Promise<NextResponse> {
+  if (!validateCsrf(request)) {
+    return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
+  }
+
+  try {
+    const body = await request.json();
+    const update: Record<string, string> = {};
+
+    if (body.accountSid?.trim()) {
+      if (!body.accountSid.startsWith('AC')) {
+        return NextResponse.json({ success: false, error: 'Account SID must start with "AC"' }, { status: 400, headers: corsHeaders() });
+      }
+      if (body.accountSid.includes('••••')) return NextResponse.json({ success: false, error: 'Invalid Account SID' }, { status: 400, headers: corsHeaders() });
+      update.account_sid = body.accountSid.trim();
+    }
+    if (body.authToken?.trim()) {
+      if (body.authToken.includes('••••')) return NextResponse.json({ success: false, error: 'Invalid Auth Token' }, { status: 400, headers: corsHeaders() });
+      update.auth_token = body.authToken.trim();
+    }
+    if (body.fromNumber?.trim()) {
+      update.from_number = body.fromNumber.trim();
+    }
+
+    const result = await saveServiceConfig('sms', update);
+    if (!result.success) {
+      return NextResponse.json({ success: false, error: result.error ?? 'Failed to save' }, { status: 500, headers: corsHeaders() });
+    }
+
+    return NextResponse.json({ success: true }, { headers: corsHeaders() });
+  } catch (e) {
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
 }
 
 export async function OPTIONS(): Promise<NextResponse> {

@@ -1,5 +1,5 @@
 import { getSharedClient } from '@/lib/supabase/client';
-import { isTwilioConfigured } from '@/lib/twilio-config';
+import { getServiceConfig } from '@/lib/service-config';
 import type { SmsLog, SmsFormData, SmsRelatedEntity } from '@/types/sms.types';
 import type { DbSmsLog } from '@/types/supabase.types';
 import { toServiceError } from './supabase.service';
@@ -53,16 +53,18 @@ export const smsService = {
   },
 
   async send(data: SmsFormData): Promise<SmsLog> {
-    const fromNumber = data.fromNumber || process.env.TWILIO_FROM_NUMBER || '+15551234567';
+    // Load config: Supabase (UI-configured) first, env-var fallback
+    const smsConfig = await getServiceConfig('sms');
+    const fromNumber = data.fromNumber || smsConfig.from_number || process.env.TWILIO_FROM_NUMBER || '+15551234567';
     try {
       const supabase = await getSharedClient();
       const { data: userData } = await supabase.auth.getUser();
       const createdBy = userData?.user?.id ?? 'system';
 
       // Guard: if Twilio is not configured, save as 'queued' so the UI shows a clear signal
-      const twilioAvailable = isTwilioConfigured();
+      const twilioAvailable = !!(smsConfig.account_sid && smsConfig.auth_token);
       const status = twilioAvailable ? 'sent' as const : 'queued' as const;
-      const errorMessage = twilioAvailable ? null : 'SMS provider not configured. Set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN to send SMS.';
+      const errorMessage = twilioAvailable ? null : 'SMS provider not configured. Add your Twilio credentials in Settings > Services.';
 
       const dbRow: SmsLogInsert = {
         to_number: data.toNumber,
@@ -116,10 +118,11 @@ export const smsService = {
 
     for (const msg of messages) {
       try {
+        const smsConfig = await getServiceConfig('sms');
         const sms = await this.send({
           toNumber: msg.toNumber,
           body: msg.body,
-          fromNumber: process.env.TWILIO_FROM_NUMBER,
+          fromNumber: smsConfig.from_number || undefined,
           relatedToType: msg.relatedToType as SmsRelatedEntity,
           relatedToId: msg.relatedToId,
         });

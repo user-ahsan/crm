@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { smsService } from '@/services/sms.service';
-import { getTwilioClientAsync, getTwilioFromNumber, isTwilioConfigured } from '@/lib/twilio';
+import { getTwilioClientAsync, getTwilioFromNumber } from '@/lib/twilio';
+import { getServiceConfig } from '@/lib/service-config';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
@@ -67,15 +68,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ success: false, error: 'Phone must be E.164 format (e.g. +15551234567)' }, { status: 400, headers: corsHeaders() });
   }
 
-  // 1. Try actual Twilio send (only if configured)
+  // 1. Try actual Twilio send (only if configured — Supabase UI config first, env fallback)
+  const smsConfig = await getServiceConfig('sms');
+  const hasTwilio = !!(smsConfig.account_sid && smsConfig.auth_token);
+
   let providerMessageId: string | undefined;
   let twilioError: string | undefined;
-  if (!isTwilioConfigured()) {
-    twilioError = 'SMS provider not configured. Set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.';
+  if (!hasTwilio) {
+    twilioError = 'SMS provider not configured. Add Twilio credentials in Settings > Services.';
   } else {
     try {
       const client = await getTwilioClientAsync();
-      const from = getTwilioFromNumber();
+      const from = smsConfig.from_number || getTwilioFromNumber();
       const message = await client.messages.create({ body: msgBody, to: toNumber, from });
       providerMessageId = message.sid;
     } catch (e: unknown) {
