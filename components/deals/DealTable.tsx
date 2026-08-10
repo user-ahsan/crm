@@ -59,7 +59,7 @@ const DealTable = memo(function DealTable({ deals, stages, onEdit, onDelete, onC
                 <TableCell className="font-medium tabular-nums">
                   <span className="inline-flex items-center gap-1">
                     <IconCurrencyDollar className="size-3.5 text-muted-foreground" />
-                    {deal.value > 0 ? formatCurrency(deal.value) : '—'}
+                    {deal.value > 0 ? formatCurrency(deal.value, deal.currency) : '—'}
                   </span>
                 </TableCell>
                 <TableCell>

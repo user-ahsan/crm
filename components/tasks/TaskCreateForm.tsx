@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import type { TaskFormData, TaskPriority, RelatedEntityType } from '@/types/task.types';
+import { useState, useCallback, useEffect } from 'react';
+import type { Task, TaskFormData, TaskPriority, RelatedEntityType } from '@/types/task.types';
 import { useTasks } from '@/hooks/useTasks';
+import { useLeads } from '@/hooks/useLeads';
+import { useContacts } from '@/hooks/useContacts';
+import { useCompanies } from '@/hooks/useCompanies';
 import {
   Dialog,
   DialogContent,
@@ -33,6 +36,8 @@ interface TaskCreateFormProps {
   onSuccess?: () => void;
   defaultRelatedToType?: RelatedEntityType;
   defaultRelatedToId?: string;
+  /** When set, the form prefills from this task and calls updateTask instead of createTask. */
+  editTask?: Task;
 }
 
 interface FormErrors {
@@ -53,39 +58,87 @@ const PRIORITY_LABELS: Record<TaskPriority, string> = {
   critical: 'Critical',
 };
 
+/**
+ * Format a Date as a local wall-time string for datetime-local inputs.
+ * NEVER use toISOString() — it shifts by UTC offset.
+ */
+function formatLocalDateTime(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 export function TaskCreateForm({
   open,
   onOpenChange,
   onSuccess,
   defaultRelatedToType,
   defaultRelatedToId,
+  editTask,
 }: TaskCreateFormProps) {
-  const { createTask } = useTasks();
+  const { createTask, updateTask } = useTasks();
+  const { leads } = useLeads();
+  const { contacts } = useContacts();
+  const { companies } = useCompanies();
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
 
   // Form state
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [title, setTitle] = useState(editTask?.title ?? '');
+  const [description, setDescription] = useState(editTask?.description ?? '');
   const [relatedToType, setRelatedToType] = useState<RelatedEntityType | ''>(
-    defaultRelatedToType ?? ''
+    editTask?.relatedToType ?? defaultRelatedToType ?? ''
   );
-  const [relatedToId, setRelatedToId] = useState(defaultRelatedToId ?? '');
-  const [assignedTo, setAssignedTo] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [priority, setPriority] = useState<TaskPriority | ''>('medium');
+  const [relatedToId, setRelatedToId] = useState(editTask?.relatedToId ?? defaultRelatedToId ?? '');
+  const [assignedTo, setAssignedTo] = useState(editTask?.assignedTo ?? '');
+  const [dueDate, setDueDate] = useState(
+    editTask?.dueDate ? formatLocalDateTime(new Date(editTask.dueDate)) : ''
+  );
+  const [priority, setPriority] = useState<TaskPriority | ''>(editTask?.priority ?? 'medium');
+
+  // Sync form state when editTask changes (e.g., switching between editing different tasks)
+  useEffect(() => {
+    if (editTask) {
+      setTitle(editTask.title);
+      setDescription(editTask.description ?? '');
+      setRelatedToType(editTask.relatedToType ?? '');
+      setRelatedToId(editTask.relatedToId ?? '');
+      setAssignedTo(editTask.assignedTo ?? '');
+      setDueDate(editTask.dueDate ? formatLocalDateTime(new Date(editTask.dueDate)) : '');
+      setPriority(editTask.priority ?? 'medium');
+      setErrors({});
+    }
+  }, [editTask]);
 
   // Reset form fields
   const resetForm = useCallback(() => {
-    setTitle('');
-    setDescription('');
-    setRelatedToType(defaultRelatedToType ?? '');
-    setRelatedToId(defaultRelatedToId ?? '');
-    setAssignedTo('');
-    setDueDate('');
-    setPriority('medium');
+    setTitle(editTask?.title ?? '');
+    setDescription(editTask?.description ?? '');
+    setRelatedToType(editTask?.relatedToType ?? defaultRelatedToType ?? '');
+    setRelatedToId(editTask?.relatedToId ?? defaultRelatedToId ?? '');
+    setAssignedTo(editTask?.assignedTo ?? '');
+    setDueDate(editTask?.dueDate ? formatLocalDateTime(new Date(editTask.dueDate)) : '');
+    setPriority(editTask?.priority ?? 'medium');
     setErrors({});
-  }, [defaultRelatedToType, defaultRelatedToId]);
+  }, [editTask, defaultRelatedToType, defaultRelatedToId]);
+
+  // Clear relatedToId when type changes to prevent dangling references
+  const handleRelatedToTypeChange = useCallback((value: string) => {
+    setRelatedToType(value as RelatedEntityType | '');
+    setRelatedToId('');
+  }, []);
+
+  // Entity picker options based on selected type
+  const entityOptions = (() => {
+    if (!relatedToType) return [];
+    if (relatedToType === 'lead') return leads.map((l) => ({ id: l.id, label: l.fullName }));
+    if (relatedToType === 'contact') return contacts.map((c) => ({ id: c.id, label: c.name }));
+    if (relatedToType === 'company') return companies.map((c) => ({ id: c.id, label: c.name }));
+    return [];
+  })();
 
   // Validate form
   const validate = useCallback((): FormErrors => {
@@ -138,17 +191,30 @@ export function TaskCreateForm({
           priority: priority as TaskPriority,
         };
 
-        const result = await createTask(formData);
+        let result: Task | undefined;
+
+        if (editTask) {
+          result = await updateTask(editTask.id, formData);
+          if (result) {
+            toast.success('Task updated successfully');
+          }
+        } else {
+          result = await createTask(formData);
+          if (result) {
+            toast.success('Task created successfully');
+          }
+        }
 
         if (result) {
-          toast.success('Task created successfully');
           resetForm();
           onOpenChange(false);
           onSuccess?.();
         } else {
-          // createTask catches errors internally but returns undefined on failure
-          // The error is set on the hook's error state
-          toast.error('Failed to create task. Please try again.');
+          toast.error(
+            editTask
+              ? 'Failed to update task. Please try again.'
+              : 'Failed to create task. Please try again.'
+          );
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'An unexpected error occurred';
@@ -166,7 +232,9 @@ export function TaskCreateForm({
       dueDate,
       priority,
       validate,
+      editTask,
       createTask,
+      updateTask,
       resetForm,
       onOpenChange,
       onSuccess,
@@ -187,9 +255,9 @@ export function TaskCreateForm({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Task</DialogTitle>
+          <DialogTitle>{editTask ? 'Edit Task' : 'Create Task'}</DialogTitle>
           <DialogDescription>
-            Add a new task to track your work items
+            {editTask ? 'Update the task details below' : 'Add a new task to track your work items'}
           </DialogDescription>
         </DialogHeader>
 
@@ -255,13 +323,17 @@ export function TaskCreateForm({
             <Label htmlFor="task-assigned">Assigned to</Label>
             <Select
               value={assignedTo}
-              onValueChange={(value: string | null) => { if (value !== null) setAssignedTo(value); }}
+              onValueChange={(value: string | null) => {
+                if (value === 'unassigned') setAssignedTo('');
+                else if (value !== null) setAssignedTo(value);
+              }}
               disabled={submitting}
             >
               <SelectTrigger id="task-assigned" className="w-full">
                 <SelectValue placeholder="Select a user" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
                 {USERS.map((user) => (
                   <SelectItem key={user.id} value={user.id}>
                     {user.name}
@@ -295,7 +367,7 @@ export function TaskCreateForm({
             <Label htmlFor="task-related-type">Related to</Label>
             <Select
               value={relatedToType}
-              onValueChange={(value) => setRelatedToType(value as RelatedEntityType | '')}
+              onValueChange={handleRelatedToTypeChange}
               disabled={submitting}
             >
               <SelectTrigger id="task-related-type" className="w-full">
@@ -317,18 +389,33 @@ export function TaskCreateForm({
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="task-related-id">
                 {relatedToType === 'lead'
-                  ? 'Lead ID'
+                  ? 'Lead'
                   : relatedToType === 'contact'
-                  ? 'Contact ID'
-                  : 'Company ID'}
+                  ? 'Contact'
+                  : 'Company'}
               </Label>
-              <Input
-                id="task-related-id"
-                placeholder={`Enter ${relatedToType} ID`}
+              <Select
                 value={relatedToId}
-                onChange={(e) => setRelatedToId(e.target.value)}
+                onValueChange={(value: string | null) => setRelatedToId(value ?? '')}
                 disabled={submitting}
-              />
+              >
+                <SelectTrigger id="task-related-id" className="w-full">
+                  <SelectValue placeholder={`Select a ${relatedToType}`} />
+                </SelectTrigger>
+                <SelectContent>
+                  {entityOptions.length > 0 ? (
+                    entityOptions.map((opt) => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.label}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="__none__" disabled>
+                      No {relatedToType}s available
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
@@ -341,7 +428,13 @@ export function TaskCreateForm({
               {submitting && (
                 <IconLoader2 size={14} className="animate-spin" />
               )}
-              {submitting ? 'Creating...' : 'Create Task'}
+              {submitting
+                ? editTask
+                  ? 'Updating...'
+                  : 'Creating...'
+                : editTask
+                  ? 'Update Task'
+                  : 'Create Task'}
             </Button>
           </DialogFooter>
         </form>

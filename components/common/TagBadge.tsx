@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { IconX } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
@@ -11,7 +12,7 @@ interface TagBadgeProps {
   size?: 'sm' | 'md';
 }
 
-export function TagBadge({ name, color = '#6366f1', onRemove, size = 'sm' }: TagBadgeProps) {
+export const TagBadge = memo(function TagBadge({ name, color = '#6366f1', onRemove, size = 'sm' }: TagBadgeProps) {
   const bg = `${color}20`;
   const text = color;
 
@@ -38,4 +39,6 @@ export function TagBadge({ name, color = '#6366f1', onRemove, size = 'sm' }: Tag
       )}
     </Badge>
   );
-}
+});
+
+export default TagBadge;

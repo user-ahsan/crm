@@ -17,6 +17,8 @@ export async function getTwilioClientAsync(): Promise<{
       body: string;
       from: string;
       to: string;
+      /** Delivery-status callback URL (Twilio POSTs MessageStatus updates here). */
+      statusCallback?: string;
     }) => Promise<{ sid: string; status: string; errorCode: number | null; errorMessage: string | null }>;
   };
 }> {

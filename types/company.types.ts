@@ -24,3 +24,15 @@ export interface CompanyFormData {
   website?: string;
   tags?: string[];
 }
+
+/**
+ * Filter shape for company list queries (SERVICES.md / MODULES.md contract).
+ * - search: case-insensitive substring match on company name
+ * - industry: exact match
+ * - size: exact match; `''` is the "no filter" sentinel used by filter UIs
+ */
+export interface CompanyFilters {
+  search?: string;
+  industry?: string;
+  size?: CompanySize | '';
+}

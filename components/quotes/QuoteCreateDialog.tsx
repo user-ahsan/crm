@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { Quote, QuoteFormData, QuoteStatus } from '@/types/quote.types';
 import {
   Dialog,
@@ -24,8 +24,7 @@ import { Button } from '@/components/ui/button';
 import { IconX, IconPlus, IconLoader2 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/formatters';
-
-const QUOTE_STATUSES: QuoteStatus[] = ['draft', 'sent', 'accepted', 'rejected'];
+import { getAllowedQuoteStatuses } from '@/lib/constants';
 
 interface LineItemInput {
   description: string;
@@ -62,12 +61,21 @@ export function QuoteCreateDialog({
 
   const isEditMode = !!editQuote;
 
+  // Constrain status options to valid transitions from the current status
+  // (FEATURES §14: draft→sent, sent→accepted/rejected, rejected→draft,
+  // accepted is terminal). The service enforces too — this just prevents
+  // users from picking an invalid option in the first place.
+  const allowedStatuses = useMemo<QuoteStatus[]>(
+    () => (editQuote ? getAllowedQuoteStatuses(editQuote.status) : ['draft']),
+    [editQuote],
+  );
+
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
     if (open) {
       if (editQuote) {
         setTitle(editQuote.title);
-        setStatus(editQuote.status);
+        setStatus(allowedStatuses.includes(editQuote.status) ? editQuote.status : allowedStatuses[0] ?? 'draft');
         setDiscount(editQuote.discount);
         setNotes(editQuote.notes);
         setValidUntil(editQuote.validUntil ?? '');
@@ -91,7 +99,7 @@ export function QuoteCreateDialog({
       setSubmitting(false);
     }
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [open, editQuote]);
+  }, [open, editQuote, allowedStatuses]);
 
   const updateItem = useCallback(
     (index: number, field: keyof LineItemInput, value: string | number) => {
@@ -225,7 +233,7 @@ export function QuoteCreateDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {QUOTE_STATUSES.map((s) => (
+                  {allowedStatuses.map((s) => (
                     <SelectItem key={s} value={s}>
                       {s.charAt(0).toUpperCase() + s.slice(1)}
                     </SelectItem>

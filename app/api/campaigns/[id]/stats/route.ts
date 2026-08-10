@@ -30,6 +30,7 @@ interface StatsSuccessResponse {
   sent: number;
   failed: number;
   pending: number;
+  processing: number;
 }
 
 /** Error response shape. */
@@ -109,6 +110,7 @@ export async function GET(
         sent: stats.sent,
         failed: stats.failed,
         pending: stats.pending,
+        processing: stats.processing,
       },
       { status: 200, headers: corsHeaders() },
     );

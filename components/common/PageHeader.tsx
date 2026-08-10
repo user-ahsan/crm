@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { Separator } from '@/components/ui/separator';
 
 interface PageHeaderProps {
@@ -9,7 +9,7 @@ interface PageHeaderProps {
   children?: ReactNode;
 }
 
-export function PageHeader({ title, description, children }: PageHeaderProps) {
+export const PageHeader = memo(function PageHeader({ title, description, children }: PageHeaderProps) {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -24,6 +24,6 @@ export function PageHeader({ title, description, children }: PageHeaderProps) {
       <Separator />
     </div>
   );
-}
+});
 
 export default PageHeader;

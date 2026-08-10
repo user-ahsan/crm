@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/lib/supabase/client';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { corsHeaders } from '@/lib/cors';
 import { validateCsrf } from '@/lib/csrf';
 import { isPrivateHost } from '@/lib/ssrf';
@@ -35,7 +35,7 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'Unknown service' }, { status: 400, headers: corsHeaders() });
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });

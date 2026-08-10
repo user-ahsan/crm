@@ -7,22 +7,49 @@
  * via a simple API endpoint — no job queue library needed.
  *
  * Flow:
- *   1. activateSequence()  — marks sequence active, queues recipient rows
- *   2. processPendingSends() — cron-triggered, sends due emails, updates status
- *   3. getSequenceStats()   — delivery summary for a sequence
+ *   1. activateSequence()  — validates draft-only, queues recipient rows,
+ *                            then marks sequence active (the ONLY path to
+ *                            'active' from draft)
+ *   2. resumeSequence()    — the ONLY path from 'paused' back to 'active'
+ *                            (recipients already queued — no re-queueing)
+ *   3. pauseSequence()     — active → paused (delegates to the campaign
+ *                            service's transition enforcement)
+ *   4. processPendingSends() — cron-triggered, sends due emails, updates
+ *                            status, auto-completes exhausted sequences
+ *   5. getSequenceStats()   — delivery summary for a sequence, read from
+ *                            real campaign_recipients rows
+ *
+ * Scheduler-specific rules:
+ *   - Only sequences currently 'active' are eligible for delivery; paused
+ *     and completed sequences never have rows claimed (two-step claim:
+ *     SELECT eligible rows joined with sequence status, then UPDATE only
+ *     their ids — a joined filter inside the UPDATE is unreliable in
+ *     PostgREST and unsupported by the mock client).
+ *   - Rows stranded in 'processing' longer than STALE_PROCESSING_MS
+ *     (crashed run) are reclaimed to 'pending' at the start of each run.
+ *   - Send is sequential via communicationService.sendBatchEmails (mock
+ *     honesty — no parallel blast; note the throughput ceiling).
  * ─────────────────────────────────────────────────────────────────────
  */
 
 import { getSharedClient } from '@/lib/supabase/client';
+import { automationService } from './automation.service';
+import { triggerWebhook } from './webhook.service';
 import { campaignService } from './campaign.service';
 import { communicationService } from './communication.service';
 import { ServiceError, toServiceError } from './supabase.service';
 import type { CampaignRecipientInsert, CampaignRecipientUpdate } from '@/types/supabase.types';
-import type { CampaignEmail } from '@/types/campaign.types';
+import type { CampaignEmail, CampaignStatus, EmailSequence } from '@/types/campaign.types';
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
 const MAX_PROCESSING_ITERATIONS = 100;
+/** Rows left in `processing` longer than this are assumed orphaned (crashed run) and reclaimed. */
+const STALE_PROCESSING_MS = 15 * 60 * 1000;
+/** Max rows claimed per processPendingSends iteration. */
+const CLAIM_BATCH_SIZE = 500;
+/** Max recipient rows inserted per activation batch (payload guard). */
+const INSERT_BATCH_SIZE = 100;
 
 /**
  * Adds days to the current UTC date and returns an ISO 8601 string.
@@ -42,7 +69,7 @@ async function lookupEntityEmails(
 ): Promise<Map<string, string>> {
   if (recipientIds.length === 0) return new Map();
   try {
-    const supabase = await getSharedClient();
+    const supabase = getSharedClient();
     const table = recipientType === 'lead' ? 'leads' : 'contacts';
     const { data, error } = await supabase
       .from(table)
@@ -62,16 +89,45 @@ async function lookupEntityEmails(
   }
 }
 
+/**
+ * Local extension of the campaign_recipients update contract. The
+ * `claimed_at` column is added by
+ * supabase/migrations/20260731_campaign_recipients_claimed_at.sql; the
+ * regenerated Database types do not yet carry it, so the scheduler keeps
+ * a local type instead of an unsafe cast.
+ */
+interface CampaignRecipientClaimUpdate extends CampaignRecipientUpdate {
+  claimed_at?: string | null;
+}
+
+/**
+ * Sets an email_sequence's status directly. Used ONLY by the scheduler's
+ * lifecycle paths (activate / resume / auto-complete). The public
+ * campaignService.updateSequenceStatus deliberately rejects 'active', so
+ * this internal writer is the single place the scheduler flips status.
+ */
+async function setSequenceStatusRaw(sequenceId: string, status: CampaignStatus): Promise<void> {
+  const supabase = getSharedClient();
+  const { error } = await supabase
+    .from('email_sequences')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', sequenceId);
+  if (error) throw toServiceError(error);
+}
+
 // ── Service ───────────────────────────────────────────────────────────
 
 export const campaignScheduler = {
   /**
-   * Activates a sequence and queues recipients.
+   * Activates a draft sequence and queues recipients.
    *
-   * Marks the sequence as 'active', then for each lead/contact in the
-   * target list, creates a campaign_recipients row per campaign_email
-   * in the sequence. Each row's scheduled_send_at is calculated from
-   * the email's delayDays relative to now.
+   * Validates: the sequence exists and is in draft status, it has at least
+   * one campaign email, no recipients have already been queued, and at
+   * least one recipient email resolves. Recipient rows are created per
+   * (lead/contact, campaign email) with scheduled_send_at derived from the
+   * email's delayDays. Only after every row is inserted does the sequence
+   * flip to 'active' — a partial failure rolls back this run's inserts so
+   * a draft can never be left half-queued or 'active' with zero recipients.
    *
    * @param sequenceId - The email_sequence to activate.
    * @param leadIds    - Optional array of lead IDs to include.
@@ -83,19 +139,20 @@ export const campaignScheduler = {
     leadIds?: string[],
     contactIds?: string[],
   ): Promise<{ total: number }> {
-    // 1. Mark sequence as active
-    await campaignService.updateSequenceStatus(sequenceId, 'active');
+    const supabase = getSharedClient();
 
-    // 2. Fetch campaign emails ordered by sort_order
-    const campaignEmails: CampaignEmail[] = await campaignService.getCampaignEmails(
-      sequenceId,
-    );
-    if (campaignEmails.length === 0) {
-      return { total: 0 };
+    // 1. Validate — only drafts can be activated fresh; activation queues rows.
+    const sequence = await campaignService.getSequence(sequenceId);
+    if (!sequence) throw new ServiceError('Sequence not found', 'NOT_FOUND');
+    if (sequence.status !== 'draft') {
+      throw new ServiceError(
+        `Can only activate draft sequences (current status: ${sequence.status}). Paused sequences resume via campaignScheduler.resumeSequence.`,
+        'INVALID_TRANSITION',
+      );
     }
 
-    // 2.5 Dedup check — prevent double activation (TOCTOU mitigated by DB unique constraint)
-    const supabase = getSharedClient();
+    // 2. Dedup check — a sequence that already queued recipients cannot be
+    //    re-activated (DB unique(sequence_id, recipient_email) is the backstop).
     const { data: existing } = await supabase
       .from('campaign_recipients')
       .select('id')
@@ -105,9 +162,15 @@ export const campaignScheduler = {
       throw new ServiceError('Sequence already activated', 'SEQUENCE_ALREADY_ACTIVATED');
     }
 
-    // 3. Batch lookup recipient emails — replaces N+1 sequential lookups
-    type RecipientEntry = { type: 'lead' | 'contact'; id: string; email: string };
-    const recipients: RecipientEntry[] = [];
+    // 3. Emails are the delivery steps — an active sequence with zero emails
+    //    can never send or complete, so refuse to activate it.
+    const campaignEmails: CampaignEmail[] = await campaignService.getCampaignEmails(sequenceId);
+    if (campaignEmails.length === 0) {
+      throw new ServiceError('Sequence has no campaign emails — add at least one email before activating', 'INVALID_STATE');
+    }
+
+    // 4. Batch lookup recipient emails (replaces N+1 sequential lookups).
+    const recipients: Array<{ type: 'lead' | 'contact'; id: string; email: string }> = [];
 
     if (leadIds && leadIds.length > 0) {
       const emailMap = await lookupEntityEmails('lead', leadIds);
@@ -125,14 +188,28 @@ export const campaignScheduler = {
       }
     }
 
+    // 5. An active sequence with zero recipients can never complete — refuse.
     if (recipients.length === 0) {
-      return { total: 0 };
+      throw new ServiceError(
+        'No recipients could be queued — none of the provided leads/contacts have an email address',
+        'NO_RECIPIENTS',
+      );
     }
 
-    // 4. Create campaign_recipients rows
-    const rows: CampaignRecipientInsert[] = [];
-
+    // 6. Dedup by recipient email (the mock has no unique constraint; the DB
+    //    unique(sequence_id, recipient_email) index is the real backstop).
+    const seenEmails = new Set<string>();
+    const dedupedRecipients: typeof recipients = [];
     for (const recipient of recipients) {
+      const key = recipient.email.toLowerCase();
+      if (seenEmails.has(key)) continue;
+      seenEmails.add(key);
+      dedupedRecipients.push(recipient);
+    }
+
+    // 7. Build one recipient row per (recipient, campaign email).
+    const rows: CampaignRecipientInsert[] = [];
+    for (const recipient of dedupedRecipients) {
       for (const email of campaignEmails) {
         rows.push({
           sequence_id: sequenceId,
@@ -146,16 +223,36 @@ export const campaignScheduler = {
       }
     }
 
-    // Insert in batches of 100 to avoid payload limits
+    // 8. Insert in batches; roll back this run's rows on failure so a partial
+    //    activation cannot leave a draft sequence half-queued.
     let totalInserted = 0;
-    for (let i = 0; i < rows.length; i += 100) {
-      const batch = rows.slice(i, i + 100);
+    for (let i = 0; i < rows.length; i += INSERT_BATCH_SIZE) {
+      const batch = rows.slice(i, i + INSERT_BATCH_SIZE);
       const { error } = await supabase.from('campaign_recipients').insert(batch);
       if (error) {
+        await supabase.from('campaign_recipients').delete().eq('sequence_id', sequenceId);
         throw toServiceError(error);
       }
       totalInserted += batch.length;
     }
+
+    // 9. Only now flip to active — the queue exists, so the scheduler can deliver.
+    await setSequenceStatusRaw(sequenceId, 'active');
+
+    // 10. Dispatch lifecycle event (fire-and-forget; evaluate never throws).
+    triggerWebhook('campaign.activated', {
+      id: sequence.id,
+      name: sequence.name,
+      status: 'active',
+      total: totalInserted,
+    });
+    await automationService.evaluate('campaign.activated', {
+      entityType: 'campaign',
+      entityId: sequence.id,
+      name: sequence.name,
+      status: 'active',
+      total: totalInserted,
+    });
 
     return { total: totalInserted };
   },
@@ -163,10 +260,16 @@ export const campaignScheduler = {
   /**
    * Processes all pending scheduled sends.
    *
-   * Finds every campaign_recipients row where status='pending' and
-   * scheduled_send_at <= now(), groups them by campaign_email_id,
-   * sends each group via communicationService.sendBatchEmails(),
-   * then updates each row to 'sent' or 'failed'.
+   * 1. Reclaims rows stranded in 'processing' for longer than
+   *    STALE_PROCESSING_MS (crashed/aborted run) back to 'pending'.
+   * 2. Claims due pending rows belonging ONLY to currently-active
+   *    sequences (two-step claim — SELECT eligible ids, then UPDATE those
+   *    ids — so paused sequences can never have rows stuck in
+   *    'processing').
+   * 3. Sends each campaign-email group via
+   *    communicationService.sendBatchEmails(), then updates each row to
+   *    'sent' or 'failed'.
+   * 4. Auto-completes active sequences whose recipients are exhausted.
    *
    * Called by an external scheduler (Vercel Cron, GitHub Action, etc.).
    *
@@ -176,93 +279,133 @@ export const campaignScheduler = {
     const supabase = getSharedClient();
     let batchSent = 0;
     let batchFailed = 0;
-    const affectedSequenceIds = new Set<string>();
     let iterations = 0;
 
-    // Atomic claim + pagination loop with max iteration guard
+    // 0. Stale reclaim — rows in 'processing' older than the horizon were
+    //    claimed by a run that never finished; send them back to 'pending'
+    //    so they are retried instead of stuck forever.
+    const staleCutoff = new Date(Date.now() - STALE_PROCESSING_MS).toISOString();
+    const reclaimUpdate: CampaignRecipientClaimUpdate = { status: 'pending', claimed_at: null };
+    const { error: reclaimError } = await supabase
+      .from('campaign_recipients')
+      .update(reclaimUpdate)
+      .eq('status', 'processing')
+      .lt('claimed_at', staleCutoff);
+    if (reclaimError) throw toServiceError(reclaimError);
+
+    // Claim + pagination loop with max iteration guard.
     while (iterations < MAX_PROCESSING_ITERATIONS) {
       iterations++;
 
-      // Claim batch: atomically update 'pending' -> 'processing' and return rows
-      // JOINs with email_sequences to exclude paused sequences
-      const { data: claimed, error: claimError } = await supabase
+      // 1. Only sequences currently 'active' are eligible for delivery.
+      const { data: activeRows, error: seqError } = await supabase
+        .from('email_sequences')
+        .select('id')
+        .eq('status', 'active');
+      if (seqError) throw toServiceError(seqError);
+      const activeSequenceIds = (activeRows ?? []).map((row) => row.id);
+      if (activeSequenceIds.length === 0) break;
+
+      // 2. Due pending rows belonging to active sequences. The claim is a
+      //    two-step SELECT → UPDATE (not a joined UPDATE) so paused
+      //    sequences can never have rows moved into 'processing'.
+      const { data: dueRows, error: dueError } = await supabase
         .from('campaign_recipients')
-        .update({ status: 'processing' })
+        .select('id, campaign_email_id, recipient_email, recipient_type, recipient_id, sequence_id')
         .eq('status', 'pending')
         .lte('scheduled_send_at', new Date().toISOString())
         .not('campaign_email_id', 'is', null)
-        .select(`
-          id,
-          campaign_email_id,
-          recipient_email,
-          recipient_type,
-          recipient_id,
-          sequence_id,
-          campaign_email:campaign_email_id (
-            subject,
-            body
-          ),
-          sequence:sequence_id!inner (
-            status
-          )
-        `)
-        .in('sequence.status', ['active'])
-        .limit(500);
+        .in('sequence_id', activeSequenceIds)
+        .limit(CLAIM_BATCH_SIZE);
+      if (dueError) throw toServiceError(dueError);
+      if (!dueRows || dueRows.length === 0) break;
 
-      if (claimError) {
-        throw toServiceError(claimError);
-      }
+      // 3. Claim the eligible ids. The status guard keeps a concurrent run
+      //    from double-claiming, and .select('id') returns only the rows
+      //    this run actually updated — the winner processes, the loser skips.
+      const dueIds = dueRows.map((row) => row.id);
+      const claimUpdate: CampaignRecipientClaimUpdate = {
+        status: 'processing',
+        claimed_at: new Date().toISOString(),
+      };
+      const { data: claimedRows, error: claimError } = await supabase
+        .from('campaign_recipients')
+        .update(claimUpdate)
+        .eq('status', 'pending')
+        .in('id', dueIds)
+        .select('id');
+      if (claimError) throw toServiceError(claimError);
+      const claimedIdSet = new Set((claimedRows ?? []).map((row) => row.id));
+      const rowsToProcess = dueRows.filter((row) => claimedIdSet.has(row.id));
+      if (rowsToProcess.length === 0) break;
 
-      if (!claimed || claimed.length === 0) break;
+      // 4. Load email content for the claimed rows (subject/body per email id).
+      const emailIds = [
+        ...new Set(
+          rowsToProcess
+            .map((row) => row.campaign_email_id)
+            .filter((id): id is string => id !== null),
+        ),
+      ];
+      const { data: emailRows, error: emailError } = await supabase
+        .from('campaign_emails')
+        .select('id, subject, body')
+        .in('id', emailIds);
+      if (emailError) throw toServiceError(emailError);
+      const emailById = new Map((emailRows ?? []).map((email) => [email.id, email]));
 
-      // Group by campaign_email_id for batch sending
-      type ClaimedRow = {
+      // 5. Group by campaign_email_id for batch sending.
+      type ProcessRow = {
         id: string;
         campaign_email_id: string | null;
         recipient_email: string;
         recipient_type: string;
         recipient_id: string;
         sequence_id: string;
-        campaign_email: { subject: string; body: string } | null;
-        sequence: { status: string };
       };
+      const groups = new Map<string, { subject: string; body: string; rows: ProcessRow[] }>();
 
-      const groups = new Map<
-        string,
-        { subject: string; body: string; rows: ClaimedRow[] }
-      >();
-
-      function isClaimedRowArray(data: unknown): data is ClaimedRow[] {
-        return Array.isArray(data) && data.length > 0 && typeof data[0] === 'object' && data[0] !== null && 'id' in data[0];
-      }
-      if (!isClaimedRowArray(claimed)) break;
-      const claimedRows = claimed as ClaimedRow[];
-
-      for (const row of claimedRows) {
+      for (const row of rowsToProcess) {
         const emailId = row.campaign_email_id;
-        if (!emailId || !row.campaign_email) continue;
-
-        if (!groups.has(emailId)) {
-          groups.set(emailId, {
-            subject: row.campaign_email.subject,
-            body: row.campaign_email.body,
-            rows: [],
-          });
+        if (!emailId) continue; // filtered out by the query — defensive
+        const email = emailById.get(emailId);
+        if (!email) {
+          // Dangling reference (mock mode has no FK cascade): fail the row
+          // honestly instead of leaving it claimed/processing forever.
+          const failUpdate: CampaignRecipientClaimUpdate = {
+            status: 'failed',
+            sent_at: null,
+            error_message: 'Campaign email no longer exists',
+            provider_message_id: null,
+            claimed_at: null,
+          };
+          const { error: failError } = await supabase
+            .from('campaign_recipients')
+            .update(failUpdate)
+            .eq('id', row.id);
+          if (failError) {
+            console.error(`[campaign-scheduler] Failed to fail recipient ${row.id}: ${failError.message}`);
+          }
+          batchFailed++;
+          continue;
         }
-        groups.get(emailId)!.rows.push(row);
+        const group = groups.get(emailId);
+        if (group) {
+          group.rows.push(row);
+        } else {
+          groups.set(emailId, { subject: email.subject, body: email.body, rows: [row] });
+        }
       }
 
-      // Process each group sequentially
-      let sentCount = 0;
-      let failedCount = 0;
-
+      // 6. Send each group sequentially (mock honesty — sendBatchEmails
+      //    awaits each recipient one at a time; note the throughput ceiling).
       for (const [, group] of groups) {
-        const batchPayload = group.rows.map((r) => ({
-          toAddress: r.recipient_email,
+        const batchPayload = group.rows.map((row) => ({
+          toAddress: row.recipient_email,
           subject: group.subject,
           body: group.body,
-          relatedToType: r.recipient_type,
-          relatedToId: r.recipient_id,
+          relatedToType: row.recipient_type,
+          relatedToId: row.recipient_id,
         }));
 
         const results = await communicationService.sendBatchEmails(batchPayload);
@@ -270,11 +413,12 @@ export const campaignScheduler = {
         for (let i = 0; i < results.length; i++) {
           const row = group.rows[i];
           const result = results[i];
-          const update: CampaignRecipientUpdate = {
+          const update: CampaignRecipientClaimUpdate = {
             status: result.success ? 'sent' : 'failed',
             sent_at: result.success ? new Date().toISOString() : null,
             error_message: result.success ? null : (result.error ?? null),
             provider_message_id: result.success ? (result.messageId ?? null) : null,
+            claimed_at: null,
           };
 
           const { error: updateError } = await supabase
@@ -289,36 +433,53 @@ export const campaignScheduler = {
           }
 
           if (result.success) {
-            sentCount++;
+            batchSent++;
           } else {
-            failedCount++;
+            batchFailed++;
           }
-
-          affectedSequenceIds.add(row.sequence_id);
         }
       }
-
-      batchSent += sentCount;
-      batchFailed += failedCount;
     }
 
     if (iterations >= MAX_PROCESSING_ITERATIONS) {
       console.warn(`processPendingSends reached max iterations (${MAX_PROCESSING_ITERATIONS}) — may be infinite loop`);
     }
 
-    // Mark sequences as completed if no pending/processing recipients remain
-    for (const seqId of affectedSequenceIds) {
+    // 7. Auto-complete active sequences whose recipients are exhausted.
+    //    Scan ALL active sequences (not just ones touched this run) so a
+    //    run that finished a batch but crashed before completing still
+    //    completes on the next invocation. Paused/completed sequences are
+    //    untouched — completion only ever fires for sequences that were
+    //    actively delivering.
+    const { data: activeRows, error: seqError } = await supabase
+      .from('email_sequences')
+      .select('id')
+      .eq('status', 'active');
+    if (seqError) throw toServiceError(seqError);
+
+    for (const activeSeq of activeRows ?? []) {
       const { count } = await supabase
         .from('campaign_recipients')
         .select('id', { count: 'exact', head: true })
-        .eq('sequence_id', seqId)
+        .eq('sequence_id', activeSeq.id)
         .in('status', ['pending', 'processing']);
 
       if (count === 0) {
-        await supabase
-          .from('email_sequences')
-          .update({ status: 'completed', updated_at: new Date().toISOString() })
-          .eq('id', seqId);
+        await setSequenceStatusRaw(activeSeq.id, 'completed');
+        const completedSeq = await campaignService.getSequence(activeSeq.id);
+        if (completedSeq) {
+          triggerWebhook('campaign.completed', {
+            id: completedSeq.id,
+            name: completedSeq.name,
+            status: 'completed',
+          });
+          await automationService.evaluate('campaign.completed', {
+            entityType: 'campaign',
+            entityId: completedSeq.id,
+            name: completedSeq.name,
+            status: 'completed',
+          });
+        }
       }
     }
 
@@ -326,34 +487,78 @@ export const campaignScheduler = {
   },
 
   /**
-   * Returns delivery statistics for a sequence.
-   *
-   * Counts all campaign_recipients rows across every campaign_email
-   * in the sequence, grouped by status.
+   * Returns delivery statistics for a sequence, computed from the real
+   * campaign_recipients rows (every status in the CHECK constraint:
+   * pending / processing / sent / failed / opened).
    *
    * @param sequenceId - The email_sequence to query.
    */
   async getSequenceStats(
     sequenceId: string,
-  ): Promise<{ total: number; sent: number; failed: number; pending: number }> {
+  ): Promise<{ total: number; sent: number; failed: number; pending: number; processing: number; opened: number }> {
     try {
       const supabase = getSharedClient();
-      const [sentRes, failedRes, pendingRes] = await Promise.all([
+      const [sentRes, failedRes, pendingRes, processingRes, openedRes] = await Promise.all([
         supabase.from('campaign_recipients').select('id', { count: 'exact', head: true }).eq('sequence_id', sequenceId).eq('status', 'sent'),
         supabase.from('campaign_recipients').select('id', { count: 'exact', head: true }).eq('sequence_id', sequenceId).eq('status', 'failed'),
         supabase.from('campaign_recipients').select('id', { count: 'exact', head: true }).eq('sequence_id', sequenceId).eq('status', 'pending'),
+        supabase.from('campaign_recipients').select('id', { count: 'exact', head: true }).eq('sequence_id', sequenceId).eq('status', 'processing'),
+        supabase.from('campaign_recipients').select('id', { count: 'exact', head: true }).eq('sequence_id', sequenceId).eq('status', 'opened'),
       ]);
-      const total = (sentRes.count ?? 0) + (failedRes.count ?? 0) + (pendingRes.count ?? 0);
-      return { total, sent: sentRes.count ?? 0, failed: failedRes.count ?? 0, pending: pendingRes.count ?? 0 };
+      const sent = sentRes.count ?? 0;
+      const failed = failedRes.count ?? 0;
+      const pending = pendingRes.count ?? 0;
+      const processing = processingRes.count ?? 0;
+      const opened = openedRes.count ?? 0;
+      return { total: sent + failed + pending + processing + opened, sent, failed, pending, processing, opened };
     } catch (e) {
       throw toServiceError(e);
     }
   },
 
   /**
-   * Pauses a sequence by setting its status to 'paused'.
+   * Pauses an active sequence (active → paused). Delegates to the campaign
+   * service's transition enforcement, which rejects pausing drafts and
+   * completed sequences and is an idempotent no-op for already-paused ones.
    */
   async pauseSequence(sequenceId: string): Promise<void> {
     await campaignService.updateSequenceStatus(sequenceId, 'paused');
+  },
+
+  /**
+   * Resumes a paused sequence (paused → active). The ONLY path back to
+   * 'active' from paused. Recipients are already queued — nothing is
+   * re-inserted, so the scheduler can immediately claim due rows again.
+   *
+   * @param sequenceId - The email_sequence to resume.
+   * @returns The updated sequence.
+   */
+  async resumeSequence(sequenceId: string): Promise<EmailSequence> {
+    const sequence = await campaignService.getSequence(sequenceId);
+    if (!sequence) throw new ServiceError('Sequence not found', 'NOT_FOUND');
+    if (sequence.status !== 'paused') {
+      throw new ServiceError(
+        `Can only resume a paused sequence (current status: ${sequence.status})`,
+        'INVALID_TRANSITION',
+      );
+    }
+
+    await setSequenceStatusRaw(sequenceId, 'active');
+
+    triggerWebhook('campaign.activated', {
+      id: sequence.id,
+      name: sequence.name,
+      status: 'active',
+    });
+    await automationService.evaluate('campaign.activated', {
+      entityType: 'campaign',
+      entityId: sequence.id,
+      name: sequence.name,
+      status: 'active',
+    });
+
+    const updated = await campaignService.getSequence(sequenceId);
+    if (!updated) throw new ServiceError('Sequence not found after resume', 'NOT_FOUND');
+    return updated;
   },
 };

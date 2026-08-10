@@ -44,7 +44,7 @@ Located at `components/ui/`. These are CLI-generated and MUST NOT be manually ed
 
 ---
 
-## 2. Common Components (24)
+## 2. Common Components (25)
 
 Located at `components/common/`. These are reusable shared components used across all pages.
 
@@ -335,6 +335,22 @@ interface TagInputProps {
 
 See [FEATURES.md](../features/FEATURES.md) → CSV Import/Export section.
 
+### `MarkdownContent.tsx`
+
+**Purpose:** Renders Markdown content as styled HTML.
+
+```typescript
+interface MarkdownContentProps {
+  content: string;
+  className?: string;
+}
+```
+
+**Features:**
+- Parses Markdown to HTML (headings, bold, italic, links, lists, code blocks)
+- Used for note bodies and any Markdown-rendered content
+- Sanitized output to prevent XSS
+
 ---
 
 ## 3. Feature Components
@@ -347,6 +363,7 @@ See [FEATURES.md](../features/FEATURES.md) → CSV Import/Export section.
 | `LeadCreateForm.tsx` | Create lead form | `onSubmit`, `onCancel` |
 | `LeadDetail.tsx` | Lead detail with tabs | `leadId` |
 | `LeadScoreBadge.tsx` | Lead score badge indicator | `score`, `size?` |
+| `LeadScheduleDialog.tsx` | Schedule follow-up dialog | `leadId`, `open`, `onClose` |
 
 **States (all components):** Loading → skeleton/disabled, Empty → empty state + CTA, Error → error state + retry, Populated → data display
 

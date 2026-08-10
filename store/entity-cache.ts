@@ -160,6 +160,7 @@ export const useEntityCache = create<EntityCacheState>()((set) => ({
       leads: [], contacts: [], companies: [], tasks: [], deals: [], meetings: [],
       invoices: [], quotes: [],
       lastFetched: {},
+      isLoading: {},
     }),
 
   invalidateEntity: (type) =>
@@ -175,24 +176,24 @@ export const useEntityCache = create<EntityCacheState>()((set) => ({
         .filter(([, ts]) => now - ts > CACHE_TTL)
         .map(([type]) => type);
 
-      const updates: Record<string, unknown> = {};
+      if (staleTypes.length === 0) return state;
+
+      const updates: Partial<EntityCacheState> = {
+        lastFetched: { ...state.lastFetched },
+        isLoading: { ...state.isLoading },
+      };
       for (const type of staleTypes) {
-        const key = type as keyof EntityCacheState;
-        // Clear the data array for stale types
-        if (key === 'leads') updates.leads = [];
-        else if (key === 'contacts') updates.contacts = [];
-        else if (key === 'companies') updates.companies = [];
-        else if (key === 'tasks') updates.tasks = [];
-        else if (key === 'meetings') updates.meetings = [];
-        else if (key === 'deals') updates.deals = [];
-        else if (key === 'invoices') updates.invoices = [];
-        else if (key === 'quotes') updates.quotes = [];
-      }
-      if (staleTypes.length > 0) {
-        updates.lastFetched = { ...state.lastFetched };
-        for (const type of staleTypes) {
-          (updates.lastFetched as Record<string, number>)[type] = 0;
-        }
+        // Clear the data array + loading flag for stale entity types
+        if (type === 'leads') updates.leads = [];
+        else if (type === 'contacts') updates.contacts = [];
+        else if (type === 'companies') updates.companies = [];
+        else if (type === 'tasks') updates.tasks = [];
+        else if (type === 'meetings') updates.meetings = [];
+        else if (type === 'deals') updates.deals = [];
+        else if (type === 'invoices') updates.invoices = [];
+        else if (type === 'quotes') updates.quotes = [];
+        updates.lastFetched[type] = 0;
+        updates.isLoading[type] = false;
       }
       return updates;
     });

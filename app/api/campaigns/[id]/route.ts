@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { campaignService } from '@/services/campaign.service';
+import { campaignScheduler } from '@/services/campaign-scheduler.service';
+import { ServiceError } from '@/services/supabase.service';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
 import { corsHeaders } from '@/lib/cors';
@@ -12,18 +14,20 @@ import type {
 
 // ── Response Types ────────────────────────────────────────────
 
-interface SequenceWithEmails extends EmailSequence {
+interface SequenceWithStats extends EmailSequence {
   emails: CampaignEmail[];
   stats: {
     totalRecipients: number;
     sentRecipients: number;
     pendingRecipients: number;
+    processingRecipients: number;
     failedRecipients: number;
+    openedRecipients: number;
   };
 }
 
 interface GetSuccess {
-  sequence: SequenceWithEmails;
+  sequence: SequenceWithStats;
 }
 
 interface UpdateSuccess {
@@ -99,36 +103,21 @@ export async function GET(
     // Fetch campaign emails in parallel
     const emails = await campaignService.getCampaignEmails(id);
 
-    // Fetch recipient statistics
-    const { data: stats, error: statsError } = await supabase
-      .from('campaign_recipients')
-      .select('status')
-      .eq('sequence_id', id);
-
-    if (statsError) {
-      return NextResponse.json(
-        { error: 'An internal error occurred' },
-        { status: 500, headers: corsHeaders() },
-      );
-    }
-
-    const totalRecipients = stats?.length ?? 0;
-    const sentRecipients =
-      stats?.filter((r: { status: string }) => r.status === 'sent').length ?? 0;
-    const pendingRecipients =
-      stats?.filter((r: { status: string }) => r.status === 'pending').length ?? 0;
-    const failedRecipients =
-      stats?.filter((r: { status: string }) => r.status === 'failed').length ?? 0;
+    // Recipient statistics computed from real campaign_recipients rows
+    // (single source of truth — the scheduler service).
+    const stats = await campaignScheduler.getSequenceStats(id);
 
     return NextResponse.json({
       sequence: {
         ...sequence,
         emails,
         stats: {
-          totalRecipients,
-          sentRecipients,
-          pendingRecipients,
-          failedRecipients,
+          totalRecipients: stats.total,
+          sentRecipients: stats.sent,
+          pendingRecipients: stats.pending,
+          processingRecipients: stats.processing,
+          failedRecipients: stats.failed,
+          openedRecipients: stats.opened,
         },
       },
     }, { headers: corsHeaders() });
@@ -211,7 +200,11 @@ export async function PUT(
       );
     }
 
-    // Validate status if provided
+    // Validate status if provided — only enum-valid values; transition
+    // legality is enforced by the service layer. 'active' is deliberately
+    // NOT settable here: activation must go through POST /api/campaigns/activate
+    // (which queues recipients via the scheduler).
+    let status: CampaignStatus | undefined;
     if (body.status !== undefined) {
       const validStatuses: CampaignStatus[] = [
         'draft',
@@ -219,7 +212,7 @@ export async function PUT(
         'paused',
         'completed',
       ];
-      if (!validStatuses.includes(body.status as CampaignStatus)) {
+      if (typeof body.status !== 'string' || !validStatuses.includes(body.status as CampaignStatus)) {
         return NextResponse.json(
           {
             error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
@@ -227,28 +220,35 @@ export async function PUT(
           { status: 400, headers: corsHeaders() },
         );
       }
+      status = body.status as CampaignStatus;
     }
 
-    // Build update payload — only known fields
-    const updateData: { name?: string; description?: string; status?: CampaignStatus } = {};
+    // Build update payload — only editable fields (name/description).
+    const updateData: { name?: string; description?: string } = {};
     if (typeof body.name === 'string' && body.name.trim()) {
       updateData.name = body.name.trim();
     }
     if (typeof body.description === 'string') {
       updateData.description = body.description.trim();
     }
-    if (body.status !== undefined) {
-      updateData.status = body.status as CampaignStatus;
-    }
 
-    if (Object.keys(updateData).length === 0) {
+    if (!status && Object.keys(updateData).length === 0) {
       return NextResponse.json(
         { error: 'No valid fields to update' },
         { status: 400, headers: corsHeaders() },
       );
     }
 
-    const updated = await campaignService.updateSequence(id, updateData);
+    // Apply editable fields first, then the status transition — both go
+    // through the service's enforcement (updateSequenceStatus rejects
+    // 'active' and validates every other transition).
+    let updated: EmailSequence | undefined;
+    if (Object.keys(updateData).length > 0) {
+      updated = await campaignService.updateSequence(id, updateData);
+    }
+    if (status) {
+      updated = await campaignService.updateSequenceStatus(id, status);
+    }
     if (!updated) {
       return NextResponse.json(
         { error: 'Failed to update sequence' },
@@ -258,6 +258,12 @@ export async function PUT(
 
     return NextResponse.json({ sequence: updated }, { headers: corsHeaders() });
   } catch (e) {
+    if (e instanceof ServiceError) {
+      return NextResponse.json(
+        { error: e.message },
+        { status: e.status ?? 400, headers: corsHeaders() },
+      );
+    }
     console.error(`[campaigns/:id] PUT Error:`, e);
     return NextResponse.json({ error: 'An internal error occurred' }, { status: 500, headers: corsHeaders() });
   }

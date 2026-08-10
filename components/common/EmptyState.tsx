@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { IconInbox } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ interface EmptyStateProps {
   className?: string;
 }
 
-export function EmptyState({
+export const EmptyState = memo(function EmptyState({
   icon,
   title,
   description,
@@ -44,6 +44,6 @@ export function EmptyState({
       )}
     </div>
   );
-}
+});
 
 export default EmptyState;

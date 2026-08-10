@@ -7,6 +7,7 @@ import {
   IconCurrencyDollar,
   IconArrowRight,
   IconUserPlus,
+  IconBell,
   IconX,
 } from '@tabler/icons-react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -42,6 +43,14 @@ const notificationIcons = {
   deal_won: { icon: IconCurrencyDollar, color: 'text-green-500 bg-green-100 dark:bg-green-900/30' },
   status_change: { icon: IconArrowRight, color: 'text-yellow-500 bg-yellow-100 dark:bg-yellow-900/30' },
   member_joined: { icon: IconUserPlus, color: 'text-teal-500 bg-teal-100 dark:bg-teal-900/30' },
+} as const;
+
+// Guard against malformed/foreign realtime payloads whose `type` is not one of
+// the known keys — a broadcast with an unexpected type must never crash the
+// panel (it is mounted inside AppShell, so a throw here blanks the whole app).
+const FALLBACK_ICON = {
+  icon: IconBell,
+  color: 'text-muted-foreground bg-muted',
 } as const;
 
 /* ── Props ────────────────────────────────────────────────── */
@@ -108,7 +117,7 @@ export function NotificationPanel({
           ) : (
             <div className="divide-y">
               {notifications.map((notification) => {
-                const iconConfig = notificationIcons[notification.type];
+                const iconConfig = notificationIcons[notification.type] ?? FALLBACK_ICON;
                 const Icon = iconConfig.icon;
                 return (
                   <div
@@ -163,11 +172,12 @@ export function NotificationPanel({
                       />
                     )}
 
-                    {/* Dismiss button */}
+                    {/* Dismiss button — visible to keyboard (focus-visible) and
+                        touch users, not only on mouse hover */}
                     <button
                       type="button"
                       onClick={() => onDismiss(notification.id)}
-                      className="absolute right-6 top-10 opacity-0 group-hover:opacity-100 transition-opacity hover:text-foreground"
+                      className="absolute right-6 top-10 opacity-60 transition-opacity hover:opacity-100 focus-visible:opacity-100 hover:text-foreground"
                       aria-label="Dismiss notification"
                     >
                       <IconX className="size-3.5" />

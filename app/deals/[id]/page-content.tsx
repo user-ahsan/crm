@@ -67,24 +67,8 @@ export default function DealDetailPage() {
   }, [dealId]);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await dealService.getById(dealId);
-        if (cancelled) return;
-        if (data) {
-          setDeal(data);
-        } else {
-          setError('Deal not found');
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load deal');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [dealId]);
+    loadDeal();
+  }, [loadDeal]);
 
   // Load activities when deal is loaded
   useEffect(() => {
@@ -196,7 +180,7 @@ export default function DealDetailPage() {
                 Value
               </div>
               <p className="text-sm font-medium text-foreground">
-                {deal.value > 0 ? formatCurrency(deal.value) : '—'}
+                {deal.value > 0 ? formatCurrency(deal.value, deal.currency) : '—'}
               </p>
             </div>
             <div className="space-y-1">

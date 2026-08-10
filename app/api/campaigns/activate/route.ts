@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { campaignScheduler } from '@/services/campaign-scheduler.service';
 import { campaignService } from '@/services/campaign.service';
+import { ServiceError } from '@/services/supabase.service';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
 import { corsHeaders } from '@/lib/cors';
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/**
+ * Accepts non-empty entity ids (UUIDs in Supabase mode, `lead-001`-style
+ * slugs in mock mode). The real validity backstop is the entity lookup in
+ * campaignScheduler.activateSequence — unknown ids simply resolve no email
+ * (→ NO_RECIPIENTS) or fail the uuid-typed insert with a surfaced error.
+ */
+function isPlausibleEntityId(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= 200;
+}
 
 /**
  * ─── Campaign Activate Route ─────────────────────────────────────────
@@ -136,13 +145,13 @@ export async function POST(
     );
   }
 
-  // Validate optional arrays — filter to valid UUIDs only
+  // Validate optional arrays — keep only plausible ids (UUIDs or mock slugs)
   const leadIds: string[] | undefined = Array.isArray(body.leadIds)
-    ? (body.leadIds as string[]).filter((id) => typeof id === 'string' && UUID_PATTERN.test(id.trim()))
+    ? (body.leadIds as string[]).filter(isPlausibleEntityId).map((id) => id.trim())
     : undefined;
 
   const contactIds: string[] | undefined = Array.isArray(body.contactIds)
-    ? (body.contactIds as string[]).filter((id) => typeof id === 'string' && UUID_PATTERN.test(id.trim()))
+    ? (body.contactIds as string[]).filter(isPlausibleEntityId).map((id) => id.trim())
     : undefined;
 
   if ((!leadIds || leadIds.length === 0) && (!contactIds || contactIds.length === 0)) {
@@ -165,6 +174,17 @@ export async function POST(
       { status: 200, headers: corsHeaders() },
     );
   } catch (e) {
+    if (e instanceof ServiceError) {
+      // Surface the scheduler's honest validation errors (draft-only,
+      // already activated, no recipients, etc.) instead of a generic 500.
+      const status = e.code === 'NOT_FOUND' ? 404
+        : e.code === 'SEQUENCE_ALREADY_ACTIVATED' ? 409
+          : 400;
+      return NextResponse.json(
+        { success: false, error: e.message },
+        { status, headers: corsHeaders() },
+      );
+    }
     console.error(`[campaigns/activate] Error:`, e);
     return NextResponse.json(
       { success: false, error: 'An internal error occurred' },

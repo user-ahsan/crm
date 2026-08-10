@@ -21,7 +21,7 @@ const PASSWORD_STRENGTH_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
 /**
  * Creates a Supabase admin client using the service role key.
- * Used for admin operations: createUser, deleteUser, migrateExistingUsers.
+ * Used for admin operations: createUser, deleteUser, toggleUserActive.
  * Throws if the environment variables are missing.
  */
 function getAdminClient() {
@@ -29,8 +29,8 @@ function getAdminClient() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
     throw new ServiceError(
-      'Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. ' +
-      'Admin operations require the service role key.',
+      'Supabase admin configuration is incomplete: admin operations require ' +
+      'NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.',
       'CONFIG_ERROR',
     );
   }
@@ -136,6 +136,17 @@ export const portalService = {
     }
   },
 
+  /**
+   * Activates or deactivates a portal user.
+   *
+   * SERVER-ONLY: syncing the active flag to the Supabase Auth user requires
+   * SUPABASE_SERVICE_ROLE_KEY (server-side env). Calling this from a client
+   * bundle throws a CONFIG_ERROR instead of silently skipping the auth ban —
+   * deactivation MUST NOT pretend to revoke access while the auth user stays
+   * able to sign in (P1: portal deactivation silently failed to block
+   * sign-in). Client callers (hooks/UI) route through the PATCH endpoint at
+   * `app/api/portal/auth/users/[id]/route.ts`, which runs server-side.
+   */
   async toggleUserActive(id: string, active: boolean): Promise<PortalUser | undefined> {
     try {
       const supabase = await getSharedClient();
@@ -150,17 +161,16 @@ export const portalService = {
         throw toServiceError(error);
       }
 
-      // Sync active status to Supabase Auth user
-      try {
-        const adminClient = getAdminClient();
-        if (active) {
-          await adminClient.auth.admin.updateUserById(id, { ban_duration: 'none' });
-        } else {
-          // Ban the user so they cannot sign in
-          await adminClient.auth.admin.updateUserById(id, { ban_duration: '365d' });
-        }
-      } catch {
-        // Auth sync failure is non-critical — portal_users status still updated
+      // Sync active status to the Supabase Auth user. `getAdminClient()`
+      // throws a clear CONFIG_ERROR when the service-role key is absent, and
+      // an admin failure here is propagated (never swallowed) so the caller
+      // knows the deactivation did not revoke sign-in access.
+      const adminClient = getAdminClient();
+      if (active) {
+        await adminClient.auth.admin.updateUserById(id, { ban_duration: 'none' });
+      } else {
+        // Ban the user so they cannot sign in
+        await adminClient.auth.admin.updateUserById(id, { ban_duration: '365d' });
       }
 
       return updated ? mapUserRow(updated) : undefined;
@@ -327,92 +337,5 @@ export const portalService = {
     } catch (e) {
       throw toServiceError(e);
     }
-  },
-
-  /**
-   * One-off migration helper: creates Supabase Auth identities for existing
-   * portal_users that still have a bcrypt password_hash.
-   *
-   * For each user:
-   *   1. Creates an auth.users entry with the same ID + a migration password
-   *   2. Clears password_hash in portal_users (auth now manages credentials)
-   *   3. Triggers a password reset email so the user can set their own password
-   *
-   * Returns results for each attempted migration.
-   */
-  async migrateExistingUsers(): Promise<{
-    migrated: number;
-    skipped: number;
-    errors: { email: string; reason: string }[];
-  }> {
-    const result = { migrated: 0, skipped: 0, errors: [] as { email: string; reason: string }[] };
-
-    try {
-      const adminClient = getAdminClient();
-      const supabase = await getSharedClient();
-
-      // Fetch all portal_users that still have a password_hash (not yet migrated)
-      const { data: users, error } = await supabase
-        .from('portal_users')
-        .select('*')
-        .not('password_hash', 'is', null)
-        .order('created_at', { ascending: true });
-
-      if (error) throw toServiceError(error);
-      if (!users || users.length === 0) return result;
-
-      for (const user of users) {
-        try {
-          // Generate a secure migration password
-          const migrationPassword = crypto.randomUUID().replace(/-/g, '').slice(0, 20) + 'Ab1!';
-
-          // Create auth user with the same ID, email, and password
-          const { error: createError } = await adminClient.auth.admin.createUser({
-            id: user.id,
-            email: user.email,
-            password: migrationPassword,
-            email_confirm: true,
-            user_metadata: {
-              name: user.name,
-              portal_user: true,
-            },
-          });
-
-          if (createError) {
-            if (createError.message?.includes('already exists') || createError.message?.includes('duplicate')) {
-              // Auth user already exists — just clear the password_hash
-              result.skipped++;
-            } else {
-              result.errors.push({ email: user.email, reason: createError.message });
-            }
-          } else {
-            result.migrated++;
-          }
-
-          // Clear password_hash to mark as migrated (user password is now managed by Supabase Auth)
-          await supabase
-            .from('portal_users')
-            .update({ password_hash: null })
-            .eq('id', user.id);
-
-          // Send password reset email so the user can set their own password
-          if (migrationPassword) {
-            await supabase.auth.resetPasswordForEmail(user.email, {
-              redirectTo: `${process.env.NEXT_PUBLIC_PORTAL_URL ?? `${process.env.NEXT_PUBLIC_SITE_URL ?? ''}/portal`}/auth/callback`,
-            }).catch(() => {});
-          }
-
-        } catch (e) {
-          result.errors.push({
-            email: user.email,
-            reason: e instanceof Error ? e.message : 'Unknown error',
-          });
-        }
-      }
-    } catch (e) {
-      throw toServiceError(e);
-    }
-
-    return result;
   },
 };

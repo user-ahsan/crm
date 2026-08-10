@@ -37,48 +37,101 @@ export function usePortalUsers() {
 
   /**
    * Creates a portal user via the registration API route.
-   * This delegates to the server-side admin client for Supabase Auth user creation.
+   * This delegates to the server-side admin client for Supabase Auth user
+   * creation. Failures are surfaced through `error` and rethrown so the
+   * caller's own error handling fires (AGENTS.md §2.4).
    */
   const createUser = useCallback(async (data: PortalUserFormData) => {
-    const res = await fetch('/api/portal/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.error ?? 'Failed to create portal user');
+    try {
+      const res = await fetch('/api/portal/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json().catch(() => ({})) as { user?: PortalUser; error?: string };
+      if (!res.ok) {
+        throw new Error(json.error ?? 'Failed to create portal user');
+      }
+      if (json.user) {
+        const user = json.user;
+        setUsers((prev) => [user, ...prev]);
+      }
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create portal user');
+      throw e instanceof Error ? e : new Error('Failed to create portal user');
     }
-    setUsers((prev) => [json.user, ...prev]);
   }, []);
 
+  /**
+   * Toggles a portal user's active flag via the server-side PATCH route
+   * (F18: portalService.toggleUserActive is server-only and throws a
+   * CONFIG_ERROR from the browser — the auth ban/unban must run server-side).
+   * Optimistic update with rollback on failure; rethrows so callers can toast.
+   */
   const toggleActive = useCallback(async (id: string, active: boolean) => {
+    let previous: PortalUser | undefined;
+    setUsers((prev) => {
+      previous = prev.find((u) => u.id === id);
+      return prev.map((u) => (u.id === id ? { ...u, active } : u));
+    });
     try {
-      await portalService.toggleUserActive(id, active);
-      setUsers((prev) =>
-        prev.map((u) => (u.id === id ? { ...u, active } : u)),
-      );
+      const res = await fetch(`/api/portal/auth/users/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active }),
+        credentials: 'include',
+      });
+      const json = await res.json().catch(() => ({})) as { user?: PortalUser; error?: string };
+      if (!res.ok) {
+        throw new Error(json.error ?? 'Failed to update portal user');
+      }
+      if (json.user) {
+        const user = json.user;
+        setUsers((prev) => prev.map((u) => (u.id === id ? user : u)));
+      }
+      setError(null);
     } catch (e) {
+      if (previous) {
+        setUsers((prev) => prev.map((u) => (u.id === id && previous ? { ...u, active: previous.active } : u)));
+      }
       setError(e instanceof Error ? e.message : 'Failed to toggle user status');
+      throw e instanceof Error ? e : new Error('Failed to toggle user status');
     }
   }, []);
 
   /**
    * Deletes a portal user via the users API route.
-   * This delegates to the server-side admin client to also delete the Auth identity.
+   * This delegates to the server-side admin client to also delete the Auth
+   * identity. Failures are surfaced through `error` and rethrown (AGENTS.md §2.4).
    */
   const deleteUser = useCallback(async (id: string) => {
-    const res = await fetch(`/api/portal/auth/users/${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-    });
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      throw new Error(json.error ?? 'Failed to delete portal user');
+    try {
+      const res = await fetch(`/api/portal/auth/users/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json().catch(() => ({})) as { success?: boolean; error?: string };
+      if (!res.ok) {
+        throw new Error(json.error ?? 'Failed to delete portal user');
+      }
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete portal user');
+      throw e instanceof Error ? e : new Error('Failed to delete portal user');
     }
-    setUsers((prev) => prev.filter((u) => u.id !== id));
   }, []);
 
-  return { users, loading, error, reload: load, createUser, toggleActive, deleteUser };
+  return {
+    users,
+    loading,
+    error,
+    reload: load,
+    createUser,
+    toggleActive,
+    toggleUser: toggleActive,
+    deleteUser,
+  };
 }
 
 export function usePortalShares(portalUserId: string | null) {
@@ -145,5 +198,13 @@ export function usePortalShares(portalUserId: string | null) {
     }
   }, []);
 
-  return { shares, loading, error, reload: load, shareRecord, removeShare };
+  return {
+    shares,
+    loading,
+    error,
+    reload: load,
+    shareRecord,
+    createShare: shareRecord,
+    removeShare,
+  };
 }

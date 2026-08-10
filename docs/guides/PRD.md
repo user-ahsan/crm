@@ -77,19 +77,38 @@
 - Responsive layout
 - Sidebar navigation, detail drawers, modals
 
+#### 3.11 Additional Implemented Features
+
+Beyond the core CRM flows, the following features are fully implemented:
+
+| # | Feature | Notes |
+|---|---------|-------|
+| 36 | **Invoices** | CRUD, PDF download, sequential INV-YYYY-NNNN numbering, line items, status workflow |
+| 37 | **Branding** | White-label logo + color settings via API |
+| 38 | **Realtime & Presence** | Supabase Realtime WebSocket channels + polling fallback |
+| 39 | **Notifications** | Persistent notification records + in-app panel |
+| 40 | **Service Config** | Per-service settings (Resend/Twilio/Google) persisted to DB |
+| 41 | **Invoice Templates** | Customizable invoice templates with logos/colors/fields |
+| 42 | **Real Email (Resend)** | Server-side email delivery via Resend API |
+| 43 | **Real SMS (Twilio)** | Server-side SMS delivery via Twilio API |
+| 44 | **Automation Engine** | 14 trigger events, 6 action types, condition evaluation |
+| 45 | **Campaign Scheduler** | Multi-step email sequences with Vercel Cron processing |
+
 ---
 
 ### 4. What Is NOT In Scope (Out of Scope)
 
-| Area | Reason |
+| Area | Status |
 |------|--------|
-| **Real backend server** | No Express/NestJS; data is local state or lightweight Supabase |
-| **Real email system** | No SMTP, Gmail API, or email automation — UI mock only |
-| **Real messaging (WhatsApp, SMS, Chat)** | Activity logs only (simulated) |
-| **Real authentication** | No JWT backend or role enforcement — UI-level login simulation |
-| **Real payment/billing** | No Stripe or subscription system |
-| **Enterprise infrastructure** | No multi-tenancy, microservices, queues, workers, or cron jobs |
-| **AI / Automation** | No AI scoring, predictive analytics, or automation workflows (future upgrade) |
+| ~~Real backend server~~ | Superseded — real Supabase backend (PostgreSQL + Auth + Storage) |
+| ~~Real email system~~ | Superseded — real Resend integration with server-side delivery |
+| ~~Real messaging (SMS)~~ | Superseded — real Twilio integration with send/batch/test routes |
+| ~~Real authentication~~ | Superseded — real Supabase Auth with session cookies + middleware |
+| Real payment/billing | No Stripe or subscription system |
+| ~~Enterprise cron jobs~~ | Superseded — Vercel Cron at `*/5 * * * *` for campaign processing |
+| ~~AI / Automation~~ | Superseded — automation rule engine (14 triggers, 6 actions) + campaign scheduler |
+| Mobile app | Web-only, no native mobile app |
+| Customer portal frontend | Portal auth API exists; no portal user-facing UI yet |
 
 ---
 
@@ -97,9 +116,12 @@
 
 | Category | Requirement |
 |----------|------------|
-| **Tech Stack** | Next.js (App Router), React 18+, TypeScript, Tailwind CSS, shadcn/ui |
-| **State Management** | Local state + React hooks + optional lightweight store |
-| **Data Layer** | Local mock data (JSON/TS files) + optional Supabase |
+| **Tech Stack** | Next.js 16 (App Router), React 19, TypeScript 5, Tailwind CSS 4, shadcn/ui |
+| **State Management** | Zustand 5 (persisted stores) + React Context |
+| **Data Layer** | Supabase (PostgreSQL) with in-memory mock fallback |
+| **Auth** | Supabase Auth (real sessions with middleware) |
+| **Email** | Resend API (server-side) |
+| **SMS** | Twilio API (server-side) |
 | **Deployment** | Vercel (fully static/deployable) |
 | **Performance** | Lazy loading modules, optimized tables, memoized computations |
 | **UX** | Responsive design, skeleton loading, empty/error/success states everywhere |
@@ -124,10 +146,14 @@ Think of it as simulating a real company CRM where:
 ### 7. Tech Stack Summary
 
 ```
-Frontend:    Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui
-Data:        Local mock data (JSON/TS) + optional Supabase (light)
-Deployment:  Vercel
-Auth:        UI simulation only
+Frontend:    Next.js 16 (App Router) + React 19 + TypeScript 5 + Tailwind CSS 4 + shadcn/ui
+Backend:     Supabase (PostgreSQL + Auth + Storage + Realtime)
+API Routes:  33 Next.js API routes (email, SMS, campaigns, webhooks, portal, branding, service-config, integrations)
+Email:       Resend (server-side delivery)
+SMS:         Twilio (server-side delivery)
+Automation:  Rule engine (14 triggers, 6 actions) + Vercel Cron scheduler
+Deployment:  Vercel (with cron jobs)
+Auth:        Supabase Auth (real sessions, middleware-protected routes)
 ```
 
 ---

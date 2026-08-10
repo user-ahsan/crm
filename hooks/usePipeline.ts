@@ -6,7 +6,9 @@ import type { SwimlaneGroup } from '@/types/swimlane.types';
 import type { WorkflowEntityType } from '@/types/workflow.types';
 import { leadService } from '@/services/lead.service';
 import { buildPipeline, getWorkflowStages, type PipelineStage, type StageDefinition } from '@/modules/pipeline/pipelineUtils';
-import { LEAD_PRIORITIES, PIPELINE_STAGES } from '@/lib/constants';
+import { LEAD_PRIORITIES, LEAD_STATUSES, PIPELINE_STAGES } from '@/lib/constants';
+import { getUserName } from '@/lib/user-utils';
+import { useEntityCache } from '@/store/entity-cache';
 
 /** A single swimlane entry — a group with its own filtered pipeline stages */
 export interface SwimlaneEntry {
@@ -15,6 +17,11 @@ export interface SwimlaneEntry {
   pipeline: PipelineStage[];
   totalLeads: number;
   totalValue: number;
+}
+
+/** Type guard: a stage key is a valid lead status (the DB enum holds exactly these six values). */
+function isValidLeadStatus(stage: string): stage is LeadStatus {
+  return LEAD_STATUSES.some((s) => s === stage);
 }
 
 export function usePipeline(entityType: WorkflowEntityType = 'lead') {
@@ -62,41 +69,76 @@ export function usePipeline(entityType: WorkflowEntityType = 'lead') {
     }
   }, []);
 
+  // Mount effect delegates to refresh() instead of duplicating the fetch
+  // body (P3 audit: duplicated initial-load logic risks divergence).
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await leadService.getAll();
-        if (!cancelled) setLeads(data);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load pipeline');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+    refresh();
+  }, [refresh]);
 
-  // Build the pipeline using either custom workflow stages or default stages
+  // Build the pipeline using either custom workflow stages or default stages.
+  // For 'lead' entity: lead.status is constrained to the six built-in values
+  // (LEAD_STATUSES), so custom UUID-keyed workflow states would produce empty
+  // columns and invalid drop targets. Filter to only built-in-compatible stages.
   const pipeline = useMemo(() => {
-    const stages = workflowStages.length > 0 ? workflowStages : undefined;
+    let stages = workflowStages.length > 0 ? workflowStages : undefined;
+    if (entityType === 'lead' && stages) {
+      const validKeys = new Set<string>(LEAD_STATUSES);
+      const filtered = stages.filter((s) => validKeys.has(s.key));
+      stages = filtered.length > 0 ? filtered : undefined;
+    }
     return buildPipeline(leads, stages);
-  }, [leads, workflowStages]);
+  }, [leads, workflowStages, entityType]);
 
   const moveLead = useCallback(async (leadId: string, newStage: string) => {
+    // Transition validation FIRST — lead.status is constrained to the six
+    // built-in values, so custom workflow UUID stages (which are valid for
+    // deals/tasks) must never be written onto a lead (C10/F5 fix).
+    if (!isValidLeadStatus(newStage)) {
+      const message = `Cannot move lead to "${newStage}": lead status is limited to the six built-in stages (${LEAD_STATUSES.join(', ')}). Custom workflow states are only available for deals and tasks.`;
+      setError(message);
+      return undefined;
+    }
+
+    // Capture the previous lead BEFORE the optimistic mutation so the
+    // failure path can restore it (ARCHITECTURE §10 reversible updates).
+    let previous: Lead | undefined;
+    setLeads((prev) => {
+      previous = prev.find((l) => l.id === leadId);
+      return prev.map((l) => (l.id === leadId ? { ...l, status: newStage } : l));
+    });
+    // Sync the entity cache optimistically so cache-backed views (global
+    // search, freshly hydrated lists) see the move immediately (C12).
+    useEntityCache.getState().updateLead(leadId, { status: newStage });
+
     try {
-      const updated = await leadService.updateStatus(leadId, newStage as LeadStatus);
+      const updated = await leadService.updateStatus(leadId, newStage);
       if (updated) {
         setLeads((prev) => prev.map((l) => (l.id === leadId ? updated : l)));
+        // Cache now holds the server-confirmed row; invalidate the freshness
+        // stamp so a freshly mounted useLeads refetches instead of hydrating
+        // stale stage data (C12).
+        useEntityCache.getState().updateLead(leadId, updated);
+        useEntityCache.getState().invalidateEntity('leads');
       }
       return updated;
     } catch (e) {
+      if (previous) {
+        setLeads((prev) => prev.map((l) => (l.id === leadId && previous ? { ...l, status: previous.status } : l)));
+        useEntityCache.getState().updateLead(leadId, { status: previous.status });
+      }
       setError(e instanceof Error ? e.message : 'Failed to move lead');
       return undefined;
     }
   }, []);
+
+  // For 'lead' entity, surface only built-in-compatible stages to consumers
+  // (KanbanBoard skeleton count, swimlane column resolution, etc.).
+  const effectiveWorkflowStages = useMemo(() => {
+    if (entityType !== 'lead') return workflowStages;
+    const validKeys = new Set<string>(LEAD_STATUSES);
+    const filtered = workflowStages.filter((s) => validKeys.has(s.key));
+    return filtered.length > 0 ? filtered : PIPELINE_STAGES;
+  }, [entityType, workflowStages]);
 
   const getStageStats = useCallback(async () => {
     try {
@@ -124,18 +166,18 @@ export function usePipeline(entityType: WorkflowEntityType = 'lead') {
       }
       const entries: SwimlaneEntry[] = [];
       for (const [id, groupLeads] of assigneeMap) {
-        const stages = workflowStages.length > 0 ? workflowStages : undefined;
+        const stages = effectiveWorkflowStages.length > 0 ? effectiveWorkflowStages : undefined;
         const p = buildPipeline(groupLeads, stages);
         entries.push({
           id,
-          label: id,
+          label: getUserName(id, 'Unassigned'),
           pipeline: p,
           totalLeads: groupLeads.length,
           totalValue: groupLeads.reduce((s, l) => s + l.estimatedValue, 0),
         });
       }
       if (unassigned.length > 0) {
-        const stages = workflowStages.length > 0 ? workflowStages : undefined;
+        const stages = effectiveWorkflowStages.length > 0 ? effectiveWorkflowStages : undefined;
         const p = buildPipeline(unassigned, stages);
         entries.push({
           id: 'unassigned',
@@ -162,7 +204,7 @@ export function usePipeline(entityType: WorkflowEntityType = 'lead') {
       for (const p of priorityOrder) {
         const groupLeads = priorityMap.get(p) ?? [];
         if (groupLeads.length > 0) {
-          const stages = workflowStages.length > 0 ? workflowStages : undefined;
+          const stages = effectiveWorkflowStages.length > 0 ? effectiveWorkflowStages : undefined;
           const pipe = buildPipeline(groupLeads, stages);
           entries.push({
             id: p,
@@ -174,7 +216,7 @@ export function usePipeline(entityType: WorkflowEntityType = 'lead') {
         }
       }
       if (unset.length > 0) {
-        const stages = workflowStages.length > 0 ? workflowStages : undefined;
+        const stages = effectiveWorkflowStages.length > 0 ? effectiveWorkflowStages : undefined;
         const p = buildPipeline(unset, stages);
         entries.push({
           id: 'unset',
@@ -187,10 +229,10 @@ export function usePipeline(entityType: WorkflowEntityType = 'lead') {
       return entries;
     }
 
-    // 'status' group: use workflow stages for the status mapping
-    return workflowStages.map((s) => {
+    // 'status' group: use effective workflow stages for the status mapping
+    return effectiveWorkflowStages.map((s) => {
       const groupLeads = leads.filter((l) => l.status === s.key);
-      const p = buildPipeline(groupLeads, workflowStages);
+      const p = buildPipeline(groupLeads, effectiveWorkflowStages);
       return {
         id: s.key,
         label: s.label,
@@ -199,7 +241,7 @@ export function usePipeline(entityType: WorkflowEntityType = 'lead') {
         totalValue: groupLeads.reduce((sum, l) => sum + l.estimatedValue, 0),
       };
     }).filter((e) => e.totalLeads > 0);
-  }, [leads, swimlaneGroup, workflowStages]);
+  }, [leads, swimlaneGroup, effectiveWorkflowStages]);
 
   return {
     pipeline,
@@ -212,7 +254,7 @@ export function usePipeline(entityType: WorkflowEntityType = 'lead') {
     swimlaneGroup,
     setSwimlaneGroup,
     swimlaneData,
-    workflowStages,
+    workflowStages: effectiveWorkflowStages,
     workflowStagesLoading,
   };
 }

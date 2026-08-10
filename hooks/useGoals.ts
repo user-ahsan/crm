@@ -83,7 +83,9 @@ export function useGoals() {
     if (!prevItem) return undefined;
     try {
       const updated = await goalService.update(id, data);
-      setGoals((prev) => prev.map((g) => (g.id === id ? updated : g)));
+      // update returns undefined when the goal no longer exists (PGRST116) —
+      // keep the last known item so the list never contains an undefined row.
+      setGoals((prev) => prev.map((g) => (g.id === id ? (updated ?? g) : g)));
       return updated;
     } catch (e) {
       if (prevItem) setGoals((prev) => prev.map((g) => (g.id === id ? prevItem! : g)));
@@ -99,10 +101,12 @@ export function useGoals() {
       return prev.filter((g) => g.id !== id);
     });
     try {
-      await goalService.delete(id);
+      const ok = await goalService.delete(id);
+      return ok;
     } catch (e) {
       if (prevItem) setGoals((prev) => [...prev, prevItem!]);
       setError(e instanceof Error ? e.message : 'Failed to delete goal');
+      return false;
     }
   }, []);
 
@@ -110,5 +114,29 @@ export function useGoals() {
     return goalService.getProgress(goal);
   }, []);
 
-  return { goals, loading, error, refresh, create, update, remove, getProgress };
+  /**
+   * Recomputes a goal's `current` from live CRM data via
+   * goalService.recalculateProgress (FEATURES §15 — revenue from won deals,
+   * tasks_completed from completed tasks, etc.). Returns the new current value
+   * on success, undefined on failure. Updates the goal in the local list so
+   * the progress bar reflects the new value without a full refetch.
+   */
+  const recalculateProgress = useCallback(async (goalId: string): Promise<number | undefined> => {
+    const target = goals.find((g) => g.id === goalId);
+    if (!target) return undefined;
+    try {
+      const result = await goalService.recalculateProgress(target);
+      setGoals((prev) =>
+        prev.map((g) =>
+          g.id === goalId ? { ...g, current: result.current, updatedAt: new Date().toISOString() } : g,
+        ),
+      );
+      return result.current;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to recalculate goal progress');
+      return undefined;
+    }
+  }, [goals]);
+
+  return { goals, loading, error, refresh, create, update, remove, getProgress, recalculateProgress };
 }

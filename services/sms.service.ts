@@ -1,9 +1,40 @@
 import { getSharedClient } from '@/lib/supabase/client';
 import { getServiceConfig } from '@/lib/service-config';
-import type { SmsLog, SmsFormData, SmsRelatedEntity } from '@/types/sms.types';
-import type { DbSmsLog } from '@/types/supabase.types';
+import type { SmsLog, SmsFormData, SmsRelatedEntity, SmsStatus } from '@/types/sms.types';
+import type { DbSmsLog, SmsLogUpdate } from '@/types/supabase.types';
 import { toServiceError } from './supabase.service';
 import { activityService } from './activity.service';
+
+/** Narrowing guard for the polymorphic related-entity union (SmsRelatedEntity). */
+export function isSmsRelatedEntity(value: unknown): value is SmsRelatedEntity {
+  return value === 'lead' || value === 'contact' || value === 'company' || value === 'deal';
+}
+
+/**
+ * Maps a Twilio MessageStatus string to the app's SmsStatus union.
+ * Intermediate/in-flight states collapse to 'queued'; hard failures collapse
+ * to 'failed'. Shared by /api/sms/send and the /api/sms/status callback.
+ */
+export function mapTwilioMessageStatus(status: string): SmsStatus {
+  switch (status) {
+    case 'sent':
+      return 'sent';
+    case 'delivered':
+    case 'read':
+    case 'partially_delivered':
+      return 'delivered';
+    case 'failed':
+    case 'undelivered':
+    case 'canceled':
+      return 'failed';
+    case 'queued':
+    case 'sending':
+    case 'accepted':
+    case 'scheduled':
+    default:
+      return 'queued';
+  }
+}
 
 function mapRowToSms(row: DbSmsLog): SmsLog {
   return {
@@ -11,11 +42,11 @@ function mapRowToSms(row: DbSmsLog): SmsLog {
     toNumber: row.to_number,
     fromNumber: row.from_number,
     body: row.body,
-    direction: row.direction as SmsLog['direction'],
-    status: row.status as SmsLog['status'],
+    direction: row.direction === 'inbound' || row.direction === 'outbound' ? row.direction : 'outbound',
+    status: row.status,
     providerMessageId: row.provider_message_id ?? undefined,
     errorMessage: row.error_message ?? undefined,
-    relatedToType: row.related_to_type as SmsLog['relatedToType'],
+    relatedToType: isSmsRelatedEntity(row.related_to_type) ? row.related_to_type : undefined,
     relatedToId: row.related_to_id ?? undefined,
     createdBy: row.created_by,
     createdAt: row.created_at,
@@ -99,8 +130,39 @@ export const smsService = {
 
       // ponytail: actual Twilio API call happens in the API route (/api/sms/send)
       // which calls smsService.send() for DB persistence, then calls Twilio separately.
-      // The providerMessageId from Twilio is updated back via the API route.
+      // The providerMessageId from Twilio is updated back via updateStatus() in the route.
       return { ...sms, errorMessage: errorMessage ?? undefined };
+    } catch (e) {
+      throw toServiceError(e);
+    }
+  },
+
+  /**
+   * Updates a persisted SMS log's delivery status (sent → delivered/failed and
+   * provider id / error reconciliation). Used by /api/sms/send after the Twilio
+   * call returns and by the /api/sms/status Twilio callback route.
+   */
+  async updateStatus(
+    id: string,
+    status: SmsStatus,
+    extras?: { providerMessageId?: string; errorMessage?: string },
+  ): Promise<SmsLog | undefined> {
+    try {
+      const supabase = await getSharedClient();
+      const update: SmsLogUpdate = { status };
+      if (extras?.providerMessageId !== undefined) update.provider_message_id = extras.providerMessageId;
+      if (extras?.errorMessage !== undefined) update.error_message = extras.errorMessage;
+      const { data, error } = await supabase
+        .from('sms_logs')
+        .update(update)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) {
+        if (error.code === 'PGRST116') return undefined;
+        throw toServiceError(error);
+      }
+      return data ? mapRowToSms(data) : undefined;
     } catch (e) {
       throw toServiceError(e);
     }
@@ -123,7 +185,7 @@ export const smsService = {
           toNumber: msg.toNumber,
           body: msg.body,
           fromNumber: smsConfig.from_number || undefined,
-          relatedToType: msg.relatedToType as SmsRelatedEntity,
+          relatedToType: isSmsRelatedEntity(msg.relatedToType) ? msg.relatedToType : undefined,
           relatedToId: msg.relatedToId,
         });
         results.push({ toNumber: msg.toNumber, success: sms.status === 'sent', messageId: sms.id });

@@ -26,7 +26,6 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { useForecasts } from '@/hooks/useForecasts';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useLeads } from '@/hooks/useLeads';
 import { formatCurrency } from '@/lib/formatters';
 
 const MONTH_NAMES = [
@@ -37,8 +36,7 @@ const MONTH_NAMES = [
 export default function ForecastsPage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const { user } = useCurrentUser();
-  const { forecasts, summary, loading, error, upsert, refresh } = useForecasts(selectedYear);
-  const { leads } = useLeads();
+  const { forecasts, summary, loading, error, upsert, refresh, recalculate } = useForecasts(selectedYear);
 
   const handlePrevYear = useCallback(() => setSelectedYear((y) => y - 1), []);
   const handleNextYear = useCallback(() => setSelectedYear((y) => y + 1), []);
@@ -56,31 +54,26 @@ export default function ForecastsPage() {
     });
   }, [selectedYear, forecasts, upsert, user?.id]);
 
+  /**
+   * Recomputes each month's actual from the value of won deals via
+   * forecastService.recalculateActuals (FEATURES §16). The previous page
+   * implementation summed won LEADS — incorrect per the PRD; the service
+   * now queries won DEALS and attributes revenue by close_date month.
+   */
   const handleAutoCalculate = useCallback(async () => {
     if (!user?.id) return;
     toast.info('Calculating actuals from won deals...');
-    const wonByMonth = new Map<number, number>();
-    for (const lead of leads) {
-      if (lead.status === 'won') {
-        const d = new Date(lead.updatedAt);
-        if (d.getFullYear() === selectedYear) {
-          const m = d.getMonth() + 1;
-          wonByMonth.set(m, (wonByMonth.get(m) ?? 0) + lead.estimatedValue);
-        }
+    try {
+      const result = await recalculate();
+      if (result) {
+        toast.success('Actuals calculated from won deals');
+      } else {
+        toast.error('Failed to calculate actuals');
       }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to calculate actuals');
     }
-    for (const [month, actual] of wonByMonth) {
-      const existing = forecasts.find((f) => f.month === month);
-      await upsert({
-        year: selectedYear,
-        month,
-        actual,
-        ...(existing ? { target: existing.target } : { target: 0 }),
-      });
-    }
-    await refresh();
-    toast.success('Actuals calculated from won deals');
-  }, [selectedYear, forecasts, upsert, refresh, leads, user?.id]);
+  }, [user?.id, recalculate]);
 
   const handleSetTargets = useCallback(async () => {
     if (!user?.id) return;

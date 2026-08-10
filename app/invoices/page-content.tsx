@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, Suspense } from 'react';
+import { useState, useCallback, useMemo, Suspense, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { IconPlus } from '@tabler/icons-react';
 import { toast } from 'sonner';
@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { IconDotsVertical, IconEye, IconTrash } from '@tabler/icons-react';
 import { formatCurrency, formatDate } from '@/lib/formatters';
+import { getAllowedInvoiceStatuses } from '@/lib/constants';
 
 const ALL_STATUS = '__all_statuses';
 const INVOICE_STATUSES: InvoiceStatus[] = ['draft', 'sent', 'paid', 'overdue', 'cancelled', 'refunded'];
@@ -56,6 +57,22 @@ function InvoicesPageContent() {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(ALL_STATUS);
+
+  // Overdue detection: on load, any invoice with status='sent' AND a dueDate
+  // in the past is auto-marked overdue. The service (F15) supports the
+  // 'overdue' status; the hook's optimistic update shows the badge instantly
+  // while the persistence runs in the background.
+  useEffect(() => {
+    if (invoices.length === 0) return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const overdueCandidates = invoices.filter(
+      (inv) => inv.status === 'sent' && inv.dueDate && new Date(inv.dueDate) < today,
+    );
+    for (const inv of overdueCandidates) {
+      updateInvoiceStatus(inv.id, 'overdue');
+    }
+  }, [invoices, updateInvoiceStatus]);
 
   const filteredInvoices = useMemo(() => {
     let result = invoices;
@@ -224,22 +241,21 @@ function InvoicesPageContent() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {invoice.status === 'draft' && (
-                            <DropdownMenuItem onClick={() => handleStatusChange(invoice.id, 'paid')}>
-                              <IconEye className="mr-2 size-4" />
-                              Mark as Paid
-                            </DropdownMenuItem>
-                          )}
-                          {invoice.status === 'paid' && (
-                            <DropdownMenuItem onClick={() => handleStatusChange(invoice.id, 'refunded')}>
-                              Mark as Refunded
-                            </DropdownMenuItem>
-                          )}
-                          {(invoice.status === 'draft' || invoice.status === 'paid') && (
-                            <DropdownMenuItem onClick={() => handleStatusChange(invoice.id, 'cancelled')}>
-                              Cancel Invoice
-                            </DropdownMenuItem>
-                          )}
+                          {getAllowedInvoiceStatuses(invoice.status)
+                            .filter((s) => s !== invoice.status)
+                            .map((targetStatus) => (
+                              <DropdownMenuItem
+                                key={targetStatus}
+                                onClick={() => handleStatusChange(invoice.id, targetStatus)}
+                              >
+                                <IconEye className="mr-2 size-4" />
+                                {targetStatus === 'sent' && 'Mark as Sent'}
+                                {targetStatus === 'paid' && 'Mark as Paid'}
+                                {targetStatus === 'overdue' && 'Mark as Overdue'}
+                                {targetStatus === 'cancelled' && 'Cancel Invoice'}
+                                {targetStatus === 'refunded' && 'Mark as Refunded'}
+                              </DropdownMenuItem>
+                            ))}
                           <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => handleDelete(invoice.id)}

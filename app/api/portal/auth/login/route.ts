@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     // Update last_login in portal_users
     await supabase
       .from('portal_users')
-      .update({ last_login: new Date().toISOString() } as never)
+      .update({ last_login: new Date().toISOString() })
       .eq('id', data.user.id);
 
     return NextResponse.json({

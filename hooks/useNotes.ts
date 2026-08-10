@@ -4,11 +4,14 @@ import { useState, useCallback, useEffect } from 'react';
 import type { Note, NoteFormData } from '@/types/communication.types';
 import { generateId } from '@/lib/formatters';
 import { communicationService } from '@/services/communication.service';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { USERS } from '@/data/mock-users';
 
 export function useNotes(entityType?: string, entityId?: string) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useCurrentUser();
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -38,7 +41,13 @@ export function useNotes(entityType?: string, entityId?: string) {
     return () => { cancelled = true; };
   }, [entityType, entityId]);
 
-  const createNote = useCallback(async (data: NoteFormData & { createdBy: string }) => {
+  /**
+   * Create a note. `createdBy` is optional for backward compatibility — when
+   * omitted the current user is resolved inside the hook (falling back to the
+   * canonical mock user, then 'system').
+   */
+  const createNote = useCallback(async (data: NoteFormData & { createdBy?: string }) => {
+    const createdBy = data.createdBy ?? user?.id ?? USERS[0]?.id ?? 'system';
     const tempId = generateId();
     const optimisticItem: Note = {
       id: tempId,
@@ -46,13 +55,13 @@ export function useNotes(entityType?: string, entityId?: string) {
       body: data.body,
       relatedToType: data.relatedToType,
       relatedToId: data.relatedToId,
-      createdBy: data.createdBy,
+      createdBy,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     setNotes((prev) => [optimisticItem, ...prev]);
     try {
-      const created = await communicationService.createNote(data);
+      const created = await communicationService.createNote({ ...data, createdBy });
       setNotes((prev) => prev.map((n) => (n.id === tempId ? created : n)));
       return created;
     } catch (e) {
@@ -60,7 +69,7 @@ export function useNotes(entityType?: string, entityId?: string) {
       setError(e instanceof Error ? e.message : 'Failed to create note');
       return undefined;
     }
-  }, []);
+  }, [user?.id]);
 
   const updateNote = useCallback(async (id: string, data: Partial<NoteFormData>) => {
     let prevItem: Note | undefined;

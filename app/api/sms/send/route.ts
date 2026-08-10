@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { smsService } from '@/services/sms.service';
+import { smsService, mapTwilioMessageStatus } from '@/services/sms.service';
 import { getTwilioClientAsync, getTwilioFromNumber } from '@/lib/twilio';
 import { getServiceConfig } from '@/lib/service-config';
-import { getSupabaseClient } from '@/lib/supabase/client';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
 import { corsHeaders } from '@/lib/cors';
-import type { SmsRelatedEntity } from '@/types/sms.types';
+import type { SmsRelatedEntity, SmsStatus } from '@/types/sms.types';
 
 interface SendSmsRequest {
   toNumber: string;
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── Auth check ─────────────────────────────────────────────────
-  const supabase = getSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   let user;
   try {
     const { data: { user: u }, error: authError } = await supabase.auth.getUser();
@@ -73,15 +73,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const hasTwilio = !!(smsConfig.account_sid && smsConfig.auth_token);
 
   let providerMessageId: string | undefined;
+  let providerStatus: SmsStatus | undefined;
   let twilioError: string | undefined;
+  let twilioConfigured = false;
   if (!hasTwilio) {
     twilioError = 'SMS provider not configured. Add Twilio credentials in Settings > Services.';
   } else {
+    twilioConfigured = true;
     try {
       const client = await getTwilioClientAsync();
       const from = smsConfig.from_number || getTwilioFromNumber();
-      const message = await client.messages.create({ body: msgBody, to: toNumber, from });
+      // Delivery tracking: Twilio POSTs status updates to /api/sms/status when a
+      // public app URL is configured (unset in local dev — provider response
+      // status is still persisted below; callbacks are deployment-config).
+      const statusCallback = process.env.NEXT_PUBLIC_APP_URL
+        ? `${process.env.NEXT_PUBLIC_APP_URL}/api/sms/status`
+        : undefined;
+      const message = await client.messages.create({
+        body: msgBody, to: toNumber, from,
+        ...(statusCallback ? { statusCallback } : {}),
+      });
       providerMessageId = message.sid;
+      providerStatus = mapTwilioMessageStatus(message.status);
     } catch (e: unknown) {
       console.error(`[sms/send] Twilio error:`, e);
       twilioError = 'An internal error occurred';
@@ -97,10 +110,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       relatedToId: body.relatedToId,
     });
 
+    // 2b. Reconcile with the real provider result — persist provider_message_id
+    // and the returned status (queued/delivered/failed) so delivery tracking
+    // is honest instead of the config-presence 'sent' guess from send().
+    let sms = smsLog;
+    if (providerMessageId || twilioError) {
+      const finalStatus: SmsStatus = twilioConfigured
+        ? (providerStatus ?? (twilioError ? 'failed' : 'sent'))
+        : 'queued';
+      sms = (await smsService.updateStatus(smsLog.id, finalStatus, {
+        providerMessageId,
+        errorMessage: twilioError,
+      })) ?? smsLog;
+    }
+
     return NextResponse.json({
       success: !twilioError,
-      smsId: smsLog.id,
-      providerMessageId,
+      smsId: sms.id,
+      providerMessageId: sms.providerMessageId,
+      status: sms.status,
+      sms,
       error: twilioError,
     }, { status: 201, headers: corsHeaders() });
   } catch (e: unknown) {

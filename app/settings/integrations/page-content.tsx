@@ -155,9 +155,9 @@ export default function IntegrationsPage() {
             <IconBrandGoogle className="mr-2 size-4" />
             Connect Google Calendar
           </Button>
-          <Button variant="outline" disabled title="Outlook Calendar coming soon">
+          <Button variant="outline" disabled title="Outlook Calendar integration is not yet available">
             <IconBrandOffice className="mr-2 size-4" />
-            Connect Outlook Calendar
+            Outlook Calendar (coming soon)
           </Button>
         </div>
       </PageHeader>

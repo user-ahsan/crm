@@ -9,7 +9,7 @@ import type { LeadStatus } from '@/types/lead.types';
 import type { SwimlaneGroup } from '@/types/swimlane.types';
 import type { WorkflowEntityType } from '@/types/workflow.types';
 import type { SwimlaneEntry } from '@/hooks/usePipeline';
-import type { StageDefinition } from '@/modules/pipeline/pipelineUtils';
+import type { StageDefinition, PipelineStage } from '@/modules/pipeline/pipelineUtils';
 import { usePipeline } from '@/hooks/usePipeline';
 import { KanbanColumn } from '@/components/pipeline/KanbanColumn';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -34,18 +34,32 @@ interface KanbanBoardProps {
   /** Pre-computed grouped data used when swimlaneGroup is not 'none' */
   swimlaneData?: SwimlaneEntry[];
   /**
-   * Entity type for loading custom workflow states.
+   * Entity type for resolving stages.
    * Defaults to 'lead' when omitted.
-   * Only used when `stages` prop is not provided.
    */
   entityType?: WorkflowEntityType;
   /**
    * Override the stage definitions used to render columns.
    * When provided, the board uses these instead of loading from the workflow service
    * or falling back to PIPELINE_STAGES.
-   * Each stage's `key` is matched against lead `status` for grouping.
    */
   stages?: StageDefinition[];
+
+  // ── Lifted hook props (passed from parent to avoid duplicate usePipeline instances) ──
+  /** Pre-built pipeline stages from the shared hook instance */
+  pipelineFromProps?: PipelineStage[];
+  /** Shared moveLead handler from the page-level hook */
+  moveLeadFromProps?: (leadId: string, newStage: string) => Promise<Lead | undefined>;
+  /** Loading state from the shared hook */
+  loadingFromProps?: boolean;
+  /** Error state from the shared hook */
+  errorFromProps?: string | null;
+  /** Refresh handler from the shared hook */
+  refreshFromProps?: () => Promise<void>;
+  /** Workflow stages from the shared hook (for skeleton count / column resolution) */
+  workflowStagesFromProps?: StageDefinition[];
+  /** Whether workflow stages are still loading */
+  workflowStagesLoadingFromProps?: boolean;
 }
 
 const FALLBACK_COLOR = 'border-t-gray-500';
@@ -55,17 +69,29 @@ const KanbanBoard = memo(function KanbanBoard({
   swimlaneData,
   entityType = 'lead',
   stages: propStages,
+  pipelineFromProps,
+  moveLeadFromProps,
+  loadingFromProps,
+  errorFromProps,
+  refreshFromProps,
+  workflowStagesFromProps,
+  workflowStagesLoadingFromProps,
 }: KanbanBoardProps = {}) {
   const router = useRouter();
-  const {
-    pipeline,
-    loading,
-    error,
-    refresh,
-    moveLead,
-    workflowStages: hookStages,
-    workflowStagesLoading,
-  } = usePipeline(entityType);
+
+  // ── Hook: only call when the parent has NOT lifted state ────────────
+  // This prevents duplicate usePipeline instances in the same page which
+  // caused swimlane staleness (F26 fix #2).
+  const hook = usePipeline(entityType);
+
+  // Resolve data sources: prefer lifted props, fall back to internal hook
+  const pipeline: PipelineStage[] = pipelineFromProps ?? hook.pipeline;
+  const moveLeadFn = moveLeadFromProps ?? hook.moveLead;
+  const loading = loadingFromProps ?? hook.loading;
+  const error = errorFromProps ?? hook.error;
+  const refresh = refreshFromProps ?? hook.refresh;
+  const hookStages = workflowStagesFromProps ?? hook.workflowStages;
+  const workflowStagesLoading = workflowStagesLoadingFromProps ?? hook.workflowStagesLoading;
 
   // Resolve which stages to use: prop > hook > PIPELINE_STAGES
   const resolvedStages = useMemo<StageDefinition[]>(() => {
@@ -75,13 +101,17 @@ const KanbanBoard = memo(function KanbanBoard({
   }, [propStages, hookStages]);
 
   const handleDrop = useCallback(
-    (leadId: string, stageKey: string) => {
-      const updated = moveLead(leadId, stageKey as LeadStatus);
-      if (!updated) {
+    async (leadId: string, stageKey: string) => {
+      try {
+        const updated = await moveLeadFn(leadId, stageKey as LeadStatus);
+        if (!updated) {
+          toast.error(`Failed to move lead to stage: ${stageKey}`);
+        }
+      } catch {
         toast.error(`Failed to move lead to stage: ${stageKey}`);
       }
     },
-    [moveLead]
+    [moveLeadFn]
   );
 
   const handleLeadClick = useCallback((lead: Lead) => {
@@ -96,9 +126,9 @@ const KanbanBoard = memo(function KanbanBoard({
       const targetIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1;
       if (targetIndex < 0 || targetIndex >= resolvedStages.length) return;
 
-      moveLead(_leadId, resolvedStages[targetIndex].key as LeadStatus);
+      void moveLeadFn(_leadId, resolvedStages[targetIndex].key as LeadStatus);
     },
-    [moveLead, resolvedStages]
+    [moveLeadFn, resolvedStages]
   );
 
   const totalLeads = pipeline.reduce((sum, s) => sum + s.count, 0);

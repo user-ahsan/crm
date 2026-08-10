@@ -115,7 +115,6 @@ export default function SettingsPage() {
   const handleSaveNotifications = useCallback(async () => {
     setSaving(true);
     try {
-      // Save to server
       const supabase = getSupabaseClient();
       const { error } = await supabase.from('user_settings').upsert({
         email_notif: emailNotif,
@@ -124,10 +123,10 @@ export default function SettingsPage() {
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' });
 
-      if (error) console.warn('Server save failed (settings table may not exist):', error.message);
-
-      // Simulate delay for UX
-      await new Promise((r) => setTimeout(r, 300));
+      if (error) {
+        toast.error('Failed to save notification preferences');
+        return;
+      }
       toast.success('Notification preferences saved successfully.');
     } catch {
       toast.error('Failed to save notification preferences');
@@ -139,7 +138,6 @@ export default function SettingsPage() {
   const handleSaveAccount = useCallback(async () => {
     setSaving(true);
     try {
-      // Save to server
       const supabase = getSupabaseClient();
       const { error } = await supabase.from('user_settings').upsert({
         display_name: displayName,
@@ -148,10 +146,10 @@ export default function SettingsPage() {
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' });
 
-      if (error) console.warn('Server save failed (settings table may not exist):', error.message);
-
-      // Simulate delay for UX
-      await new Promise((r) => setTimeout(r, 300));
+      if (error) {
+        toast.error('Failed to save account settings');
+        return;
+      }
       toast.success('Account settings saved successfully.');
     } catch {
       toast.error('Failed to save account settings');

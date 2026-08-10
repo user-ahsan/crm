@@ -800,7 +800,7 @@ export interface ValidationResult {
 
 ### 26. `types/supabase.types.ts` — Database Schema Types
 
-**Purpose:** Complete typed interface for all 28+ database tables with Row/Insert/Update subtypes.
+**Purpose:** Complete typed interface for all 46 database tables with Row/Insert/Update subtypes.
 
 The `Database` interface defines the full Supabase schema:
 

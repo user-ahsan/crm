@@ -13,14 +13,13 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { DealTable } from '@/components/deals/DealTable';
 import { DealCreateForm } from '@/components/deals/DealCreateForm';
 import { useDeals } from '@/hooks/useDeals';
-import { dealService } from '@/services/deal.service';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function DealsPage() {
-  const { deals, stages, loading, error, refresh } = useDeals();
+  const { deals, stages, loading, error, refresh, deleteDeal } = useDeals();
   const router = useRouter();
 
   const [search, setSearch] = useState('');
@@ -68,18 +67,17 @@ export default function DealsPage() {
         action: {
           label: 'Delete',
           onClick: async () => {
-            try {
-              await dealService.delete(id);
+            const success = await deleteDeal(id);
+            if (success) {
               toast.success('Deal deleted');
-              refresh();
-            } catch {
+            } else {
               toast.error('Failed to delete deal');
             }
           },
         },
       });
     },
-    [deals, refresh],
+    [deals, deleteDeal],
   );
 
   const handleDialogOpenChange = useCallback((open: boolean) => {

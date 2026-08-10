@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck — Future feature: Google Calendar OAuth integration.
-// Package version conflicts with google-auth-library/googleapis types.
-// Remove this line once types are resolved or packages are updated.
-/* eslint-enable @typescript-eslint/ban-ts-comment */
 /**
  * ─── Google Calendar OAuth & API Helpers ────────────────────────────────────
  *

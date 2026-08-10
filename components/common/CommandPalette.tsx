@@ -38,17 +38,27 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const router = useRouter();
   const { query, setQuery, grouped, results } = useSearch();
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const flatResults = results;
   const groupKeys = Object.keys(grouped);
 
   useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 50);
-      setQuery('');
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedIndex(0);
-    }
+    if (!open) return;
+    // Remember what had focus before the palette opened so it can be restored
+    // on close (the trigger is often a global Cmd+K shortcut, not a click).
+    previouslyFocusedRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const timer = setTimeout(() => inputRef.current?.focus(), 50);
+    setQuery('');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedIndex(0);
+    return () => {
+      clearTimeout(timer);
+      previouslyFocusedRef.current?.focus();
+      previouslyFocusedRef.current = null;
+    };
   }, [open, setQuery]);
 
   useEffect(() => {
@@ -87,10 +97,38 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     [flatResults, selectedIndex, router, onClose]
   );
 
+  // Keeps Tab/Shift+Tab inside the modal so keyboard/screen-reader users can
+  // never reach the page behind the overlay while the palette is open.
+  const handlePaletteKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== 'Tab') return;
+    const container = containerRef.current;
+    if (!container) return;
+    const focusables = Array.from(
+      container.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    );
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+    if (e.shiftKey) {
+      if (active === first || !container.contains(active)) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else if (active === last || !container.contains(active)) {
+      e.preventDefault();
+      first.focus();
+    }
+  }, []);
+
   if (!open) return null;
 
   return (
     <div
+      ref={containerRef}
+      onKeyDown={handlePaletteKeyDown}
       className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]"
       role="dialog"
       aria-modal="true"

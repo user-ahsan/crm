@@ -7,6 +7,7 @@ import { MeetingCreateForm } from '@/components/meetings/MeetingCreateForm';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { useMeetings } from '@/hooks/useMeetings';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -18,19 +19,41 @@ import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { useCsvExport } from '@/hooks/useCsvExport';
 
 export default function MeetingsPage() {
-  const { meetings, loading, error, refresh } = useMeetings();
+  const { meetings, loading, error, refresh, deleteMeeting } = useMeetings();
   const [createOpen, setCreateOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [editingMeeting, setEditingMeeting] = useState<Meeting | undefined>(undefined);
+  const [deletingMeeting, setDeletingMeeting] = useState<Meeting | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const { exportEntity, isExporting } = useCsvExport();
 
   const handleCreateSuccess = useCallback(
     (meeting: Meeting) => {
-      toast.success(`Meeting "${meeting.title}" scheduled`);
+      toast.success(`Meeting "${meeting.title}" ${editingMeeting ? 'updated' : 'scheduled'}`);
       refresh();
       setCreateOpen(false);
+      setEditingMeeting(undefined);
     },
-    [refresh]
+    [refresh, editingMeeting]
   );
+
+  const handleEditMeeting = useCallback((meeting: Meeting) => {
+    setEditingMeeting(meeting);
+    setCreateOpen(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deletingMeeting) return;
+    setDeleteError(null);
+    const success = await deleteMeeting(deletingMeeting.id);
+    if (success) {
+      toast.success(`Meeting "${deletingMeeting.title}" deleted`);
+      setDeletingMeeting(null);
+      refresh();
+    } else {
+      setDeleteError('Failed to delete meeting. Please try again.');
+    }
+  }, [deletingMeeting, deleteMeeting, refresh]);
 
   // Loading state — initial data fetch
   if (loading && meetings.length === 0) {
@@ -97,8 +120,12 @@ export default function MeetingsPage() {
         />
         <MeetingCreateForm
           open={createOpen}
-          onOpenChange={setCreateOpen}
+          onOpenChange={(open) => {
+            setCreateOpen(open);
+            if (!open) setEditingMeeting(undefined);
+          }}
           onSuccess={handleCreateSuccess}
+          editMeeting={editingMeeting}
         />
       </div>
     );
@@ -135,13 +162,23 @@ export default function MeetingsPage() {
       </PageHeader>
 
       {/* Meeting calendar — month/week view */}
-      <MeetingCalendar />
+      <MeetingCalendar
+        onEditMeeting={handleEditMeeting}
+        onDeleteMeeting={(meeting) => {
+          setDeletingMeeting(meeting);
+          setDeleteError(null);
+        }}
+      />
 
-      {/* Create meeting dialog */}
+      {/* Create/edit meeting dialog */}
       <MeetingCreateForm
         open={createOpen}
-        onOpenChange={setCreateOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) setEditingMeeting(undefined);
+        }}
         onSuccess={handleCreateSuccess}
+        editMeeting={editingMeeting}
       />
       <ImportDialog
         open={importDialogOpen}
@@ -149,6 +186,23 @@ export default function MeetingsPage() {
         entityType="meetings"
         entityLabel="Meetings"
         onImportComplete={refresh}
+      />
+
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        open={!!deletingMeeting}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeletingMeeting(null);
+            setDeleteError(null);
+          }
+        }}
+        title="Delete Meeting"
+        description={`Are you sure you want to delete "${deletingMeeting?.title ?? ''}"? This action cannot be undone.`}
+        onConfirm={handleDeleteConfirm}
+        confirmLabel="Delete"
+        variant="destructive"
+        error={deleteError}
       />
     </div>
   );

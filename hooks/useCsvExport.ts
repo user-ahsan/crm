@@ -12,14 +12,13 @@ const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 /**
  * Generic CSV export helper. Writes typed data to a CSV file and triggers download.
  */
-function exportToCsv<T>(
+function exportToCsv<T extends Record<string, unknown>>(
   data: T[],
   filename: string,
   columns: ExportColumn[],
 ): void {
-  const mappedData = data.map((item: T) => {
+  const mappedData = data.map((record) => {
     const row: Record<string, unknown> = {};
-    const record = item as unknown as Record<string, unknown>;
     for (const col of columns) {
       const rawValue = record[col.key];
       row[col.key] = col.format ? col.format(rawValue, record) : rawValue;

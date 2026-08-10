@@ -53,7 +53,7 @@ export function ExportDropdown({
         {entityTypes.map((type) => (
           <DropdownMenuItem
             key={type.key}
-            onSelect={() => onExport(type.key)}
+            onClick={() => onExport(type.key)}
             disabled={isExporting}
           >
             {type.label}
@@ -63,7 +63,7 @@ export function ExportDropdown({
         {hasItems && <DropdownMenuSeparator />}
 
         <DropdownMenuItem
-          onSelect={() => onExport('all')}
+          onClick={() => onExport('all')}
           disabled={isExporting || !hasItems}
         >
           Export All

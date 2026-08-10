@@ -1,8 +1,9 @@
 import { getSharedClient } from '@/lib/supabase/client';
-import type { Company, CompanyFormData } from '@/types/company.types';
-import type { DbCompany, CompanyInsert } from '@/types/supabase.types';
+import type { Company, CompanyFilters, CompanyFormData } from '@/types/company.types';
+import type { DbCompany, DbContact, CompanyInsert } from '@/types/supabase.types';
 import { ServiceError, toServiceError } from './supabase.service';
 import { activityService } from './activity.service';
+import { automationService } from './automation.service';
 import { triggerWebhook } from './webhook.service';
 import { DUPE_WEIGHT_NAME_EXACT, DUPE_WEIGHT_NAME_PARTIAL, DUPE_WEIGHT_WEBSITE, DUPE_WEIGHT_INDUSTRY, DUPE_MIN_SCORE } from '@/lib/constants';
 
@@ -17,7 +18,7 @@ function mapRowToCompany(row: DbCompany): Company {
     id: row.id,
     name: row.name,
     industry: row.industry ?? undefined,
-    size: row.size as Company['size'] | undefined,
+    size: row.size ?? undefined,
     revenue: row.revenue,
     location: row.location ?? undefined,
     website: row.website ?? undefined,
@@ -75,14 +76,27 @@ export const companyService = {
     }
   },
 
-  async search(query: string, page = 1, pageSize = 50): Promise<Company[]> {
+  /**
+   * Filtered company list (SERVICES.md:82 contract). AND semantics:
+   * search = case-insensitive substring on name, industry = exact,
+   * size = exact. `search` is aliased below for backward compatibility.
+   */
+  async getFiltered(filters: CompanyFilters, page = 1, pageSize = 50): Promise<Company[]> {
     try {
       const supabase = await getSharedClient();
-      const s = query.toLowerCase();
-      const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .or(`name.ilike.%${s}%,industry.ilike.%${s}%,location.ilike.%${s}%`)
+      let query = supabase.from('companies').select('*');
+      const search = filters.search?.trim();
+      if (search) {
+        query = query.ilike('name', `%${search.toLowerCase()}%`);
+      }
+      const industry = filters.industry?.trim();
+      if (industry) {
+        query = query.eq('industry', industry);
+      }
+      if (filters.size && filters.size !== '') {
+        query = query.eq('size', filters.size);
+      }
+      const { data, error } = await query
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
       if (error) throw toServiceError(error);
@@ -90,6 +104,11 @@ export const companyService = {
     } catch (e) {
       throw toServiceError(e);
     }
+  },
+
+  /** Backward-compatible alias of getFiltered — searches companies by name. */
+  async search(query: string, page = 1, pageSize = 50): Promise<Company[]> {
+    return this.getFiltered({ search: query }, page, pageSize);
   },
 
   async create(data: CompanyFormData): Promise<Company> {
@@ -110,6 +129,13 @@ export const companyService = {
       activityService.log('company', company.id, 'created', `Company created: ${company.name}`);
       triggerWebhook('company.created', {
         id: company.id,
+        name: company.name,
+        industry: company.industry,
+        revenue: company.revenue,
+      });
+      await automationService.evaluate('company.created', {
+        entityType: 'company',
+        entityId: company.id,
         name: company.name,
         industry: company.industry,
         revenue: company.revenue,
@@ -137,6 +163,11 @@ export const companyService = {
       const company = mapRowToCompany(updated);
       activityService.log('company', id, 'updated', `Company updated: ${company.name}`);
       triggerWebhook('company.updated', { id, ...data });
+      await automationService.evaluate('company.updated', {
+        entityType: 'company',
+        entityId: id,
+        ...data,
+      });
       return company;
     } catch (e) {
       throw toServiceError(e);
@@ -146,26 +177,65 @@ export const companyService = {
   async delete(id: string): Promise<boolean> {
     try {
       const supabase = await getSharedClient();
+      // Cascade cleanups are scoped by related_to_type / entity_type (C16) so
+      // a company id never removes another entity's records. Contacts, deals
+      // and invoices are NOT hard-deleted — their company_id link is nulled
+      // instead. Leads have no company_id column (schema-verified); their only
+      // company link is the denormalized companies.lead_ids array, which dies
+      // with this row. Any cascade failure aborts the delete so no orphaned
+      // related records are left behind.
       const ops = [
-        supabase.from('tasks').delete().eq('related_to_id', id),
-        supabase.from('meetings').delete().eq('related_to_id', id),
-        supabase.from('activities').delete().eq('entity_id', id),
+        supabase.from('tasks').delete().eq('related_to_type', 'company').eq('related_to_id', id),
+        supabase.from('meetings').delete().eq('related_to_type', 'company').eq('related_to_id', id),
+        supabase.from('activities').delete().eq('entity_type', 'company').eq('entity_id', id),
+        supabase.from('contacts').update({ company_id: null }).eq('company_id', id),
+        supabase.from('deals').update({ company_id: null }).eq('company_id', id),
+        supabase.from('invoices').update({ company_id: null }).eq('company_id', id),
       ];
       const results = await Promise.all(ops);
-      for (const r of results) if (r.error) console.error(`Cascade delete error: ${r.error.message}`);
-      const { error } = await supabase.from('companies').delete().eq('id', id);
+      for (const result of results) {
+        if (result.error) {
+          throw new ServiceError(
+            `Failed to clean up related records before deleting company ${id}: ${result.error.message}`,
+            'CASCADE_DELETE_FAILED',
+          );
+        }
+      }
+      const { data: deletedRows, error } = await supabase
+        .from('companies')
+        .delete()
+        .eq('id', id)
+        .select('id');
       if (error) throw toServiceError(error);
-      activityService.log('company', id, 'deleted', `Company deleted`);
+      if (!deletedRows || deletedRows.length === 0) return false;
+      activityService.log('company', id, 'deleted', 'Company deleted');
       triggerWebhook('company.deleted', { id });
+      await automationService.evaluate('company.deleted', {
+        entityType: 'company',
+        entityId: id,
+      });
       return true;
     } catch (e) {
       throw toServiceError(e);
     }
   },
 
-  async findDuplicates(): Promise<DuplicateGroup[]> {
+  /**
+   * Full-scan duplicate detection with weighted name/website/industry scoring.
+   * Threshold weights come from lib/constants.ts (DUPE_WEIGHT_* / DUPE_MIN_SCORE);
+   * the Data Quality page exposes the same weights via its similarity UI.
+   */
+  async findDuplicates(threshold?: number): Promise<DuplicateGroup[]> {
     try {
-      const all = await this.getAll();
+      const supabase = await getSharedClient();
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw toServiceError(error);
+      const all = (data ?? []).map(mapRowToCompany);
+      const minScore = threshold ?? DUPE_MIN_SCORE;
+
       const groups: DuplicateGroup[] = [];
       const visited = new Set<string>();
 
@@ -200,7 +270,7 @@ export const companyService = {
             score += DUPE_WEIGHT_INDUSTRY;
           }
 
-          if (score >= DUPE_MIN_SCORE) {
+          if (score >= minScore) {
             matches.push(b);
             if (score > maxScore) maxScore = score;
           }
@@ -223,27 +293,65 @@ export const companyService = {
     try {
       const supabase = await getSharedClient();
 
-      const { error: tasksErr } = await supabase.from('tasks').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'company');
-      if (tasksErr) console.error(`Merge tasks update error: ${tasksErr.message}`);
+      const existingSurvivor = await this.getById(survivorId);
+      if (!existingSurvivor) throw new ServiceError('Survivor company not found', 'MERGE_FAILED');
+      const survivorLeadIds = existingSurvivor.leadIds;
 
-      const { error: meetingsErr } = await supabase.from('meetings').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'company');
-      if (meetingsErr) console.error(`Merge meetings update error: ${meetingsErr.message}`);
+      // Capture the merged-away companies' lead linkages BEFORE deleting them —
+      // the leads table has no company_id, so companies.lead_ids is the only
+      // lead→company link to preserve onto the survivor.
+      const { data: mergedRows, error: mergedErr } = await supabase
+        .from('companies')
+        .select('id, lead_ids')
+        .in('id', mergeIds);
+      if (mergedErr) throw toServiceError(mergedErr);
+      const mergedLeadIds = (mergedRows ?? []).reduce<string[]>(
+        (acc, row: DbCompany) => acc.concat(row.lead_ids ?? []),
+        [],
+      );
 
-      const { error: activitiesErr } = await supabase.from('activities').update({ entity_id: survivorId }).in('entity_id', mergeIds);
-      if (activitiesErr) console.error(`Merge activities update error: ${activitiesErr.message}`);
-
-      const { error: taggingsErr } = await supabase.from('taggings').update({ taggable_id: survivorId }).in('taggable_id', mergeIds).eq('taggable_type', 'company');
-      if (taggingsErr) console.error(`Merge taggings update error: ${taggingsErr.message}`);
-
-      const { error: contactsErr } = await supabase.from('contacts').update({ company_id: survivorId }).in('company_id', mergeIds);
-      if (contactsErr) console.error(`Merge contacts update error: ${contactsErr.message}`);
-
-      for (const id of mergeIds) {
-        await this.delete(id);
+      // Repoint related records to the survivor (scoped by entity type — C16).
+      const repointOps = [
+        supabase.from('tasks').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'company'),
+        supabase.from('meetings').update({ related_to_id: survivorId }).in('related_to_id', mergeIds).eq('related_to_type', 'company'),
+        supabase.from('activities').update({ entity_id: survivorId }).in('entity_id', mergeIds).eq('entity_type', 'company'),
+        supabase.from('taggings').update({ taggable_id: survivorId }).in('taggable_id', mergeIds).eq('taggable_type', 'company'),
+        supabase.from('contacts').update({ company_id: survivorId }).in('company_id', mergeIds),
+      ];
+      const repointResults = await Promise.all(repointOps);
+      for (const result of repointResults) {
+        if (result.error) {
+          throw new ServiceError(
+            `Failed to merge related records into company ${survivorId}: ${result.error.message}`,
+            'MERGE_REPOINT_FAILED',
+          );
+        }
       }
 
-      const survivor = await this.getById(survivorId);
-      if (!survivor) throw new ServiceError('Survivor company not found after merge', 'MERGE_FAILED');
+      for (const id of mergeIds) {
+        const deleted = await this.delete(id);
+        if (!deleted) throw new ServiceError(`Company ${id} not found during merge`, 'MERGE_FAILED');
+      }
+
+      // Rebuild the survivor's denormalized arrays from actual rows so the
+      // company detail's Contacts/Leads tabs reflect every repointed record.
+      const { data: linkedContacts, error: contactsQueryErr } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('company_id', survivorId);
+      if (contactsQueryErr) throw toServiceError(contactsQueryErr);
+      const contactIds = (linkedContacts ?? []).map((row: DbContact) => row.id);
+      const leadIds = Array.from(new Set([...survivorLeadIds, ...mergedLeadIds]));
+
+      const { data: updatedSurvivor, error: updateErr } = await supabase
+        .from('companies')
+        .update({ contact_ids: contactIds, lead_ids: leadIds })
+        .eq('id', survivorId)
+        .select()
+        .single();
+      if (updateErr) throw toServiceError(updateErr);
+
+      const survivor = mapRowToCompany(updatedSurvivor);
       activityService.log('company', survivorId, 'updated', `Company merged: merged ${mergeIds.length} duplicates`);
       return survivor;
     } catch (e) {
@@ -251,14 +359,19 @@ export const companyService = {
     }
   },
 
+  /**
+   * Total annual revenue across all companies. Not called by any current UI —
+   * kept for the dashboard revenue-estimation surface (FEATURES.md feature 3).
+   */
   async getRevenueEstimate(): Promise<number> {
     try {
       const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('companies')
-        .select('revenue');
+        .select('*');
       if (error) throw toServiceError(error);
-      return (data ?? []).reduce((sum: number, row: Record<string, unknown>) => sum + ((row.revenue as number) ?? 0), 0);
+      const rows = data ?? [];
+      return rows.reduce((sum: number, row: DbCompany) => sum + (row.revenue ?? 0), 0);
     } catch (e) {
       throw toServiceError(e);
     }

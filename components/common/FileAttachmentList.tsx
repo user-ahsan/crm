@@ -16,7 +16,7 @@ import {
   validateFile,
   MAX_FILE_SIZE_BYTES,
   getAttachmentUrl,
-} from '@/services/attachment.service';
+} from '@/lib/file-utils';
 import {
   IconFile,
   IconFileText,

@@ -1,12 +1,32 @@
 import { randomUUID } from 'crypto';
 
-export function formatCurrency(value: number): string {
+/**
+ * Format a numeric value as currency.
+ * @param value - The numeric amount.
+ * @param currency - ISO 4217 currency code (default 'USD'). Falls back to 'USD' if invalid.
+ */
+export function formatCurrency(value: number, currency = 'USD'): string {
+  const safeCurrency = currency && /^[A-Z]{3}$/i.test(currency) ? currency.toUpperCase() : 'USD';
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD',
+    currency: safeCurrency,
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(value);
+}
+
+/**
+ * Group an array of { value, currency } items into per-currency totals
+ * and format as a readable string like "$100 · €50".
+ */
+export function formatMultiCurrencyTotals(items: ReadonlyArray<{ value: number; currency: string }>): string {
+  const totals = new Map<string, number>();
+  for (const item of items) {
+    const cur = item.currency && /^[A-Z]{3}$/i.test(item.currency) ? item.currency.toUpperCase() : 'USD';
+    totals.set(cur, (totals.get(cur) ?? 0) + item.value);
+  }
+  if (totals.size === 0) return formatCurrency(0);
+  return Array.from(totals, ([cur, val]) => formatCurrency(val, cur)).join(' · ');
 }
 
 export function formatDate(dateString: string): string {

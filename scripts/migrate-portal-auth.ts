@@ -21,16 +21,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-
-interface PortalUserRow {
-  id: string;
-  email: string;
-  name: string;
-  password_hash: string | null;
-  last_login: string | null;
-  active: boolean;
-  created_at: string;
-}
+import type { Database } from '@/types/supabase.types';
 
 interface MigrationResult {
   migrated: number;
@@ -53,10 +44,10 @@ async function migrate(): Promise<MigrationResult> {
   }
 
   // ── Clients ────────────────────────────────────────────────────────────────
-  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+  const adminClient = createClient<Database>(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false },
   });
-  const anonClient = createClient(supabaseUrl, serviceRoleKey, {
+  const anonClient = createClient<Database>(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false },
   });
 
@@ -79,7 +70,7 @@ async function migrate(): Promise<MigrationResult> {
     return result;
   }
 
-  const portalUsers = users as unknown as PortalUserRow[];
+  const portalUsers = users;
   console.log(`📋 Found ${portalUsers.length} user(s) to migrate.\n`);
 
   // ── Migrate each user ─────────────────────────────────────────────────────

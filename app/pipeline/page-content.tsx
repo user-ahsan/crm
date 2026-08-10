@@ -16,13 +16,14 @@ import { IconRefresh, IconColumns, IconCurrencyDollar, IconUser, IconFlag } from
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrency, formatMultiCurrencyTotals } from '@/lib/formatters';
 
 export default function PipelinePage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('leads');
   const [swimlaneGroup, setSwimlaneGroup] = useState<SwimlaneGroup>('none');
-  const { pipeline, leads, loading: leadsLoading, error: leadsError, refresh: refreshLeads, swimlaneData } = usePipeline();
+  const pipelineHook = usePipeline();
+  const { pipeline, leads, loading: leadsLoading, error: leadsError, refresh: refreshLeads, swimlaneData, moveLead, workflowStages, workflowStagesLoading } = pipelineHook;
   const { deals, stages, loading: dealsLoading, error: dealsError, refresh: refreshDeals, updateDeal } = useDeals();
 
   const totalValue = useMemo(() => {
@@ -41,9 +42,12 @@ export default function PipelinePage() {
     return wonStage?.totalValue ?? 0;
   }, [pipeline]);
 
-  const dealTotalValue = useMemo(() => {
-    return deals.reduce((sum, d) => sum + d.value, 0);
+  // Multi-currency deal totals: group by currency to avoid summing mixed currencies
+  const dealTotalValueLabel = useMemo(() => {
+    return formatMultiCurrencyTotals(deals.map((d) => ({ value: d.value, currency: d.currency })));
   }, [deals]);
+
+  const dealCount = deals.length;
 
   const loading = activeTab === 'leads' ? leadsLoading : dealsLoading;
   const error = activeTab === 'leads' ? leadsError : dealsError;
@@ -111,7 +115,7 @@ export default function PipelinePage() {
                 ? undefined
                 : activeTab === 'leads'
                   ? `${totalLeads} lead${totalLeads !== 1 ? 's' : ''} · ${formatCurrency(totalValue)} total value`
-                  : `${deals.length} deal${deals.length !== 1 ? 's' : ''} · ${formatCurrency(dealTotalValue)} total value`
+                  : `${dealCount} deal${dealCount !== 1 ? 's' : ''} · ${dealTotalValueLabel} total value`
             }
           >
             <Button variant="outline" size="sm" onClick={refresh} disabled={loading} aria-label="Refresh pipeline">
@@ -182,23 +186,26 @@ export default function PipelinePage() {
                   />
                 </div>
               )}
+              {/* Lifted usePipeline props prevent duplicate hook instances (F26 fix #2) */}
               <KanbanBoard
                 swimlaneGroup={swimlaneGroup}
                 swimlaneData={swimlaneData}
                 entityType="lead"
+                pipelineFromProps={pipeline}
+                moveLeadFromProps={moveLead}
+                loadingFromProps={leadsLoading}
+                errorFromProps={leadsError}
+                refreshFromProps={refreshLeads}
+                workflowStagesFromProps={workflowStages}
+                workflowStagesLoadingFromProps={workflowStagesLoading}
               />
             </TabsContent>
 
             <TabsContent value="deals">
               {!dealsLoading && (
                 <div className="flex items-center gap-3 mb-3 flex-wrap">
-                  <MiniStat label="Deals" value={deals.length} />
-                  <MiniStat label="Total" value={formatCurrency(dealTotalValue)} variant="primary" />
-                  <MiniStat
-                    label="Avg"
-                    value={deals.length > 0 ? formatCurrency(Math.round(dealTotalValue / deals.length)) : formatCurrency(0)}
-                    variant="primary"
-                  />
+                  <MiniStat label="Deals" value={dealCount} />
+                  <MiniStat label="Total" value={dealTotalValueLabel} variant="primary" />
                   <MiniStat label="Stages" value={stages.length} />
                 </div>
               )}
@@ -209,10 +216,10 @@ export default function PipelinePage() {
                 stages={stages}
                 loading={dealsLoading}
                 onDealDrop={async (dealId, stageId) => {
-                  try {
-                    await updateDeal(dealId, { stageId });
-                    refreshDeals();
-                  } catch { toast.error('Failed to move deal'); }
+                  const result = await updateDeal(dealId, { stageId });
+                  if (!result) {
+                    toast.error('Failed to move deal');
+                  }
                 }}
                 onDealClick={(deal) => { router.push(`/deals/${deal.id}`); }}
               />

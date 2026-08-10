@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { FileAttachment, RelatedEntityType } from '@/types/attachment.types';
 import { generateId } from '@/lib/formatters';
 import { attachmentService, validateFile } from '@/services/attachment.service';
@@ -10,6 +10,19 @@ export function useAttachments(relatedToType: RelatedEntityType, relatedToId: st
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  // Timer that resets the progress bar after a successful upload; cleared on
+  // unmount and before a new upload so it can never hit an unmounted component
+  // or clobber a newer upload's progress.
+  const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (progressTimerRef.current) {
+        clearTimeout(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -59,6 +72,11 @@ export function useAttachments(relatedToType: RelatedEntityType, relatedToId: st
       createdAt: new Date().toISOString(),
     };
     setAttachments((prev) => [optimisticItem, ...prev]);
+    // Clear any pending reset timer from a previous upload
+    if (progressTimerRef.current) {
+      clearTimeout(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
     setUploadProgress(0);
     try {
       const interval = setInterval(() => {
@@ -71,12 +89,19 @@ export function useAttachments(relatedToType: RelatedEntityType, relatedToId: st
         const created = await attachmentService.upload(file, relatedToType, relatedToId, uploadedBy);
         setUploadProgress(100);
         setAttachments((prev) => prev.map((a) => (a.id === tempId ? created : a)));
-        setTimeout(() => setUploadProgress(null), 500);
+        progressTimerRef.current = setTimeout(() => {
+          setUploadProgress(null);
+          progressTimerRef.current = null;
+        }, 500);
         return created;
       } finally {
         clearInterval(interval);
       }
     } catch (e) {
+      if (progressTimerRef.current) {
+        clearTimeout(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
       setAttachments((prev) => prev.filter((a) => a.id !== tempId));
       setError(e instanceof Error ? e.message : 'Failed to upload file');
       setUploadProgress(null);

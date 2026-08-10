@@ -62,6 +62,69 @@ export interface PresenceCallbacks {
   onLeave?: (user: PresenceUser) => void;
 }
 
+// ── Runtime guards ───────────────────────────────────────────────────────
+// Broadcast / presence payloads cross the Realtime wire untyped. Validate
+// every inbound payload before trusting it (the NotificationPanel crashed
+// on malformed broadcast types — agent 14 P1).
+
+const NOTIFICATION_EVENTS: readonly NotificationEvent[] = [
+  'lead_created',
+  'task_due',
+  'meeting_scheduled',
+  'deal_won',
+  'status_change',
+  'member_joined',
+];
+
+/** Returns true when `value` is one of the known NotificationEvent values. */
+export function isNotificationEvent(value: unknown): value is NotificationEvent {
+  return typeof value === 'string' && (NOTIFICATION_EVENTS as readonly string[]).includes(value);
+}
+
+/** Runtime guard for a complete RealtimeNotification object. */
+export function isRealtimeNotification(x: unknown): x is RealtimeNotification {
+  if (!x || typeof x !== 'object') return false;
+  const n = x as Record<string, unknown>;
+  return (
+    typeof n.id === 'string' &&
+    isNotificationEvent(n.type) &&
+    typeof n.title === 'string' &&
+    typeof n.description === 'string' &&
+    typeof n.timestamp === 'string' &&
+    typeof n.read === 'boolean' &&
+    (n.data === undefined || (typeof n.data === 'object' && n.data !== null))
+  );
+}
+
+/** Raw presence entry shape as tracked by `channel.track(...)`. */
+interface RawPresenceEntry {
+  user_id: string;
+  name: string;
+  avatar_url?: string | null;
+}
+
+function isRawPresenceEntry(x: unknown): x is RawPresenceEntry {
+  if (!x || typeof x !== 'object') return false;
+  const p = x as Record<string, unknown>;
+  return typeof p.user_id === 'string' && typeof p.name === 'string';
+}
+
+/** Validates and maps a list of raw presence entries to PresenceUser[]. */
+function parsePresenceList(value: unknown): PresenceUser[] {
+  if (!Array.isArray(value)) return [];
+  const users: PresenceUser[] = [];
+  for (const entry of value) {
+    if (isRawPresenceEntry(entry)) {
+      users.push({
+        userId: entry.user_id,
+        name: entry.name,
+        avatarUrl: entry.avatar_url ?? undefined,
+      });
+    }
+  }
+  return users;
+}
+
 // ── State ───────────────────────────────────────────────────────────────
 
 /** Active Postgres change subscription channels keyed by channel name. */
@@ -317,85 +380,60 @@ export function stopListening(channelName?: string): void {
 /**
  * Fallback polling for notifications the user may have missed while offline.
  *
- * Queries the `activities` table for recent activity records and maps them
- * to `RealtimeNotification` objects. This acts as a catch-up mechanism when
- * Realtime wasn't active.
+ * Reads the persistent `notifications` table scoped to `userId` — the
+ * notification panel's durable catch-up source. `notificationService.create`
+ * writes rows here AND broadcasts on the user's realtime channel, so the
+ * offline fallback and the live push never diverge.
  *
- * @param userId — The authenticated user's ID
- * @returns      — A list of recent notifications derived from activities
+ * Previously this derived notifications from the `activities` table, which
+ * (a) filtered on plural entity types ('leads') while activities store
+ * singular values ('lead') — so it always returned [] — and (b) was not
+ * user-scoped (the `_userId` parameter was voided). Both defects are fixed:
+ * persisted notifications are inherently per-user and the query filters by
+ * `user_id`.
+ *
+ * @param userId — The user whose unread/read persisted notifications to fetch
+ * @returns      — A list of recent notifications mapped to RealtimeNotification
  */
 export async function getPendingNotifications(
-  _userId: string,
+  userId: string,
 ): Promise<RealtimeNotification[]> {
-  void _userId; // Reserved for future use — will scope notifications per user
   try {
     const supabase = getSupabaseClient();
 
-    // Fetch recent activities across all entity types that the user
-    // is assigned to or that reference the user
-    const { data: activities, error } = await supabase
-      .from('activities')
+    const { data: rows, error } = await supabase
+      .from('notifications')
       .select('*')
-      .or(`entity_type.eq.leads,entity_type.eq.deals,entity_type.eq.tasks,entity_type.eq.meetings`)
-      .order('timestamp', { ascending: false })
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
       .limit(50);
 
     if (error) throw toServiceError(error);
-    if (!activities || activities.length === 0) return [];
+    if (!rows || rows.length === 0) return [];
 
     const notifications: RealtimeNotification[] = [];
-
-    for (const activity of activities) {
-      // Map activity types to notification events
-      const typeMap: Record<string, NotificationEvent> = {
-        created: 'lead_created',
-        task_created: 'task_due',
-        task_completed: 'task_due',
-        meeting_scheduled: 'meeting_scheduled',
-        status_changed: 'status_change',
-        assigned: 'member_joined',
-      };
-
-      const mappedType = typeMap[activity.type];
-      if (!mappedType) continue;
-
+    for (const row of rows) {
+      // Skip rows with an unknown event type rather than fabricating a
+      // notification for them (mirrors the "skip malformed payloads"
+      // behavior of the live realtime path).
+      if (!isNotificationEvent(row.type)) continue;
       notifications.push({
-        id: `pending-${activity.id}`,
-        type: mappedType,
-        title: formatPendingTitle(activity.type, activity.description),
-        description: activity.description,
-        timestamp: activity.timestamp,
-        read: true, // Pending notifications from the past are pre-marked as read
-        data: activity.metadata ?? undefined,
+        id: row.id,
+        type: row.type,
+        title: row.title,
+        description: row.body,
+        timestamp: row.created_at,
+        read: row.read_at !== null,
+        data:
+          row.entity_type && row.entity_id
+            ? { [`${row.entity_type}Id`]: row.entity_id }
+            : undefined,
       });
     }
 
     return notifications;
   } catch (e) {
     throw toServiceError(e);
-  }
-}
-
-/**
- * Formats a human-readable title for a pending notification based on the
- * activity type and description.
- */
-function formatPendingTitle(type: string, description: string): string {
-  switch (type) {
-    case 'created':
-      return description.startsWith('Lead') ? 'New Lead' : 'New Entry';
-    case 'task_created':
-      return 'New Task';
-    case 'task_completed':
-      return 'Task Completed';
-    case 'meeting_scheduled':
-      return 'Meeting Scheduled';
-    case 'status_changed':
-      return 'Status Change';
-    case 'assigned':
-      return 'You were assigned';
-    default:
-      return 'Update';
   }
 }
 
@@ -429,11 +467,10 @@ export function startBroadcast(
   const channel = supabase.channel(channelName);
 
   // Listen for broadcast notification events
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  channel.on('broadcast', { event: 'notification' }, ({ payload }: { payload: any }) => {
+  channel.on('broadcast', { event: 'notification' }, ({ payload }: { payload: unknown }) => {
     try {
-      const notification = payload as RealtimeNotification;
-      callbacks.onNotification(notification);
+      if (!isRealtimeNotification(payload)) return;
+      callbacks.onNotification(payload);
     } catch {
       // Silently skip malformed payloads
     }
@@ -601,62 +638,39 @@ export function onPresenceChange(
         const state = channel.presenceState();
         const users: PresenceUser[] = [];
         for (const presences of Object.values(state)) {
-          const list = presences as Array<{
-            user_id: string;
-            name: string;
-            avatar_url?: string;
-          }>;
-          for (const p of list) {
-            users.push({
-              userId: p.user_id,
-              name: p.name,
-              avatarUrl: p.avatar_url ?? undefined,
-            });
-          }
+          users.push(...parsePresenceList(presences));
         }
         callbacks.onSync(users);
       } catch {
         // Silently skip malformed presence state
       }
     })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .on('presence', { event: 'join' }, ({ newPresences }: { newPresences: any }) => {
-      try {
-        const presences = newPresences as Array<{
-          user_id: string;
-          name: string;
-          avatar_url?: string;
-        }>;
-        for (const p of presences) {
-          callbacks.onJoin?.({
-            userId: p.user_id,
-            name: p.name,
-            avatarUrl: p.avatar_url ?? undefined,
-          });
+    .on(
+      'presence',
+      { event: 'join' },
+      ({ newPresences }: { newPresences: Array<{ user_id: string; name: string; avatar_url?: string | null }> }) => {
+        try {
+          for (const user of parsePresenceList(newPresences)) {
+            callbacks.onJoin?.(user);
+          }
+        } catch {
+          // Silently skip malformed join events
         }
-      } catch {
-        // Silently skip malformed join events
-      }
-    })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .on('presence', { event: 'leave' }, ({ leftPresences }: { leftPresences: any }) => {
-      try {
-        const presences = leftPresences as Array<{
-          user_id: string;
-          name: string;
-          avatar_url?: string;
-        }>;
-        for (const p of presences) {
-          callbacks.onLeave?.({
-            userId: p.user_id,
-            name: p.name,
-            avatarUrl: p.avatar_url ?? undefined,
-          });
+      },
+    )
+    .on(
+      'presence',
+      { event: 'leave' },
+      ({ leftPresences }: { leftPresences: Array<{ user_id: string; name: string; avatar_url?: string | null }> }) => {
+        try {
+          for (const user of parsePresenceList(leftPresences)) {
+            callbacks.onLeave?.(user);
+          }
+        } catch {
+          // Silently skip malformed leave events
         }
-      } catch {
-        // Silently skip malformed leave events
-      }
-    });
+      },
+    );
 
   // Only subscribe if this is a new channel (not reusing an existing one)
   if (!existing) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { IconEye, IconPlus } from '@tabler/icons-react';
+import { IconPlus } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import type { SavedView, ViewEntityType } from '@/types/saved-view.types';
 import { savedViewService } from '@/services/saved-view.service';
@@ -122,10 +122,6 @@ export default function SavedViewsPage() {
     setDeleteTarget(null);
   }, [deleteTarget, activeTab, fetchViews]);
 
-  const handleApply = useCallback((view: SavedView) => {
-    toast.success(`Applied view: "${view.name}"`);
-  }, []);
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -161,7 +157,6 @@ export default function SavedViewsPage() {
                   loading={loadingMap[tab.value]}
                   error={errorMap[tab.value]}
                   onRefresh={() => fetchViews(tab.value)}
-                  onApply={handleApply}
                   onEdit={handleOpenEdit}
                   onDelete={handleOpenDelete}
                 />

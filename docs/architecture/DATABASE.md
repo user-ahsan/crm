@@ -201,7 +201,7 @@
 
 ---
 
-### Complete Table Reference (28 Tables)
+### Complete Table Reference (46 Tables)
 
 | # | Table | Description | Key Fields |
 |---|-------|-------------|------------|
@@ -238,6 +238,19 @@
 | 31 | `sms_logs` | SMS message history | `to_number`, `from_number`, `body`, `direction`, `status` |
 | 32 | `portal_users` | Customer portal accounts | `email`, `name`, `password_hash`, `active`, `last_login` |
 | 33 | `portal_shares` | Record sharing for portal users | `portal_user_id`, `related_to_type`, `related_to_id`, `permission` |
+| 34 | `rate_limits` | Hybrid rate-limit tracking (in-memory + DB) | `key`, `count`, `window_start` |
+| 35 | `webhook_configs` | Webhook URL + secret + enabled configuration | `url`, `secret`, `enabled`, `events` |
+| 36 | `webhook_deliveries` | Webhook delivery log with status + response | `config_id`, `event`, `status`, `response_code` |
+| 37 | `webhook_events` | Inbound webhook event ingest log | `event`, `source`, `payload` |
+| 38 | `campaign_recipients` | Per-recipient campaign email tracking | `campaign_id`, `email`, `status`, `sent_at` |
+| 39 | `notification_preferences` | Per-user notification preferences | `user_id`, `channel`, `enabled` |
+| 40 | `notifications` | Persistent in-app notification records | `user_id`, `title`, `body`, `type`, `read_at` |
+| 41 | `branding_settings` | White-label branding (logo, colors) | `team_id`, `logo_url`, `primary_color` |
+| 42 | `service_configs` | Per-service config (Resend, Twilio, Google) | `service`, `config` (jsonb), `team_id` |
+| 43 | `profiles` | User profile extensions | `user_id`, `display_name`, `avatar_url` |
+| 44 | `invoices` | Sales invoices with line items | `invoice_number`, `status`, `total`, `due_date` |
+| 45 | `invoice_items` | Line items within an invoice | `invoice_id`, `description`, `quantity`, `unit_price` |
+| 46 | `invoice_templates` | Customizable invoice templates | `name`, `logo_url`, `primary_color`, `fields` |
 
 ---
 
@@ -287,13 +300,20 @@ When Supabase is used, Row-Level Security policies are applied:
 The `supabase/migrations/` directory contains SQL migration files that set up the database schema incrementally. Each migration adds new tables, columns, or indexes.
 
 Key migrations:
-1. **Initial schema** — Core entities (leads, contacts, companies, tasks, meetings, activities)
-2. **Teams & permissions** — teams, team_members, team_invitations tables
-3. **Deal management** — deals, deal_stages tables
-4. **Communication** — email_history, call_logs, notes, sms_logs tables
-5. **Sales tools** — quotes, quote_items, forecasts, goals tables
-6. **Automation** — automation_rules, workflow_states, workflow_transitions tables
-7. **Extensions** — api_keys, saved_views, calendar_integrations, portal_users, portal_shares, tags, taggings, file_attachments, lead_scores, email_sequences, campaign_emails
+1. **00001_initial_schema** — Core entities (leads, contacts, companies, tasks, meetings, activities, teams, team_members, team_invitations, rate_limits, portal_users)
+2. **00002_tags** — Tags and polymorphic taggings
+3. **00003_automation_rules** — Automation rule engine table
+4. **00004_communications** — email_history, call_logs, notes
+5. **00005_revenue_intelligence** — deals, deal_stages, lead_scores, quotes, quote_items, forecasts
+6. **00006_advanced_features** — email_sequences, campaign_emails, goals, file_attachments, saved_views, api_keys
+7. **00007_ecosystem** — workflow_states, workflow_transitions, calendar_integrations, sms_logs, portal_shares
+8. **00008_branding_and_service_configs** — branding_settings, service_configs
+9. **20260726_complete_features** — webhook_configs, webhook_deliveries, campaign_recipients, notification_preferences
+10. **20260726_rls_policies** — Row-level security policies for all tables
+11. **20260731_notifications** — notifications table
+12. **20260731_schema_alignment** — profiles, invoices, invoice_items, invoice_templates, webhook_events
+13. **20260731_role_scoped_policies** — Role-scoped RLS policies
+14. **20260731_widen_meetings_type_check** — Meeting type check constraint update
 
 ---
 

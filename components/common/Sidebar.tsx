@@ -336,9 +336,11 @@ function SidebarLogo({ collapsed }: { collapsed: boolean }) {
 
   return (
     <div className="flex h-14 shrink-0 items-center px-4">
-      <span className="text-lg font-bold tracking-tight text-sidebar-primary">
-        Nexus<span className="text-sidebar-foreground">CRM</span>
-      </span>
+      <Link href={"/dashboard"}>
+        <span className="text-lg font-bold tracking-tight text-sidebar-primary">
+          Nexus<span className="text-sidebar-foreground">CRM</span>
+        </span>
+      </Link>
     </div>
   );
 }

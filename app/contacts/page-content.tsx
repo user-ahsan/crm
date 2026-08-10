@@ -55,8 +55,12 @@ function ContactsPageContent() {
     } else {
       params.delete('tag');
     }
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [debouncedSearch, tagFilter, pathname, router, searchParams]);
+    const next = params.toString();
+    const current = searchParams.toString();
+    if (next !== current) {
+      router.replace(`${pathname}?${next}`, { scroll: false });
+    }
+  }, [debouncedSearch, tagFilter, pathname, router]);
 
   const handleLoadView = useCallback((view: SavedView) => {
     const f = view.filters as Record<string, string>;
@@ -209,7 +213,20 @@ function ContactsPageContent() {
       toast.error('No contacts to export');
       return;
     }
-    const csv = convertToCSV(selected as unknown as Record<string, unknown>[], CONTACT_EXPORT_COLUMNS);
+    const rows: Record<string, unknown>[] = selected.map((c) => ({
+      id: c.id,
+      name: c.name,
+      email: c.email,
+      phone: c.phone,
+      jobTitle: c.jobTitle,
+      companyId: c.companyId,
+      location: c.location,
+      tags: c.tags,
+      notes: c.notes,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+    }));
+    const csv = convertToCSV(rows, CONTACT_EXPORT_COLUMNS);
     const filename = `contacts-export-${new Date().toISOString().slice(0, 10)}.csv`;
     downloadCSV(csv, filename);
     toast.success(`Exported ${selected.length} contact${selected.length !== 1 ? 's' : ''}`);

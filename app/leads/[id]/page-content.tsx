@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { IconEdit, IconArrowLeft } from '@tabler/icons-react';
 import type { Lead } from '@/types/lead.types';
@@ -56,6 +56,12 @@ export default function LeadDetailPage() {
     },
     [loadLead],
   );
+
+  // Fetch the lead once on mount — LeadDetail receives it via `initialLead`
+  // so the detail view never double-fetches.
+  useEffect(() => {
+    loadLead();
+  }, [loadLead]);
 
   // --- Loading State ---
   if (loading) {
@@ -122,8 +128,9 @@ export default function LeadDetailPage() {
         </Button>
       </div>
 
-      {/* Lead Detail Component */}
-      <LeadDetail leadId={leadId} onBack={handleBack} />
+      {/* Lead Detail Component — the fetched lead is passed down so
+          LeadDetail skips its own fetch (single-fetch detail page) */}
+      <LeadDetail leadId={leadId} onBack={handleBack} initialLead={lead} />
 
       {/* Edit Dialog */}
       <LeadCreateForm

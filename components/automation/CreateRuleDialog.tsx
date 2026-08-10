@@ -61,6 +61,55 @@ const ACTION_TYPES = [
   { value: 'trigger_webhook', label: 'Trigger Webhook' },
 ];
 
+// ponytail: entity fields per trigger type for condition builder
+const ENTITY_FIELDS: Record<string, { value: string; label: string }[]> = {
+  lead: [
+    { value: 'status', label: 'Status' },
+    { value: 'source', label: 'Source' },
+    { value: 'priority', label: 'Priority' },
+    { value: 'assignedTo', label: 'Assigned To' },
+    { value: 'score', label: 'Score' },
+    { value: 'company', label: 'Company' },
+    { value: 'email', label: 'Email' },
+    { value: 'phone', label: 'Phone' },
+  ],
+  contact: [
+    { value: 'email', label: 'Email' },
+    { value: 'phone', label: 'Phone' },
+    { value: 'jobTitle', label: 'Job Title' },
+    { value: 'company', label: 'Company' },
+    { value: 'assignedTo', label: 'Assigned To' },
+  ],
+  company: [
+    { value: 'name', label: 'Name' },
+    { value: 'industry', label: 'Industry' },
+    { value: 'website', label: 'Website' },
+    { value: 'assignedTo', label: 'Assigned To' },
+  ],
+  task: [
+    { value: 'status', label: 'Status' },
+    { value: 'priority', label: 'Priority' },
+    { value: 'assignedTo', label: 'Assigned To' },
+    { value: 'dueDate', label: 'Due Date' },
+  ],
+  meeting: [
+    { value: 'status', label: 'Status' },
+    { value: 'assignedTo', label: 'Assigned To' },
+    { value: 'startDate', label: 'Start Date' },
+  ],
+  deal: [
+    { value: 'stage', label: 'Stage' },
+    { value: 'value', label: 'Value' },
+    { value: 'assignedTo', label: 'Assigned To' },
+    { value: 'closeDate', label: 'Close Date' },
+  ],
+};
+
+function getFieldsForTrigger(trigger: string): { value: string; label: string }[] {
+  const entityType = trigger.split('.')[0];
+  return ENTITY_FIELDS[entityType] ?? [];
+}
+
 interface CreateRuleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -115,9 +164,14 @@ export function CreateRuleDialog({ open, onOpenChange, onSave, initialData }: Cr
       case 'add_tag':
         return [{ key: 'tag', label: 'Tag Name', placeholder: 'high-priority' }];
       case 'send_email':
+        // The executor (automation.service executeActions → send_email) reads
+        // recipient (required) + subject + body; body must be non-empty. The
+        // templateId key is still honored for programmatic/legacy rules but is
+        // no longer collected here — subject/body are what actually ship.
         return [
           { key: 'recipient', label: 'Recipient', placeholder: 'user@example.com' },
-          { key: 'templateId', label: 'Template ID', placeholder: 'template-1' },
+          { key: 'subject', label: 'Subject', placeholder: 'Update from NexusCRM' },
+          { key: 'body', label: 'Body', placeholder: 'Hello, this is an automated update from your CRM.' },
         ];
       case 'send_notification':
         return [
@@ -212,7 +266,16 @@ export function CreateRuleDialog({ open, onOpenChange, onSave, initialData }: Cr
               <div key={i} className="flex items-start gap-2 rounded-lg border p-3">
                 <div className="flex-1 space-y-1">
                   <Label className="text-xs">Field</Label>
-                  <Input value={condition.field} onChange={(e) => handleConditionChange(i, 'field', e.target.value)} placeholder="e.g. status" />
+                  <Select value={condition.field} onValueChange={(v) => v && handleConditionChange(i, 'field', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select field" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getFieldsForTrigger(triggerEvent).map((f) => (
+                        <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="w-36 space-y-1">
                   <Label className="text-xs">Operator</Label>

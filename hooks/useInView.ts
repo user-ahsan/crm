@@ -2,7 +2,25 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-export function useInView(threshold = 0.1) {
+export interface UseInViewOptions {
+  /** Fraction of the element that must be visible to trigger (default 0.1). */
+  threshold?: number;
+  /** Root element for the IntersectionObserver (defaults to viewport). */
+  root?: Element | Document | null;
+  /** Margin around the root, e.g. '100px' (defaults to none). */
+  rootMargin?: string;
+}
+
+/**
+ * Intersection Observer hook for lazy loading / infinite scroll.
+ *
+ * Accepts either the documented options object (`useInView({ threshold })`)
+ * or the legacy numeric shorthand (`useInView(0.1)`). Always returns the
+ * `[ref, inView]` tuple — callers destructure it either way.
+ */
+export function useInView(options: UseInViewOptions | number = 0.1) {
+  const { threshold = 0.1, root = null, rootMargin = undefined } =
+    typeof options === 'number' ? { threshold: options } : options;
   const [inView, setInView] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
@@ -24,12 +42,12 @@ export function useInView(threshold = 0.1) {
             observerRef.current?.disconnect();
           }
         },
-        { threshold },
+        { threshold, root, rootMargin },
       );
 
       observerRef.current.observe(node);
     },
-    [threshold, inView],
+    [threshold, root, rootMargin, inView],
   );
 
   // Cleanup on unmount

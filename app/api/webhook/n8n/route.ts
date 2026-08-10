@@ -3,13 +3,18 @@ import { timingSafeEqual } from 'crypto';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { corsHeaders } from '@/lib/cors';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import type { WebhookEvent } from '@/types/webhook.types';
 
 /**
  * ─── n8n Webhook Route Handler ───────────────────────────────────────
  *
  * Receives webhook events from n8n workflows and processes them based on
  * event type. Supports all CRM entity events: leads, contacts, companies,
- * tasks, and meetings.
+ * tasks, meetings, deals, quotes, campaigns, and system events.
+ *
+ * The event whitelist is the `WebhookEvent` union from
+ * `types/webhook.types.ts` (the single source of truth) — never define a
+ * second copy here or the whitelist and the services will drift.
  *
  * Authentication:
  *   POST requests must include an Authorization header:
@@ -23,25 +28,10 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
  * ─────────────────────────────────────────────────────────────────────
  */
 
-// ── Webhook event type definitions ────────────────────────────────────
+// Re-export for consumers that referenced the route's type pre-refactor.
+export type { WebhookEvent };
 
-/** All supported webhook events that n8n can trigger. */
-export type WebhookEvent =
-  | 'lead.created'
-  | 'lead.updated'
-  | 'lead.deleted'
-  | 'lead.status_changed'
-  | 'contact.created'
-  | 'contact.updated'
-  | 'contact.deleted'
-  | 'company.created'
-  | 'company.updated'
-  | 'company.deleted'
-  | 'task.created'
-  | 'task.completed'
-  | 'task.overdue'
-  | 'meeting.created'
-  | 'meeting.completed';
+// ── Webhook event type definitions ────────────────────────────────────
 
 /** Events are grouped by entity for validation. */
 const LEAD_EVENTS: ReadonlySet<WebhookEvent> = new Set([
@@ -65,13 +55,42 @@ const COMPANY_EVENTS: ReadonlySet<WebhookEvent> = new Set([
 
 const TASK_EVENTS: ReadonlySet<WebhookEvent> = new Set([
   'task.created',
+  'task.updated',
   'task.completed',
   'task.overdue',
+  'task.deleted',
 ]);
 
 const MEETING_EVENTS: ReadonlySet<WebhookEvent> = new Set([
   'meeting.created',
+  'meeting.updated',
   'meeting.completed',
+  'meeting.deleted',
+]);
+
+const DEAL_EVENTS: ReadonlySet<WebhookEvent> = new Set([
+  'deal.created',
+  'deal.updated',
+  'deal.deleted',
+  'deal.stage_changed',
+]);
+
+const QUOTE_EVENTS: ReadonlySet<WebhookEvent> = new Set([
+  'quote.created',
+  'quote.updated',
+]);
+
+const CAMPAIGN_EVENTS: ReadonlySet<WebhookEvent> = new Set([
+  'campaign.activated',
+  'campaign.paused',
+  'campaign.completed',
+]);
+
+const SYSTEM_EVENTS: ReadonlySet<WebhookEvent> = new Set([
+  'activity.created',
+  'team.created',
+  'team.updated',
+  'email.sent',
 ]);
 
 const ALL_EVENTS: ReadonlySet<WebhookEvent> = new Set([
@@ -80,6 +99,10 @@ const ALL_EVENTS: ReadonlySet<WebhookEvent> = new Set([
   ...COMPANY_EVENTS,
   ...TASK_EVENTS,
   ...MEETING_EVENTS,
+  ...DEAL_EVENTS,
+  ...QUOTE_EVENTS,
+  ...CAMPAIGN_EVENTS,
+  ...SYSTEM_EVENTS,
 ]);
 
 /** Payload received from n8n webhook requests. */
@@ -112,6 +135,20 @@ interface HealthResponse {
 }
 
 type ApiResponse = SuccessResponse | ErrorResponse | HealthResponse;
+
+/**
+ * Row shape for the `webhook_events` ingest table (created by the
+ * schema migration batch — see `supabase/migrations`). Kept local until
+ * `types/supabase.types.ts` is regenerated with the table so the insert
+ * stays fully typed (no `as never`). Column names match the migration.
+ */
+interface WebhookEventInsertRow {
+  source: string;
+  event_type: string;
+  payload: WebhookPayload;
+  status: 'received';
+  created_at: string;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
@@ -186,16 +223,61 @@ function processWebhookEvent(body: WebhookPayload): string {
     // ── Task events ──────────────────────────────────────────────
     case 'task.created':
       return `Task created: ${entityName} (${entityId})`;
+    case 'task.updated':
+      return `Task updated: ${entityName} (${entityId})`;
     case 'task.completed':
       return `Task completed: ${entityName} (${entityId})`;
     case 'task.overdue':
       return `Task overdue: ${entityName} (${entityId}) — requires attention`;
+    case 'task.deleted':
+      return `Task deleted: ${entityName} (${entityId})`;
 
     // ── Meeting events ───────────────────────────────────────────
     case 'meeting.created':
       return `Meeting scheduled: ${entityName} (${entityId})`;
+    case 'meeting.updated':
+      return `Meeting updated: ${entityName} (${entityId})`;
     case 'meeting.completed':
       return `Meeting completed: ${entityName} (${entityId})`;
+    case 'meeting.deleted':
+      return `Meeting deleted: ${entityName} (${entityId})`;
+
+    // ── Deal events ──────────────────────────────────────────────
+    case 'deal.created':
+      return `Deal created: ${entityName} (${entityId})`;
+    case 'deal.updated':
+      return `Deal updated: ${entityName} (${entityId})`;
+    case 'deal.deleted':
+      return `Deal deleted: ${entityName} (${entityId})`;
+    case 'deal.stage_changed': {
+      const fromStage = (data.previousStageId as string) || 'unknown';
+      const toStage = (data.stageId as string) || 'unknown';
+      return `Deal stage changed: ${entityName} — ${fromStage} → ${toStage}`;
+    }
+
+    // ── Quote events ─────────────────────────────────────────────
+    case 'quote.created':
+      return `Quote created: ${entityName} (${entityId})`;
+    case 'quote.updated':
+      return `Quote updated: ${entityName} (${entityId})`;
+
+    // ── Campaign lifecycle events ────────────────────────────────
+    case 'campaign.activated':
+      return `Campaign activated: ${entityName} (${entityId})`;
+    case 'campaign.paused':
+      return `Campaign paused: ${entityName} (${entityId})`;
+    case 'campaign.completed':
+      return `Campaign completed: ${entityName} (${entityId})`;
+
+    // ── System events ────────────────────────────────────────────
+    case 'activity.created':
+      return `Activity recorded: ${entityName} (${entityId})`;
+    case 'team.created':
+      return `Team created: ${entityName} (${entityId})`;
+    case 'team.updated':
+      return `Team updated: ${entityName} (${entityId})`;
+    case 'email.sent':
+      return `Email sent: ${entityName} (${entityId})`;
 
     default:
       return `Unknown event received: ${event}`;
@@ -292,14 +374,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
   // Persist webhook event to database
   try {
     const supabase = await createServerSupabaseClient();
-     
-    await supabase.from('webhook_events').insert({
+
+    const webhookEventRow: WebhookEventInsertRow = {
       source: 'n8n',
-      event_type: body.event || 'unknown',
+      event_type: body.event,
       payload: body,
       status: 'received',
       created_at: receivedAt,
-    } as never);
+    };
+
+    await supabase.from('webhook_events').insert(webhookEventRow);
   } catch (dbError) {
     console.error('Failed to persist webhook event:', dbError);
   }
@@ -324,11 +408,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
  */
 export async function OPTIONS() {
   return NextResponse.json({}, {
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
+    headers: corsHeaders(),
   });
 }
 

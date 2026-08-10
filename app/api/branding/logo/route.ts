@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient, getSupabaseUrl } from '@/lib/supabase/client';
+import { createServerSupabaseClient, getSupabaseUrl } from '@/lib/supabase/server';
 import { corsHeaders } from '@/lib/cors';
 import { validateCsrf } from '@/lib/csrf';
 
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -115,7 +115,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });

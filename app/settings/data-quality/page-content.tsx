@@ -6,6 +6,7 @@ import { IconSearch, IconArrowsLeftRight, IconShieldCheck } from '@tabler/icons-
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -91,13 +92,14 @@ export default function DataQualityPage() {
   const [companyGroups, setCompanyGroups] = useState<CompanyGroup[]>([]);
   const [survivorIds, setSurvivorIds] = useState<Record<string, string>>({});
   const [scanError, setScanError] = useState<string | null>(null);
+  const [threshold, setThreshold] = useState(25);
 
   const handleScan = useCallback(async () => {
     setScanning(true);
     setScanError(null);
     try {
       if (activeTab === 'leads') {
-        const result = await leadService.findDuplicates();
+        const result = await leadService.findDuplicates(threshold);
         setLeadGroups(result);
         const survivors: Record<string, string> = {};
         for (const g of result) {
@@ -105,7 +107,7 @@ export default function DataQualityPage() {
         }
         setSurvivorIds(survivors);
       } else if (activeTab === 'contacts') {
-        const result = await contactService.findDuplicates();
+        const result = await contactService.findDuplicates(threshold);
         setContactGroups(result);
         const survivors: Record<string, string> = {};
         for (const g of result) {
@@ -113,7 +115,7 @@ export default function DataQualityPage() {
         }
         setSurvivorIds(survivors);
       } else {
-        const result = await companyService.findDuplicates();
+        const result = await companyService.findDuplicates(threshold);
         setCompanyGroups(result);
         const survivors: Record<string, string> = {};
         for (const g of result) {
@@ -126,7 +128,7 @@ export default function DataQualityPage() {
     } finally {
       setScanning(false);
     }
-  }, [activeTab]);
+  }, [activeTab, threshold]);
 
   const handleMerge = useCallback(async (groupId: string) => {
     setMerging(true);
@@ -286,17 +288,34 @@ export default function DataQualityPage() {
       />
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)}>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <TabsList>
             <TabsTrigger value="leads">Leads</TabsTrigger>
             <TabsTrigger value="contacts">Contacts</TabsTrigger>
             <TabsTrigger value="companies">Companies</TabsTrigger>
           </TabsList>
 
-          <Button onClick={handleScan} disabled={scanning}>
-            <IconSearch className="mr-1 size-4" />
-            {scanning ? 'Scanning...' : 'Scan for Duplicates'}
-          </Button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="threshold-slider" className="text-sm whitespace-nowrap cursor-default">
+                Threshold: {threshold}%
+              </Label>
+              <input
+                id="threshold-slider"
+                type="range"
+                min={5}
+                max={90}
+                step={5}
+                value={threshold}
+                onChange={(e) => setThreshold(Number(e.target.value))}
+                className="h-2 w-28 cursor-pointer accent-primary"
+              />
+            </div>
+            <Button onClick={handleScan} disabled={scanning}>
+              <IconSearch className="mr-1 size-4" />
+              {scanning ? 'Scanning...' : 'Scan for Duplicates'}
+            </Button>
+          </div>
         </div>
 
         <TabsContent value="leads" className="mt-4">

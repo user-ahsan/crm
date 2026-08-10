@@ -2,8 +2,11 @@
 
 import { useState, useCallback } from 'react';
 import { useNotes } from '@/hooks/useNotes';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { NoteEditor } from './NoteEditor';
+import { MarkdownContent } from '@/components/common/MarkdownContent';
 import { formatRelativeTime, getInitials } from '@/lib/formatters';
+import { getUserName } from '@/lib/user-utils';
 import { USERS } from '@/data/mock-users';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -24,6 +27,7 @@ interface NotesListProps {
 
 export function NotesList({ entityType, entityId }: NotesListProps) {
   const { notes, loading, error, refresh, createNote, updateNote, deleteNote } = useNotes(entityType, entityId);
+  const { user: currentUser } = useCurrentUser();
   const [showEditor, setShowEditor] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -32,12 +36,12 @@ export function NotesList({ entityType, entityId }: NotesListProps) {
   const handleCreate = useCallback(async (title: string, body: string) => {
     setSaving(true);
     try {
-      const result = await createNote({ title, body, relatedToType: entityType, relatedToId: entityId, createdBy: 'user-1' });
+      const result = await createNote({ title, body, relatedToType: entityType, relatedToId: entityId, createdBy: currentUser?.id ?? USERS[0]?.id ?? 'system' });
       if (result) setShowEditor(false);
     } finally {
       setSaving(false);
     }
-  }, [createNote, entityType, entityId]);
+  }, [createNote, entityType, entityId, currentUser?.id]);
 
   const handleUpdate = useCallback(async (id: string, title: string, body: string) => {
     setSaving(true);
@@ -120,7 +124,7 @@ export function NotesList({ entityType, entityId }: NotesListProps) {
             const isExpanded = expandedIds.has(note.id);
             const isEditing = editingNoteId === note.id;
             const preview = note.body.length > 100 ? note.body.slice(0, 100) + '...' : note.body;
-            const authorName = USERS.find((u) => u.id === note.createdBy)?.name ?? 'Unknown';
+            const authorName = getUserName(note.createdBy, 'Unknown');
 
             if (isEditing) {
               return (
@@ -152,9 +156,12 @@ export function NotesList({ entityType, entityId }: NotesListProps) {
                     {note.title && (
                       <p className="mt-0.5 text-sm font-semibold text-foreground">{note.title}</p>
                     )}
-                    <p className="mt-0.5 whitespace-pre-wrap text-sm text-foreground/80">
-                      {isExpanded ? note.body : preview}
-                    </p>
+                    <div className="mt-0.5">
+                      <MarkdownContent
+                        content={isExpanded ? note.body : preview}
+                        className="text-sm text-foreground/80"
+                      />
+                    </div>
                     {note.body.length > 100 && (
                       <button
                         type="button"

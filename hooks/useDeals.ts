@@ -42,6 +42,15 @@ export function useDeals() {
     return () => { cancelled = true; };
   }, [refresh]);
 
+  const getById = useCallback(async (id: string) => {
+    try {
+      return await dealService.getById(id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load deal');
+      return undefined;
+    }
+  }, []);
+
   const createDeal = useCallback(async (data: DealFormData) => {
     const tempId = generateId();
     const optimistic: Deal = { ...data, tags: data.tags ?? [], id: tempId, createdAt: new Date().toISOString(), winLossReason: '', createdBy: 'system', updatedAt: '', description: data.description ?? '', value: data.value ?? 0, currency: data.currency ?? 'USD' };
@@ -60,41 +69,57 @@ export function useDeals() {
   }, []);
 
   const updateDeal = useCallback(async (id: string, data: Partial<DealFormData>) => {
-    let prevItem: Deal | undefined;
-    setDeals((prev) => {
-      prevItem = prev.find((d) => d.id === id);
-      return prev.map((d) => (d.id === id ? { ...d, ...data } : d));
-    });
+    // Capture the pre-mutation row OUTSIDE the state updater so rollback can
+    // restore the exact object at its original index (ARCHITECTURE §10).
+    const prevItem = deals.find((d) => d.id === id);
+    if (!prevItem) return undefined;
+    const prevIndex = deals.indexOf(prevItem);
+    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, ...data } : d)));
     try {
       const updated = await dealService.update(id, data);
-      if (updated) {
-        setDeals((prev) => prev.map((d) => (d.id === id ? updated : d)));
-        useEntityCache.getState().updateDeal(id, updated);
+      if (!updated) {
+        // PGRST116 not-found: revert the optimistic change and surface it.
+        setDeals((prev) => {
+          const next = prev.filter((d) => d.id !== id);
+          next.splice(Math.min(prevIndex, next.length), 0, prevItem);
+          return next;
+        });
+        setError('Failed to update deal: record not found');
+        return undefined;
       }
+      setDeals((prev) => prev.map((d) => (d.id === id ? updated : d)));
+      useEntityCache.getState().updateDeal(id, updated);
       return updated;
     } catch (e) {
-      if (prevItem) setDeals((prev) => prev.map((d) => (d.id === id ? prevItem! : d)));
+      setDeals((prev) => {
+        const next = prev.filter((d) => d.id !== id);
+        next.splice(Math.min(prevIndex, next.length), 0, prevItem);
+        return next;
+      });
       setError(e instanceof Error ? e.message : 'Failed to update deal');
       return undefined;
     }
-  }, []);
+  }, [deals]);
 
   const deleteDeal = useCallback(async (id: string) => {
-    let prevItem: Deal | undefined;
-    setDeals((prev) => {
-      prevItem = prev.find((d) => d.id === id);
-      return prev.filter((d) => d.id !== id);
-    });
+    const prevItem = deals.find((d) => d.id === id);
+    if (!prevItem) return false;
+    const prevIndex = deals.indexOf(prevItem);
+    setDeals((prev) => prev.filter((d) => d.id !== id));
     try {
       await dealService.delete(id);
       useEntityCache.getState().removeDeal(id);
       return true;
     } catch (e) {
-      if (prevItem) setDeals((prev) => [...prev, prevItem!]);
+      setDeals((prev) => {
+        const next = prev.filter((d) => d.id !== id);
+        next.splice(Math.min(prevIndex, next.length), 0, prevItem);
+        return next;
+      });
       setError(e instanceof Error ? e.message : 'Failed to delete deal');
       return false;
     }
-  }, []);
+  }, [deals]);
 
   const createStage = useCallback(async (data: DealStageFormData) => {
     try {
@@ -108,43 +133,49 @@ export function useDeals() {
   }, []);
 
   const updateStage = useCallback(async (id: string, data: Partial<DealStageFormData>) => {
-    let prevItem: DealStage | undefined;
-    setStages((prev) => {
-      prevItem = prev.find((s) => s.id === id);
-      return prev.map((s) => (s.id === id ? { ...s, ...data } : s));
-    });
+    const prevItem = stages.find((s) => s.id === id);
+    if (!prevItem) return undefined;
+    const prevIndex = stages.indexOf(prevItem);
+    setStages((prev) => prev.map((s) => (s.id === id ? { ...s, ...data } : s)));
     try {
       const updated = await dealService.updateStage(id, data);
-      if (updated) setStages((prev) => prev.map((s) => (s.id === id ? updated : s)));
+      setStages((prev) => prev.map((s) => (s.id === id ? updated : s)));
       return updated;
     } catch (e) {
-      if (prevItem) setStages((prev) => prev.map((s) => (s.id === id ? prevItem! : s)));
+      setStages((prev) => {
+        const next = prev.filter((s) => s.id !== id);
+        next.splice(Math.min(prevIndex, next.length), 0, prevItem);
+        return next;
+      });
       setError(e instanceof Error ? e.message : 'Failed to update stage');
       return undefined;
     }
-  }, []);
+  }, [stages]);
 
   const deleteStage = useCallback(async (id: string) => {
-    let prevItem: DealStage | undefined;
-    setStages((prev) => {
-      prevItem = prev.find((s) => s.id === id);
-      return prev.filter((s) => s.id !== id);
-    });
+    const prevItem = stages.find((s) => s.id === id);
+    if (!prevItem) return false;
+    const prevIndex = stages.indexOf(prevItem);
+    setStages((prev) => prev.filter((s) => s.id !== id));
     try {
       await dealService.deleteStage(id);
       return true;
     } catch (e) {
-      if (prevItem) setStages((prev) => [...prev, prevItem!]);
+      setStages((prev) => {
+        const next = prev.filter((s) => s.id !== id);
+        next.splice(Math.min(prevIndex, next.length), 0, prevItem);
+        return next;
+      });
       setError(e instanceof Error ? e.message : 'Failed to delete stage');
       return false;
     }
-  }, []);
+  }, [stages]);
 
   const getPipeline = useCallback(async () => {
     try {
       return await dealService.getPipeline();
-    } catch {
-      // Error preserved in error state
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load pipeline');
       return [];
     }
   }, []);
@@ -156,8 +187,8 @@ export function useDeals() {
   const getTotalValue = useCallback(async () => {
     try {
       return await dealService.getTotalValue();
-    } catch {
-      // Error preserved in error state
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load deal totals');
       return 0;
     }
   }, []);
@@ -168,6 +199,7 @@ export function useDeals() {
     loading,
     error,
     refresh,
+    getById,
     createDeal,
     updateDeal,
     deleteDeal,

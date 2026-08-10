@@ -36,11 +36,48 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | No | — | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_URL` | No | — | Supabase project URL. If absent, app runs in mock mode |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | No | — | Supabase anonymous API key |
-| `SUPABASE_SERVICE_ROLE_KEY` | No | — | Service role key (server-only) |
+| `SUPABASE_SERVICE_ROLE_KEY` | No | — | Service role key (server-only, admin ops) |
+| `CORS_ORIGIN` | No | `http://localhost:3000` | Allowed CORS origin for CSRF validation |
+| `NEXT_PUBLIC_APP_URL` | No | — | Deployment URL (canonical URLs, metadata) |
+| `NEXT_PUBLIC_SITE_URL` | No | — | Site URL for portal redirects and metadata |
+| `NEXT_PUBLIC_PORTAL_URL` | No | — | Portal URL for password-reset redirects |
 | `N8N_WEBHOOK_URL` | No | — | n8n webhook endpoint URL |
-| `N8N_WEBHOOK_SECRET` | No | — | Shared secret for webhook auth |
+| `N8N_WEBHOOK_SECRET` | No | — | Shared secret for n8n webhook auth |
+| `NEXT_PUBLIC_ENABLE_EMAIL` | No | `false` | Enable real Resend email delivery |
+| `NEXT_PUBLIC_ENABLE_SMS` | No | `false` | Enable real Twilio SMS delivery |
+| `NEXT_PUBLIC_ENABLE_WEBHOOKS` | No | `false` | Enable n8n webhook dispatch |
+| `NEXT_PUBLIC_ENABLE_EMAIL_SEQUENCES` | No | `false` | Enable campaign email scheduler |
+| `NEXT_PUBLIC_ENABLE_WORKFLOW_EDITOR` | No | `false` | Enable visual workflow editor |
+| `NEXT_PUBLIC_ENABLE_CALENDAR_SYNC` | No | `false` | Enable Google Calendar OAuth sync |
+| `NEXT_PUBLIC_ENABLE_PORTAL` | No | `false` | Enable customer portal |
+| `NEXT_PUBLIC_ENABLE_REALTIME` | No | `false` | Enable Supabase Realtime (WebSocket) |
+| `NEXT_PUBLIC_ENABLE_INVOICES` | No | `true` | Enable invoices feature |
+| `NEXT_PUBLIC_ENABLE_STANDALONE_INVOICE` | No | `false` | Enable standalone invoice creation |
+| `NEXT_PUBLIC_SUPABASE_REALTIME_ENABLED` | No | `true` | Supabase Realtime channel flag |
+| `RESEND_API_KEY` | No | — | Resend API key (server-only) |
+| `RESEND_FROM_EMAIL` | No | — | Default from email for Resend |
+| `RESEND_FROM_NAME` | No | — | Default from name for Resend |
+| `RESEND_WEBHOOK_SECRET` | No | — | Resend webhook verification secret |
+| `TWILIO_ACCOUNT_SID` | No | — | Twilio account SID |
+| `TWILIO_AUTH_TOKEN` | No | — | Twilio auth token (server-only) |
+| `TWILIO_FROM_NUMBER` | No | — | Default Twilio from number |
+| `GOOGLE_CLIENT_ID` | No | — | Google OAuth 2.0 client ID |
+| `GOOGLE_CLIENT_SECRET` | No | — | Google OAuth 2.0 client secret |
+| `GOOGLE_REDIRECT_URI` | No | — | Google OAuth callback URI |
+| `GOOGLE_TOKEN_ENCRYPTION_KEY` | No | — | AES-256-GCM key for OAuth token encryption |
+| `CRON_SECRET` | No | — | Secret for cron-triggered API calls |
+
+### Mock Mode
+
+When `NEXT_PUBLIC_SUPABASE_URL` is **not set**, the app runs in mock mode:
+- All entity pages render with in-memory mock data from `data/*.ts` files
+- CRUD operations work against the mock store (no database required)
+- Supabase Auth, Storage, and Realtime are unavailable
+- Zero external dependencies needed
+
+To enable full functionality (auth, persistence, email, SMS), set the Supabase env vars and the relevant feature gate env vars.
 
 ---
 
@@ -93,18 +130,26 @@ Migrations are in `supabase/migrations/`. They create tables incrementally:
 
 ### Seed Data
 
-The `data/` directory contains mock data that populates the application:
+The `data/` directory contains mock data files used in mock mode (when Supabase env vars are absent):
 
 ```typescript
-// data/leads.ts — 20+ sample leads
-// data/contacts.ts — 15+ sample contacts
-// data/companies.ts — 10+ sample companies
-// data/tasks.ts — 20+ sample tasks
-// data/meetings.ts — 10+ sample meetings
-// data/teams.ts — Default team with members
+// data/leads.ts — sample leads
+// data/contacts.ts — sample contacts
+// data/companies.ts — sample companies
+// data/deals.ts — sample deals
+// data/tasks.ts — sample tasks
+// data/meetings.ts — sample meetings
+// data/activities.ts — sample activities
+// data/teams.ts — default team
+// data/team-members.ts — team members
+// data/team-invitations.ts — sample invitations
+// data/quotes.ts — sample quotes
+// data/invoices.ts — sample invoices
+// data/campaigns.ts — sample campaigns
+// data/mock-users.ts — user directory (imported by 13+ components)
 ```
 
-The application automatically uses mock data when Supabase is not configured.
+When `NEXT_PUBLIC_SUPABASE_URL` is absent, the application uses mock data from these files. When Supabase is configured, the database is the source of truth.
 
 ---
 
@@ -146,7 +191,8 @@ Toggle the workflow from **Inactive** to **Active**.
 ### Step 4: Verify
 
 ```bash
-curl https://your-crm.com/api/webhook/n8n
+curl https://your-crm.com/api/webhook/n8n \
+  -H "x-api-key: your-webhook-secret"
 # Response: { "status": "ok", "version": "1.0.0", ... }
 ```
 
@@ -300,16 +346,16 @@ The app runs entirely on the frontend — no server required. Optional Supabase 
 ## Project File Structure
 
 ```
-crm-system/              # → 20 route directories
-├── app/                 # → 14 component directories
-├── components/          # → 24 service files
+crm-system/              # → 20+ route directories
+├── app/                 # → 17+ component directories
+├── components/          # → 29 service files
 ├── services/            # → 10 module directories
-├── modules/             # → 37 hook files
-├── hooks/               # → 28 type files
-├── types/               # → 12 data files
-├── data/                # → 4 store files
-├── store/               # → 7 lib files
+├── modules/             # → 39 hook files
+├── hooks/               # → 29 type files
+├── types/               # → 14 data files
+├── data/                # → 4+ store files
+├── store/               # → 7+ lib files
 ├── lib/                 # → 1 context
 ├── context/             # → Migration files
-└── supabase/migrations/ # → Migration files
+└── supabase/migrations/ # → 14 migration files
 ```

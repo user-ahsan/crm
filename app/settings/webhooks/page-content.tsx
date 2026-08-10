@@ -346,8 +346,7 @@ export default function WebhooksPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            url: config.url,
-            secret: config.secret ?? undefined,
+            configId: config.id,
           }),
         });
         const json = await res.json();

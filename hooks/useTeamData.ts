@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Team, TeamMember } from '@/types/team.types';
 import { teamService } from '@/services/team.service';
 import { getCachedUser } from '@/lib/cached-user';
@@ -35,13 +35,21 @@ export function useTeamData(): TeamDataState {
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
+  // Request-id guard: every load() call captures an id; a call only commits
+  // its state if it is still the latest request AND the hook is mounted.
+  // Bumping the counter in the effect cleanup also invalidates any in-flight
+  // load after unmount, so no setState can fire on an unmounted component.
+  const requestIdRef = useRef(0);
+
   const load = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     try {
       setLoading(true);
       setError(null);
 
       /* 1. Get the real user ID from Supabase Auth (shared cache) */
       const user = await getCachedUser();
+      if (requestIdRef.current !== requestId) return;
       const uid = user?.id ?? null;
       setUserId(uid);
 
@@ -54,29 +62,35 @@ export function useTeamData(): TeamDataState {
 
       /* 3. Load team data */
       const currentTeam = await teamService.getCurrentTeam();
+      if (requestIdRef.current !== requestId) return;
       setTeam(currentTeam ?? null);
 
       if (currentTeam) {
         const teamMembers = await teamService.getMembers(currentTeam.id);
+        if (requestIdRef.current !== requestId) return;
         setMembers(teamMembers);
       } else {
         setMembers([]);
       }
     } catch (err) {
+      if (requestIdRef.current !== requestId) return;
       const message =
         err instanceof Error ? err.message : 'An unexpected error occurred while loading team data';
       setError(message);
     } finally {
+      if (requestIdRef.current !== requestId) return;
       setLoading(false);
     }
   }, []);
 
   /* Load on mount */
   useEffect(() => {
-    let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    load().then(() => { if (cancelled) return; });
-    return () => { cancelled = true; };
+    void load();
+    return () => {
+      // Invalidate any in-flight load so it cannot set state after unmount
+      requestIdRef.current += 1;
+    };
   }, [load]);
 
   return { team, members, userId, loading, error, refresh: load };

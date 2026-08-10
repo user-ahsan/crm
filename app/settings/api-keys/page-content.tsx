@@ -61,6 +61,7 @@ export default function ApiKeysPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeyScope, setNewKeyScope] = useState('read');
+  const [newKeyExpiry, setNewKeyExpiry] = useState('');
   const [createdFullKey, setCreatedFullKey] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -103,11 +104,13 @@ export default function ApiKeysPage() {
       const result = await apiKeyService.create({
         name: newKeyName.trim(),
         scopes: [newKeyScope],
+        expiresAt: newKeyExpiry ? new Date(newKeyExpiry).toISOString() : null,
       });
       setKeys((prev) => [result.key, ...prev]);
       setCreatedFullKey(result.fullKey);
       setNewKeyName('');
       setNewKeyScope('read');
+      setNewKeyExpiry('');
       toast.success('API key created');
     } catch {
       toast.error('Failed to create API key');
@@ -198,7 +201,10 @@ export default function ApiKeysPage() {
                   <p className="text-xs text-muted-foreground">
                     Created {new Date(key.createdAt).toLocaleDateString()}
                     {key.lastUsedAt && ` · Last used ${new Date(key.lastUsedAt).toLocaleDateString()}`}
-                    {key.expiresAt && ` · Expires ${new Date(key.expiresAt).toLocaleDateString()}`}
+                    {key.expiresAt && (() => {
+                      const isExpired = new Date(key.expiresAt) < new Date();
+                      return ` · Expires ${new Date(key.expiresAt).toLocaleDateString()}${isExpired ? ' (expired)' : ''}`;
+                    })()}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -278,6 +284,17 @@ export default function ApiKeysPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="key-expiry">Expires</Label>
+                <Input
+                  id="key-expiry"
+                  type="date"
+                  value={newKeyExpiry}
+                  onChange={(e) => setNewKeyExpiry(e.target.value)}
+                  min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                />
+                <p className="text-xs text-muted-foreground">Leave blank for no expiration.</p>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>

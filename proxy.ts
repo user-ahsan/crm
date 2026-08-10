@@ -2,19 +2,25 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/update-session';
 
 /**
- * ─── Auth Routing (Zero API Calls) ─────────────────────────────────
+ * ─── Auth Routing (getUser()-based) ─────────────────────────────────
  *
- * This middleware makes ZERO calls to Supabase Auth API.
- * It checks for the presence of any `sb-` cookie to determine if a user
- * has a session. This is sufficient for routing decisions.
+ * Every request is passed through `updateSession`, which creates a
+ * Supabase server client, refreshes session cookies (via @supabase/ssr),
+ * enforces the 24h idle-session timeout, and calls
+ * `supabase.auth.getUser()` to VALIDATE the session against the Auth API.
  *
- * Why no getUser()?
- *   Supabase free tier rate-limits auth requests to ~30/hour. Every
- *   page navigation was triggering getUser() and exhausting the limit.
- *   Cookie-based routing avoids this entirely.
+ * Routing decisions are made on that validated user — never on cookie
+ * presence — so a forged `sb-fake=1` cookie cannot serve protected routes.
  *
- * Session expiry is handled client-side: when a Supabase API call returns
- * 401, the client redirects to /login.
+ * Flow:
+ *   1. updateSession refreshes cookies + validates the user.
+ *   2. Mock mode (no Supabase env vars): everything passes through.
+ *   3. Idle timeout: updateSession already redirected to /login?expired=true.
+ *   4. Auth routes (/login, /signup): validated user → /dashboard.
+ *   5. Protected routes: no validated user → /login?redirect=<path>.
+ *
+ * API routes (/api/*) are not in protectedRoutes — they authenticate
+ * internally with supabase.auth.getUser() and are reached directly.
  * ─────────────────────────────────────────────────────────────────────
  */
 
@@ -22,51 +28,43 @@ const protectedRoutes = [
   '/dashboard', '/leads', '/contacts', '/companies',
   '/pipeline', '/tasks', '/meetings', '/analytics',
   '/settings', '/onboarding', '/deals', '/quotes',
-  '/campaigns', '/goals', '/tags',
+  '/campaigns', '/goals', '/tags', '/invoices',
 ] as const;
 
 const authRoutes = ['/login', '/signup'] as const;
 
-/**
- * API routes that handle authentication internally via supabase.auth.getUser().
- * These bypass the cookie-based check to avoid rate-limit issues.
- */
-const publicApiRoutes = [
-  '/api/email', '/api/sms', '/api/webhooks', '/api/campaigns',
-] as const;
-
 export async function proxy(request: NextRequest) {
-  // Refresh the Supabase session on every request
-  const response = await updateSession(request);
+  // Refresh the Supabase session + validate the user on every request
+  const { response, user, isMock, expired } = await updateSession(request);
 
   const { pathname } = request.nextUrl;
+
+  // ── Mock mode (no Supabase configured) — pass everything through ──
+  if (isMock) {
+    return response;
+  }
+
+  // ── Idle timeout — updateSession already redirected to /login?expired=true ──
+  if (expired) {
+    return response;
+  }
 
   // ── Landing page — always allow ──────────────────────────────
   if (pathname === '/') {
     return response;
   }
 
-  // ── Public API routes — bypass cookie check ───────────────────
-  // These routes handle auth internally via supabase.auth.getUser()
-  if (publicApiRoutes.some((r) => pathname.startsWith(r))) {
-    return response;
-  }
-
-  // ── Check for any Supabase session cookie (local, zero API calls) ─
-  const cookies = request.cookies.getAll();
-  const hasSession = cookies.some((c) => c.name.startsWith('sb-'));
-
-  // ── Auth routes — redirect to dashboard if session exists ─────
+  // ── Auth routes — redirect to dashboard when already authenticated ──
   if (authRoutes.some((r) => pathname === r)) {
-    if (hasSession) {
+    if (user) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
     return response;
   }
 
-  // ── Protected routes — redirect to /login if no session ───────
+  // ── Protected routes — redirect to /login when no validated user ──
   if (protectedRoutes.some((r) => pathname.startsWith(r))) {
-    if (!hasSession) {
+    if (!user) {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(loginUrl);
@@ -80,6 +78,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api/public|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

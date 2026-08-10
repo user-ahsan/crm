@@ -15,7 +15,13 @@ export function applyLeadFilters(leads: Lead[], filters: LeadFilters, scores?: M
     if (filters.status && lead.status !== filters.status) return false;
     if (filters.source && lead.source !== filters.source) return false;
     if (filters.priority && lead.priority !== filters.priority) return false;
-    if (filters.assignedTo && lead.assignedTo !== filters.assignedTo) return false;
+    if (filters.assignedTo) {
+      if (filters.assignedTo === 'unassigned') {
+        if (lead.assignedTo) return false;
+      } else if (lead.assignedTo !== filters.assignedTo) {
+        return false;
+      }
+    }
     if (filters.minScore && scores) {
       const score = scores.get(lead.id);
       if (!score || score.score < filters.minScore) return false;
@@ -24,11 +30,35 @@ export function applyLeadFilters(leads: Lead[], filters: LeadFilters, scores?: M
   });
 }
 
-export function sortLeads(leads: Lead[], by: 'createdAt' | 'updatedAt' | 'estimatedValue' = 'createdAt', dir: 'asc' | 'desc' = 'desc'): Lead[] {
+export type LeadSortKey =
+  | 'createdAt'
+  | 'updatedAt'
+  | 'estimatedValue'
+  | 'fullName'
+  | 'companyName'
+  | 'status'
+  | 'priority';
+
+export function sortLeads(
+  leads: Lead[],
+  by: LeadSortKey = 'createdAt',
+  dir: 'asc' | 'desc' = 'desc',
+): Lead[] {
   return [...leads].sort((a, b) => {
     const valA = a[by];
     const valB = b[by];
-    const cmp = valA < valB ? -1 : valA > valB ? 1 : 0;
+    const cmp =
+      valA === undefined
+        ? valB === undefined
+          ? 0
+          : 1
+        : valB === undefined
+          ? -1
+          : valA < valB
+            ? -1
+            : valA > valB
+              ? 1
+              : 0;
     return dir === 'desc' ? -cmp : cmp;
   });
 }

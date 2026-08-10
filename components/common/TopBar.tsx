@@ -84,11 +84,14 @@ export function TopBar({ onMenuToggle, onSearchClick, onNotificationClick, notif
       }
     }
 
-    // 4. Clear all Supabase-related localStorage items
+    // 4. Clear Supabase-related localStorage items, but PRESERVE user
+    // preferences (nexuscrm-theme, nexuscrm-settings) across sign-out.
+    // The auth store (sessionStorage `nexuscrm-auth`) was reset by signOut()
+    // above, so the session is fully cleared without wiping prefs.
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith('sb-') || key.startsWith('nexuscrm-'))) {
+      if (key && key.startsWith('sb-')) {
         keysToRemove.push(key);
       }
     }

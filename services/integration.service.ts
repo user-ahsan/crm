@@ -82,7 +82,7 @@ export const integrationService = {
       const supabase = await getSharedClient();
       const { data: inserted, error } = await supabase
         .from('calendar_integrations')
-        .insert(data as never)
+        .insert(data)
         .select()
         .single();
 
@@ -101,7 +101,7 @@ export const integrationService = {
       const supabase = await getSharedClient();
       const { error } = await supabase
         .from('calendar_integrations')
-        .update({ last_synced_at: new Date().toISOString() } as never)
+        .update({ last_synced_at: new Date().toISOString() })
         .eq('id', integrationId);
 
       if (error) throw toServiceError(error);

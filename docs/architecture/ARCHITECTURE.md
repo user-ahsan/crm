@@ -115,13 +115,23 @@ crm-system/
 │   │   └── signup/
 │   ├── analytics/                    # Analytics & reporting page
 │   ├── api/
-│   │   └── webhook/n8n/             # n8n webhook API route
+│   │   ├── webhook/n8n/             # n8n webhook API route
+│   │   ├── email/                   # Email send, test, batch, webhook
+│   │   ├── sms/                     # SMS send, test, batch, status, config
+│   │   ├── campaigns/               # Campaign CRUD, activate, process, cron
+│   │   ├── webhooks/                # Webhook config, test, deliveries
+│   │   ├── portal/auth/             # Portal login, register, reset-password, users
+│   │   ├── branding/                # Branding settings + logo upload
+│   │   ├── service-config/          # Per-service config (Resend/Twilio/Google)
+│   │   ├── integrations/google/     # Google OAuth, callback, disconnect
+│   │   └── settings/email/          # Email settings endpoint
 │   ├── campaigns/                    # Campaign management page
 │   ├── companies/                    # Company management (table + detail)
 │   ├── contacts/                     # Contact management (table + detail)
 │   ├── dashboard/                    # Main dashboard page
 │   ├── deals/                        # Deal management (table + detail)
 │   ├── goals/                        # Goals tracking page
+│   ├── invoices/                     # Invoice management (table + detail + new)
 │   ├── leads/                        # Lead management (table + detail)
 │   ├── meetings/                     # Calendar/meeting scheduling page
 │   ├── onboarding/                   # 6-step onboarding wizard
@@ -131,9 +141,16 @@ crm-system/
 │   │   ├── automation/              # Automation rules
 │   │   ├── api-keys/                # API key management
 │   │   ├── data-quality/            # Duplicate detection
+│   │   ├── email/                   # Email service settings
+│   │   ├── forecasts/               # Forecast settings
 │   │   ├── integrations/            # Calendar integrations
+│   │   ├── invoice-templates/       # Invoice template management
 │   │   ├── portal/                  # Customer portal settings
+│   │   ├── saved-views/             # Saved views management
+│   │   ├── services/                # Service config (Resend/Twilio/Google)
+│   │   ├── sms/                     # SMS service settings
 │   │   ├── team/                    # Team management
+│   │   ├── webhooks/                # Webhook config management
 │   │   └── workflows/               # Workflow builder
 │   ├── tags/                         # Tag management page
 │   ├── tasks/                        # Task management page
@@ -185,6 +202,7 @@ crm-system/
 │   │   ├── FileAttachmentList.tsx    # File attachment list
 │   │   ├── ImportDialog.tsx          # CSV import dialog
 │   │   ├── LoadingSkeleton.tsx       # Loading skeleton
+│   │   ├── MarkdownContent.tsx       # Markdown renderer
 │   │   ├── NotificationPanel.tsx     # Notification panel
 │   │   ├── OnboardingLayout.tsx      # Onboarding wizard layout
 │   │   ├── PageHeader.tsx            # Page header with actions
@@ -235,7 +253,7 @@ crm-system/
 │       ├── teamPermissions.ts       # Role-based permission matrix
 │       └── teamValidation.ts        # Team form validation
 │
-├── services/                         # Data mutation layer
+├── services/                         # Data mutation layer (29 files)
 │   ├── lead.service.ts              # Lead CRUD + scoring + duplicates
 │   ├── contact.service.ts           # Contact CRUD + duplicates
 │   ├── company.service.ts           # Company CRUD
@@ -248,9 +266,12 @@ crm-system/
 │   ├── tag.service.ts               # Tag CRUD + taggings
 │   ├── team.service.ts              # Team CRUD + members + invitations
 │   ├── webhook.service.ts           # n8n webhook event dispatch
+│   ├── webhook-config.service.ts    # Webhook config management
 │   ├── automation.service.ts        # Automation rule engine
 │   ├── campaign.service.ts          # Campaign + email sequences
+│   ├── campaign-scheduler.service.ts # Scheduled campaign dispatch
 │   ├── quote.service.ts             # Quote CRUD + line items
+│   ├── invoice.service.ts           # Invoice CRUD + line items
 │   ├── forecast.service.ts          # Forecast CRUD
 │   ├── goal.service.ts              # Goal CRUD
 │   ├── integration.service.ts       # Calendar integration
@@ -259,9 +280,11 @@ crm-system/
 │   ├── api-key.service.ts           # API key management
 │   ├── attachment.service.ts        # File attachment CRUD
 │   ├── workflow.service.ts          # Workflow state + transition CRUD
+│   ├── notification.service.ts      # In-app notification management
+│   ├── realtime.service.ts          # Supabase Realtime subscriptions
 │   └── supabase.service.ts          # Supabase error formatting helper
 │
-├── data/                             # MOCK DATABASE LAYER
+├── data/                             # MOCK DATABASE LAYER (14 files)
 │   ├── leads.ts                     # Mock leads array
 │   ├── contacts.ts                  # Mock contacts array
 │   ├── companies.ts                 # Mock companies array
@@ -272,20 +295,18 @@ crm-system/
 │   ├── teams.ts                     # Mock teams array
 │   ├── team-members.ts              # Mock team members array
 │   ├── team-invitations.ts          # Mock team invitations array
-│   └── quotes.ts                    # Mock quotes array
+│   ├── quotes.ts                    # Mock quotes array
+│   ├── invoices.ts                  # Mock invoices array
+│   ├── campaigns.ts                 # Mock campaigns array
+│   └── mock-users.ts               # User directory (imported by 13+ components)
 │
-├── hooks/                            # Custom React hooks (37 total)
+├── hooks/                            # Custom React hooks (39 total)
 │   ├── useLeads.ts                  # Lead CRUD + state
 │   ├── useContacts.ts               # Contact CRUD
 │   ├── useCompanies.ts              # Company CRUD
 │   ├── useDeals.ts                  # Deal CRUD
 │   ├── useTasks.ts                  # Task CRUD
 │   ├── useMeetings.ts               # Meeting CRUD
-│   ├── useCachedLeads.ts            # Cached lead access
-│   ├── useCachedContacts.ts         # Cached contact access
-│   ├── useCachedCompanies.ts        # Cached company access
-│   ├── useCachedTasks.ts            # Cached task access
-│   ├── useCachedMeetings.ts         # Cached meeting access
 │   ├── usePipeline.ts               # Pipeline state + drag-drop
 │   ├── useActivities.ts             # Activity timeline
 │   ├── useSearch.ts                 # Global search
@@ -300,20 +321,27 @@ crm-system/
 │   ├── useSms.ts                    # SMS CRUD
 │   ├── useCallLogs.ts               # Call log CRUD
 │   ├── useQuotes.ts                 # Quote CRUD
+│   ├── useInvoices.ts               # Invoice CRUD
 │   ├── useCampaigns.ts              # Campaign CRUD
+│   ├── useCampaignScheduler.ts      # Campaign scheduler
 │   ├── useTags.ts                   # Tag CRUD
 │   ├── useAutomation.ts             # Automation rules
 │   ├── useWorkflows.ts              # Workflow states/transitions
+│   ├── useWorkflowEditor.ts         # Visual workflow editor
 │   ├── useForecasts.ts              # Forecast CRUD
 │   ├── useGoals.ts                  # Goal CRUD
 │   ├── useAttachments.ts            # File attachments
 │   ├── useIntegrations.ts           # Calendar integrations
 │   ├── usePortal.ts                 # Portal management
 │   ├── useNotifications.ts          # Notification panel
+│   ├── useRealtimeNotifications.ts  # Realtime notification subscriptions
+│   ├── usePresence.ts               # User presence tracking
+│   ├── useBranding.ts               # Branding settings
 │   ├── useCsvExport.ts              # CSV export
+│   ├── useSavedViews.ts             # Saved view management
 │   └── useLeadScoring.ts            # Lead scoring
 │
-├── types/                            # GLOBAL TYPE DEFINITIONS (28 files)
+├── types/                            # GLOBAL TYPE DEFINITIONS (29 files)
 │   ├── lead.types.ts               # Lead interfaces + enums
 │   ├── contact.types.ts             # Contact interfaces
 │   ├── company.types.ts             # Company interfaces
@@ -553,7 +581,7 @@ Request received for {pathname}
       └── No session? → Redirect to /login?redirect={path}
 ```
 
-**Protected routes:** `/dashboard`, `/leads`, `/contacts`, `/companies`, `/pipeline`, `/tasks`, `/meetings`, `/analytics`, `/settings`, `/onboarding`
+**Protected routes:** `/dashboard`, `/leads`, `/contacts`, `/companies`, `/deals`, `/pipeline`, `/tasks`, `/meetings`, `/analytics`, `/campaigns`, `/invoices`, `/quotes`, `/goals`, `/tags`, `/settings`
 
 **Auth routes:** `/login`, `/signup`
 

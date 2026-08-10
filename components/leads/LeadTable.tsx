@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
+import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Lead } from '@/types/lead.types';
 import type { LeadScore } from '@/types/lead-scoring.types';
@@ -16,10 +17,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { USERS } from '@/data/mock-users';
+import { getUserName } from '@/lib/user-utils';
 import { STATUS_COLORS, PRIORITY_COLORS } from '@/lib/color-tokens';
 import { formatCurrency, formatDate, getInitials } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import { sortLeads, type LeadSortKey } from '@/modules/leads/leadFilters';
 import { LeadScoreBadge } from '@/components/leads/LeadScoreBadge';
 import {
   IconEdit,
@@ -29,6 +31,8 @@ import {
   IconCalendarEvent,
   IconMail,
   IconBuilding,
+  IconChevronUp,
+  IconChevronDown,
 } from '@tabler/icons-react';
 
 interface LeadTableProps {
@@ -83,6 +87,29 @@ const LeadTable = memo(function LeadTable({ leads, onEdit, onDelete, selectedIds
     [router]
   );
 
+  const [sort, setSort] = useState<{ by: LeadSortKey; dir: 'asc' | 'desc' }>({
+    by: 'createdAt',
+    dir: 'desc',
+  });
+
+  const toggleSort = useCallback((key: LeadSortKey) => {
+    setSort((prev) => {
+      if (prev.by === key) {
+        return { by: key, dir: prev.dir === 'asc' ? 'desc' : 'asc' };
+      }
+      // Numeric/date columns default to newest/highest first; text columns to A→Z.
+      return {
+        by: key,
+        dir: key === 'createdAt' || key === 'estimatedValue' ? 'desc' : 'asc',
+      };
+    });
+  }, []);
+
+  const sortedLeads = useMemo(
+    () => sortLeads(leads, sort.by, sort.dir),
+    [leads, sort.by, sort.dir],
+  );
+
   if (leads.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -115,31 +142,36 @@ const LeadTable = memo(function LeadTable({ leads, onEdit, onDelete, selectedIds
                 aria-label="Select all leads"
               />
             </TableHead>
-            <TableHead className="min-w-[120px]">Name</TableHead>
+            <SortableHeader label="Name" sortKey="fullName" sort={sort} onToggle={toggleSort} className="min-w-[120px]" />
             <TableHead className="min-w-[140px]">Email</TableHead>
-            <TableHead className="min-w-[100px]">Company</TableHead>
-            <TableHead className="min-w-[80px]">Status</TableHead>
-            <TableHead className="min-w-[70px]">Priority</TableHead>
+            <SortableHeader label="Company" sortKey="companyName" sort={sort} onToggle={toggleSort} className="min-w-[100px]" />
+            <SortableHeader label="Status" sortKey="status" sort={sort} onToggle={toggleSort} className="min-w-[80px]" />
+            <SortableHeader label="Priority" sortKey="priority" sort={sort} onToggle={toggleSort} className="min-w-[70px]" />
             <TableHead className="w-16">Score</TableHead>
             <TableHead className="min-w-[100px]">Assigned To</TableHead>
-            <TableHead className="min-w-[70px]">
-              <span className="inline-flex items-center gap-1">
-                <IconCurrencyDollar className="size-3.5" />
-                Value
-              </span>
-            </TableHead>
-            <TableHead className="min-w-[80px]">
-              <span className="inline-flex items-center gap-1">
-                <IconCalendarEvent className="size-3.5" />
-                Created
-              </span>
-            </TableHead>
+            <SortableHeader
+              label="Value"
+              sortKey="estimatedValue"
+              sort={sort}
+              onToggle={toggleSort}
+              icon={<IconCurrencyDollar className="size-3.5" />}
+              className="min-w-[70px]"
+            />
+            <SortableHeader
+              label="Created"
+              sortKey="createdAt"
+              sort={sort}
+              onToggle={toggleSort}
+              icon={<IconCalendarEvent className="size-3.5" />}
+              className="min-w-[80px]"
+            />
             <TableHead className="sticky right-0 z-10 w-24 min-w-[80px] bg-background text-right shadow-[-4px_0_8px_-4px_rgb(0_0_0/0.08)] dark:shadow-[-4px_0_8px_-4px_rgb(255_255_255/0.06)]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {leads.map((lead) => {
+          {sortedLeads.map((lead) => {
             const isSelected = selectedIds.has(lead.id);
+            const leadScore = scores?.get(lead.id);
             return (
               <TableRow
                 key={lead.id}
@@ -193,8 +225,8 @@ const LeadTable = memo(function LeadTable({ leads, onEdit, onDelete, selectedIds
                   </span>
                 </TableCell>
                 <TableCell>
-                  {scores?.has(lead.id) ? (
-                    <LeadScoreBadge score={scores.get(lead.id)!.score} size="sm" />
+                  {leadScore ? (
+                    <LeadScoreBadge score={leadScore.score} size="sm" />
                   ) : (
                     <span className="text-muted-foreground/50">—</span>
                   )}
@@ -204,13 +236,11 @@ const LeadTable = memo(function LeadTable({ leads, onEdit, onDelete, selectedIds
                     <div className="flex items-center gap-2">
                       <Avatar size="sm">
                         <AvatarFallback className="text-[10px]">
-                          {getInitials(
-                            USERS.find((u) => u.id === lead.assignedTo)?.name ?? '?'
-                          )}
+                          {getInitials(getUserName(lead.assignedTo, '?'))}
                         </AvatarFallback>
                       </Avatar>
                       <span className="text-sm text-muted-foreground truncate max-w-[100px]">
-                        {USERS.find((u) => u.id === lead.assignedTo)?.name ?? '—'}
+                        {getUserName(lead.assignedTo)}
                       </span>
                     </div>
                   ) : (
@@ -259,4 +289,45 @@ const LeadTable = memo(function LeadTable({ leads, onEdit, onDelete, selectedIds
 });
 
 LeadTable.displayName = 'LeadTable';
+
+function SortableHeader({
+  label,
+  sortKey,
+  sort,
+  onToggle,
+  icon,
+  className,
+}: {
+  label: string;
+  sortKey: LeadSortKey;
+  sort: { by: LeadSortKey; dir: 'asc' | 'desc' };
+  onToggle: (key: LeadSortKey) => void;
+  icon?: ReactNode;
+  className?: string;
+}) {
+  const active = sort.by === sortKey;
+  return (
+    <TableHead className={className}>
+      <button
+        type="button"
+        onClick={() => onToggle(sortKey)}
+        className="inline-flex items-center gap-1 text-foreground transition-colors hover:text-primary"
+        aria-label={`Sort by ${label}${active ? `, currently ${sort.dir === 'asc' ? 'ascending' : 'descending'}` : ''}`}
+      >
+        {icon}
+        {label}
+        {active ? (
+          sort.dir === 'asc' ? (
+            <IconChevronUp className="size-3.5" />
+          ) : (
+            <IconChevronDown className="size-3.5" />
+          )
+        ) : (
+          <IconChevronUp className="size-3.5 text-muted-foreground/30" />
+        )}
+      </button>
+    </TableHead>
+  );
+}
+
 export { LeadTable };

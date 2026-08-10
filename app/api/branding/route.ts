@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/lib/supabase/client';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { corsHeaders } from '@/lib/cors';
 import { validateCsrf } from '@/lib/csrf';
 
@@ -8,7 +8,7 @@ import { validateCsrf } from '@/lib/csrf';
  */
 export async function GET(): Promise<NextResponse> {
   try {
-    const supabase = getSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -42,7 +42,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });

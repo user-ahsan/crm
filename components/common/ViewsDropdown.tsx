@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { IconEye, IconPlus, IconTrash, IconEdit, IconCheck } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import type { SavedView, ViewEntityType } from '@/types/saved-view.types';
-import { savedViewService } from '@/services/saved-view.service';
+import { useSavedViews } from '@/hooks/useSavedViews';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -36,84 +37,59 @@ export function ViewsDropdown({
   onLoadView,
   hasActiveFilters,
 }: ViewsDropdownProps) {
-  const [views, setViews] = useState<SavedView[]>([]);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [manageDialogOpen, setManageDialogOpen] = useState(false);
   const [viewName, setViewName] = useState('');
   const [editingView, setEditingView] = useState<SavedView | null>(null);
   const [editName, setEditName] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<SavedView | null>(null);
 
-  const loadViews = useCallback(async () => {
-    try {
-      const data = await savedViewService.getViews(entityType);
-      setViews(data);
-    } catch {
-      toast.error('Failed to load saved views');
-    }
-  }, [entityType]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await savedViewService.getViews(entityType);
-        if (!cancelled) setViews(data);
-      } catch {
-        if (!cancelled) toast.error('Failed to load saved views');
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [entityType]);
+  const { views, loading, refresh, createView, updateView, deleteView } = useSavedViews(entityType);
 
   const handleSave = async () => {
     if (!viewName.trim()) {
       toast.error('Please enter a view name');
       return;
     }
-    try {
-      await savedViewService.create({
-        name: viewName.trim(),
-        entityType,
-        filters: currentFilters,
-      });
+    const created = await createView({
+      name: viewName.trim(),
+      entityType,
+      filters: currentFilters,
+    });
+    if (created) {
       toast.success('View saved');
       setSaveDialogOpen(false);
       setViewName('');
-      loadViews();
-    } catch {
+    } else {
       toast.error('Failed to save view');
     }
   };
 
   const handleUpdate = async () => {
     if (!editingView || !editName.trim()) return;
-    try {
-      await savedViewService.update(editingView.id, {
-        name: editName.trim(),
-        entityType: editingView.entityType,
-        filters: editingView.filters,
-      });
+    const updated = await updateView(editingView.id, {
+      name: editName.trim(),
+      entityType: editingView.entityType,
+      filters: editingView.filters,
+    });
+    if (updated) {
       toast.success('View updated');
       setEditingView(null);
       setEditName('');
-      loadViews();
-    } catch {
+    } else {
       toast.error('Failed to update view');
     }
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      await savedViewService.delete(id);
+  const handleDeleteConfirmed = async () => {
+    if (!deleteTarget) return;
+    const ok = await deleteView(deleteTarget.id);
+    if (ok) {
       toast.success('View deleted');
-      loadViews();
-    } catch {
+    } else {
       toast.error('Failed to delete view');
     }
-  };
-
-  const handleLoad = (view: SavedView) => {
-    onLoadView(view);
+    setDeleteTarget(null);
   };
 
   return (
@@ -129,12 +105,12 @@ export function ViewsDropdown({
         />
         <DropdownMenuContent align="start" className="w-56">
           {views.length === 0 && (
-            <DropdownMenuItem disabled>No saved views</DropdownMenuItem>
+            <DropdownMenuItem disabled>{loading ? 'Loading views…' : 'No saved views'}</DropdownMenuItem>
           )}
           {views.map((view) => (
             <DropdownMenuItem
               key={view.id}
-              onClick={() => handleLoad(view)}
+              onClick={() => onLoadView(view)}
               className="flex items-center justify-between"
             >
               <span className="truncate">{view.name}</span>
@@ -151,7 +127,7 @@ export function ViewsDropdown({
             <IconPlus className="mr-2 size-4" />
             Save Current Filters
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => { setManageDialogOpen(true); loadViews(); }}>
+          <DropdownMenuItem onClick={() => { setManageDialogOpen(true); refresh(); }}>
             <IconEdit className="mr-2 size-4" />
             Manage Views
           </DropdownMenuItem>
@@ -192,60 +168,87 @@ export function ViewsDropdown({
             <DialogTitle>Manage Views</DialogTitle>
           </DialogHeader>
           <div className="max-h-80 space-y-2 overflow-y-auto">
-            {views.length === 0 && (
+            {loading ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                Loading views…
+              </p>
+            ) : views.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted-foreground">
                 No saved views yet.
               </p>
-            )}
-            {views.map((view) => (
-              <div
-                key={view.id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                {editingView?.id === view.id ? (
-                  <div className="flex flex-1 items-center gap-2">
-                    <Input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      autoFocus
-                    />
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={handleUpdate}
-                    >
-                      <IconCheck className="size-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <span className="text-sm font-medium">{view.name}</span>
-                    <div className="flex items-center gap-1">
+            ) : (
+              views.map((view) => (
+                <div
+                  key={view.id}
+                  className="flex items-center justify-between rounded-lg border p-3"
+                >
+                  {editingView?.id === view.id ? (
+                    <div className="flex flex-1 items-center gap-2">
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        autoFocus
+                      />
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() => {
-                          setEditingView(view);
-                          setEditName(view.name);
-                        }}
+                        onClick={handleUpdate}
+                        aria-label={`Save changes to view ${view.name}`}
                       >
-                        <IconEdit className="size-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleDelete(view.id)}
-                      >
-                        <IconTrash className="size-4 text-destructive" />
+                        <IconCheck className="size-4" />
                       </Button>
                     </div>
-                  </>
-                )}
-              </div>
-            ))}
+                  ) : (
+                    <>
+                      <span className="text-sm font-medium">{view.name}</span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingView(view);
+                            setEditName(view.name);
+                          }}
+                          aria-label={`Edit view ${view.name}`}
+                        >
+                          <IconEdit className="size-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setDeleteTarget(view)}
+                          aria-label={`Delete view ${view.name}`}
+                        >
+                          <IconTrash className="size-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Delete Saved View"
+        description={
+          deleteTarget
+            ? `Are you sure you want to delete "${deleteTarget.name}"? This action cannot be undone.`
+            : 'Are you sure you want to delete this saved view? This action cannot be undone.'
+        }
+        onConfirm={handleDeleteConfirmed}
+        confirmLabel="Delete"
+        variant="destructive"
+      />
     </>
   );
 }
+
+export default ViewsDropdown;

@@ -109,6 +109,22 @@ async function sendToUrl(
 // ── Public API ────────────────────────────────────────────────────────
 
 /**
+ * Sends one webhook payload to an explicit URL, reusing the same SSRF
+ * guard, 10s abort timeout, and result shape as the configured dispatch.
+ *
+ * Exported for the automation engine: a `trigger_webhook` action targets
+ * a URL captured in the rule config (`action.config.url`), not a
+ * globally-configured endpoint, so it must go through this guarded path.
+ */
+export async function sendWebhookToUrl(
+  url: string,
+  secret: string | null,
+  payload: WebhookPayload,
+): Promise<{ success: boolean; statusCode?: number; error?: string }> {
+  return sendToUrl(url, secret, payload);
+}
+
+/**
  * Quick guard — true when at least one webhook output is configured (env-var, Supabase UI config, or DB configs).
  * Used to skip unnecessary work when no webhooks are set up.
  */
@@ -220,8 +236,15 @@ export async function triggerWebhookWithDetails(
     // ponytail: no DB webhook configs — silently skip, no noise
   }
 
-  // 2. Legacy env-var webhook — also checks Supabase UI config
-  const webhookConfigFromDb = await getServiceConfig('webhooks');
+  // 2. Legacy env-var webhook — also checks Supabase UI config.
+  //    getServiceConfig must never break the mutation path: if the config
+  //    read fails we fall back to env vars only (same as the guard above).
+  let webhookConfigFromDb: Record<string, string | null> = {};
+  try {
+    webhookConfigFromDb = await getServiceConfig('webhooks');
+  } catch {
+    // fall through — env-var config only
+  }
   const legacyUrl = webhookConfig.url || webhookConfigFromDb.webhook_url || '';
   const legacySecret = webhookConfig.secret || webhookConfigFromDb.webhook_secret || '';
   if (legacyUrl) {

@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import {
   Card,
   CardContent,
@@ -22,7 +22,7 @@ interface StatCardProps {
   className?: string;
 }
 
-export function StatCard({
+export const StatCard = memo(function StatCard({
   label,
   value,
   icon,
@@ -63,6 +63,6 @@ export function StatCard({
       </CardContent>
     </Card>
   );
-}
+});
 
 export default StatCard;

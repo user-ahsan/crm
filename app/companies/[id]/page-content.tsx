@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { IconArrowLeft, IconEdit } from '@tabler/icons-react';
 import type { Company } from '@/types/company.types';
-import { companyService } from '@/services/company.service';
+import { useCompanies } from '@/hooks/useCompanies';
 import { CompanyDetail } from '@/components/companies/CompanyDetail';
 import { CompanyCreateForm } from '@/components/companies/CompanyCreateForm';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
@@ -18,16 +18,18 @@ export default function CompanyDetailPage() {
   const companyId = typeof rawId === 'string' ? rawId : '';
   if (!companyId) throw new Error('Invalid company ID');
 
+  const { getById: getCompanyById } = useCompanies();
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  // Single loader — shared by mount effect, retry, and post-edit refresh.
   const loadCompany = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const found = await companyService.getById(companyId);
+      const found = await getCompanyById(companyId);
       if (found) {
         setCompany(found);
       } else {
@@ -38,27 +40,11 @@ export default function CompanyDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [companyId]);
+  }, [companyId, getCompanyById]);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await companyService.getById(companyId);
-        if (cancelled) return;
-        if (data) {
-          setCompany(data);
-        } else {
-          setError('Company not found');
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load company');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [companyId]);
+    loadCompany();
+  }, [loadCompany]);
 
   const handleBack = useCallback(() => {
     router.push('/companies');
@@ -140,8 +126,9 @@ export default function CompanyDetailPage() {
         </Button>
       </div>
 
-      {/* Company Detail Component */}
-      <CompanyDetail companyId={companyId} onBack={handleBack} />
+      {/* Company Detail Component — company entity lifted to the page so edits
+          re-render the detail without a stale fetch. */}
+      <CompanyDetail companyId={companyId} company={company} onBack={handleBack} />
 
       {/* Edit Dialog */}
       <CompanyCreateForm

@@ -15,6 +15,27 @@ export interface Notification {
   data?: Record<string, unknown>;
 }
 
+/**
+ * Returns true if `notif` duplicates an entry already in the list — same type
+ * AND same entity reference (any of the entity id fields) or same id. This is
+ * the richer check shared with useRealtimeNotifications: two distinct events
+ * on the same lead (e.g. two status changes) are NOT collapsed, while the
+ * same event delivered twice (broadcast + postgres_changes) is.
+ */
+function isDuplicate(notif: RealtimeNotification, existing: Notification[]): boolean {
+  return existing.some((n) => {
+    if (n.type !== notif.type) return false;
+    // Compare entity references embedded in the data
+    const refKeys = ['leadId', 'dealId', 'taskId', 'meetingId'] as const;
+    for (const key of refKeys) {
+      const a = n.data?.[key];
+      const b = notif.data?.[key];
+      if (a !== undefined && b !== undefined && a === b) return true;
+    }
+    return n.id === notif.id;
+  });
+}
+
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const { user } = useCurrentUser();
@@ -27,12 +48,8 @@ export function useNotifications() {
     const unsubscribe = startListening(user.id, {
       onNotification: (realtimeNotif: RealtimeNotification) => {
         setNotifications((prev) => {
-          // Dedup: skip if same type + entity ID already exists
-          const isDuplicate = prev.some(n =>
-            n.type === realtimeNotif.type &&
-            n.data?.leadId === realtimeNotif.data?.leadId
-          );
-          if (isDuplicate) return prev;
+          // Dedup against all entity refs (see isDuplicate above)
+          if (isDuplicate(realtimeNotif, prev)) return prev;
 
           const notif: Notification = {
             id: realtimeNotif.id,

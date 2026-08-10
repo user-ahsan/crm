@@ -83,11 +83,11 @@ export async function GET(
     const supabase = await createServerSupabaseClient();
     let user;
     try {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session?.session?.user) {
+      const { data: { user: u }, error: authError } = await supabase.auth.getUser();
+      if (authError || !u) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
       }
-      user = session.session.user;
+      user = u;
     } catch {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     }
@@ -187,11 +187,11 @@ export async function POST(
     const supabase = await createServerSupabaseClient();
     let user;
     try {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session?.session?.user) {
+      const { data: { user: u }, error: authError } = await supabase.auth.getUser();
+      if (authError || !u) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
       }
-      user = session.session.user;
+      user = u;
     } catch {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     }
@@ -261,8 +261,7 @@ export async function POST(
     }
 
     // Upsert recipients (skip duplicates on sequence_id + recipient_type + recipient_id)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: inserted, error } = await (supabase.from('campaign_recipients') as any).upsert(
+    const { data: inserted, error } = await supabase.from('campaign_recipients').upsert(
         emails.map((e) => ({
           sequence_id: sequenceId,
           recipient_type: e.recipient_type,

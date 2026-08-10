@@ -47,8 +47,8 @@ export function useLeads() {
   const getById = useCallback(async (id: string) => {
     try {
       return await leadService.getById(id);
-    } catch {
-      // Error preserved in error state
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load lead');
       return undefined;
     }
   }, []);
@@ -88,41 +88,58 @@ export function useLeads() {
   }, []);
 
   const updateLead = useCallback(async (id: string, data: Partial<LeadFormData>) => {
-    let prevItem: Lead | undefined;
-    setLeads((prev) => {
-      prevItem = prev.find((l) => l.id === id);
-      return prev.map((l) => (l.id === id ? { ...l, ...data } : l));
-    });
+    // Capture the pre-mutation row OUTSIDE the state updater so rollback can
+    // restore the exact object at its original index (ARCHITECTURE §10).
+    const prevItem = leads.find((l) => l.id === id);
+    if (!prevItem) return undefined;
+    const prevIndex = leads.indexOf(prevItem);
+    setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, ...data } : l)));
     try {
       const updated = await leadService.update(id, data);
-      if (updated) {
-        setLeads((prev) => prev.map((l) => (l.id === id ? updated : l)));
-        useEntityCache.getState().updateLead(id, updated);
+      if (!updated) {
+        // PGRST116 not-found: the optimistic change targeted a phantom row —
+        // revert it and surface the failure instead of leaving ghost state.
+        setLeads((prev) => {
+          const next = prev.filter((l) => l.id !== id);
+          next.splice(Math.min(prevIndex, next.length), 0, prevItem);
+          return next;
+        });
+        setError('Failed to update lead: record not found');
+        return undefined;
       }
+      setLeads((prev) => prev.map((l) => (l.id === id ? updated : l)));
+      useEntityCache.getState().updateLead(id, updated);
       return updated;
     } catch (e) {
-      if (prevItem) setLeads((prev) => prev.map((l) => (l.id === id ? prevItem! : l)));
+      setLeads((prev) => {
+        const next = prev.filter((l) => l.id !== id);
+        next.splice(Math.min(prevIndex, next.length), 0, prevItem);
+        return next;
+      });
       setError(e instanceof Error ? e.message : 'Failed to update lead');
       return undefined;
     }
-  }, []);
+  }, [leads]);
 
   const deleteLead = useCallback(async (id: string) => {
-    let prevItem: Lead | undefined;
-    setLeads((prev) => {
-      prevItem = prev.find((l) => l.id === id);
-      return prev.filter((l) => l.id !== id);
-    });
+    const prevItem = leads.find((l) => l.id === id);
+    if (!prevItem) return false;
+    const prevIndex = leads.indexOf(prevItem);
+    setLeads((prev) => prev.filter((l) => l.id !== id));
     try {
       await leadService.delete(id);
       useEntityCache.getState().removeLead(id);
       return true;
     } catch (e) {
-      if (prevItem) setLeads((prev) => [...prev, prevItem!]);
+      setLeads((prev) => {
+        const next = prev.filter((l) => l.id !== id);
+        next.splice(Math.min(prevIndex, next.length), 0, prevItem);
+        return next;
+      });
       setError(e instanceof Error ? e.message : 'Failed to delete lead');
       return false;
     }
-  }, []);
+  }, [leads]);
 
   return {
     leads,

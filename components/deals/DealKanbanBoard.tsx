@@ -25,10 +25,10 @@ const DealKanbanBoard = memo(function DealKanbanBoard() {
 
   const handleDrop = useCallback(
     async (dealId: string, stageId: string) => {
-      try {
-        await updateDealStage(dealId, stageId);
-      } catch {
-        console.error('Failed to move deal');
+      // Dropping on the Unassigned column clears the stage (removes assignment).
+      const targetStageId = stageId === 'unassigned' ? '' : stageId;
+      const result = await updateDealStage(dealId, targetStageId);
+      if (!result) {
         toast.error('Failed to move deal');
       }
     },

@@ -144,8 +144,7 @@ async function updateEmailStatus(
 ): Promise<boolean> {
   try {
     const supabase = await createServerSupabaseClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase.from('email_history') as any).update({ status })
+    const { error } = await supabase.from('email_history').update({ status })
       .eq('provider_message_id', providerEmailId);
 
     if (error) {

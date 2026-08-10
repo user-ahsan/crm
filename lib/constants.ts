@@ -21,6 +21,8 @@ import type { MeetingType } from '@/types/meeting.types';
 import type { CompanySize } from '@/types/company.types';
 import type { ActivityType } from '@/types/activity.types';
 import type { GoalType, GoalPeriod } from '@/types/goal.types';
+import type { QuoteStatus } from '@/types/quote.types';
+import type { InvoiceStatus } from '@/types/invoice.types';
 import type { ScoringFactor } from '@/types/lead-scoring.types';
 
 export const LEAD_STATUSES: LeadStatus[] = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'];
@@ -61,6 +63,40 @@ export const GOAL_PERIOD_LABELS: Record<GoalPeriod, string> = {
   quarterly: 'Quarterly',
   yearly: 'Yearly',
 };
+
+/**
+ * Quote status workflow (FEATURES §14). `accepted` is terminal; `rejected` can
+ * reopen to `draft` for re-work. Same-status is always valid (no-op edit).
+ */
+export const QUOTE_STATUS_TRANSITIONS: Record<QuoteStatus, readonly QuoteStatus[]> = {
+  draft: ['sent'],
+  sent: ['accepted', 'rejected'],
+  accepted: [],
+  rejected: ['draft'],
+};
+
+export function getAllowedQuoteStatuses(current: QuoteStatus): QuoteStatus[] {
+  return [current, ...QUOTE_STATUS_TRANSITIONS[current]];
+}
+
+/**
+ * Invoice status flow: draft → sent → paid (with overdue auto-detection when
+ * sent + past due date). cancelled/refunded are reachable from draft or sent;
+ * refunded only from paid. overdue is auto-derived, not user-settable except
+ * to "reset" it back to sent if payment arrives after the due date.
+ */
+export const INVOICE_STATUS_TRANSITIONS: Record<InvoiceStatus, readonly InvoiceStatus[]> = {
+  draft: ['sent', 'cancelled'],
+  sent: ['paid', 'overdue', 'cancelled'],
+  paid: ['refunded'],
+  overdue: ['paid', 'cancelled'],
+  cancelled: [],
+  refunded: [],
+};
+
+export function getAllowedInvoiceStatuses(current: InvoiceStatus): InvoiceStatus[] {
+  return [current, ...INVOICE_STATUS_TRANSITIONS[current]];
+}
 
 // ── Pagination constants ─────────────────────────────────────────────
 export const PAGE_SIZE = 50;

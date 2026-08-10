@@ -279,7 +279,8 @@ This secret must match between the CRM environment variable and the n8n Webhook 
 Verify the webhook endpoint is reachable:
 
 ```bash
-curl https://your-crm.com/api/webhook/n8n
+curl https://your-crm.com/api/webhook/n8n \
+  -H "x-api-key: your-webhook-secret"
 ```
 
 Expected response:
@@ -407,7 +408,12 @@ Receive and process webhook events from n8n.
 
 ### `GET /api/webhook/n8n`
 
-Health check and capability discovery. No authentication required.
+Health check and capability discovery. Requires `x-api-key` header.
+
+**Headers:**
+| Header | Value | Required |
+|--------|-------|----------|
+| `x-api-key` | `{N8N_WEBHOOK_SECRET}` | Yes |
 
 **Response:**
 ```json

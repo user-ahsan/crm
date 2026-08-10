@@ -26,6 +26,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { LEAD_STATUSES, LEAD_SOURCES, LEAD_PRIORITIES } from '@/lib/constants';
+import { applyLeadFilters } from '@/modules/leads/leadFilters';
+import { USERS } from '@/data/mock-users';
 import { ExportDropdown } from '@/components/common/ExportDropdown';
 import { ImportDialog } from '@/components/common/ImportDialog';
 import { PermissionGuard } from '@/components/teams/PermissionGuard';
@@ -41,9 +43,11 @@ import { cn } from '@/lib/utils';
 const ALL_STATUS = '';
 const ALL_SOURCE = '';
 const ALL_PRIORITY = '';
+const ALL_ASSIGNED = '';
+const UNASSIGNED = 'unassigned';
 
 function LeadsPageContent() {
-  const { leads, loading, error, refresh, getFiltered, deleteLead, updateLead } = useLeads();
+  const { leads, loading, error, refresh, deleteLead, updateLead } = useLeads();
   const { tags } = useTags();
   const { scoresMap } = useAllScores();
 
@@ -57,6 +61,7 @@ function LeadsPageContent() {
   const [sourceFilter, setSourceFilter] = useState<string>(searchParams.get('source') ?? ALL_SOURCE);
   const [priorityFilter, setPriorityFilter] = useState<string>(searchParams.get('priority') ?? ALL_PRIORITY);
   const [tagFilter, setTagFilter] = useState<string>(searchParams.get('tag') ?? '');
+  const [assignedToFilter, setAssignedToFilter] = useState<string>(searchParams.get('assignedTo') ?? ALL_ASSIGNED);
   const [minScoreFilter, setMinScoreFilter] = useState<string>(searchParams.get('minScore') ?? '');
 
   useEffect(() => {
@@ -86,13 +91,18 @@ function LeadsPageContent() {
     } else {
       params.delete('tag');
     }
+    if (assignedToFilter) {
+      params.set('assignedTo', assignedToFilter);
+    } else {
+      params.delete('assignedTo');
+    }
     if (minScoreFilter) {
       params.set('minScore', minScoreFilter);
     } else {
       params.delete('minScore');
     }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [debouncedSearch, statusFilter, sourceFilter, priorityFilter, tagFilter, minScoreFilter, pathname, router, searchParams]);
+  }, [debouncedSearch, statusFilter, sourceFilter, priorityFilter, tagFilter, assignedToFilter, minScoreFilter, pathname, router, searchParams]);
 
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -108,34 +118,29 @@ function LeadsPageContent() {
     }
   }, [searchParams]);
 
-  const filters = useMemo(
-    () => ({
+  const filters = useMemo(() => {
+    const minScore = parseInt(minScoreFilter, 10);
+    return {
       search: debouncedSearch,
       status: (statusFilter !== ALL_STATUS ? statusFilter : undefined) as LeadStatus | undefined,
       source: (sourceFilter !== ALL_SOURCE ? sourceFilter : undefined) as LeadSource | undefined,
       priority: (priorityFilter !== ALL_PRIORITY ? priorityFilter : undefined) as
         | LeadPriority
         | undefined,
-    }),
-    [debouncedSearch, statusFilter, sourceFilter, priorityFilter],
-  );
+      assignedTo: assignedToFilter || undefined,
+      minScore: !isNaN(minScore) ? minScore : undefined,
+    };
+  }, [debouncedSearch, statusFilter, sourceFilter, priorityFilter, assignedToFilter, minScoreFilter]);
 
   const filteredLeads = useMemo(() => {
-    let result = getFiltered(filters);
+    // search/status/source/priority/assignedTo/minScore go through the module;
+    // tag filtering stays page-level (the module does not filter by tag).
+    let result = applyLeadFilters(leads, filters, scoresMap);
     if (tagFilter) {
       result = result.filter((l) => l.tags.includes(tagFilter));
     }
-    if (minScoreFilter) {
-      const minScore = parseInt(minScoreFilter, 10);
-      if (!isNaN(minScore)) {
-        result = result.filter((l) => {
-          const s = scoresMap.get(l.id);
-          return s && s.score >= minScore;
-        });
-      }
-    }
     return result;
-  }, [getFiltered, filters, tagFilter, minScoreFilter, scoresMap]);
+  }, [leads, filters, tagFilter, scoresMap]);
 
   const handleLoadView = useCallback((view: SavedView) => {
     const f = view.filters as Record<string, string>;
@@ -144,6 +149,7 @@ function LeadsPageContent() {
     setSourceFilter(f.source ?? ALL_SOURCE);
     setPriorityFilter(f.priority ?? ALL_PRIORITY);
     setTagFilter(f.tag ?? '');
+    setAssignedToFilter(f.assignedTo ?? ALL_ASSIGNED);
     setMinScoreFilter(f.minScore ?? '');
   }, []);
 
@@ -153,10 +159,11 @@ function LeadsPageContent() {
     source: sourceFilter !== ALL_SOURCE ? sourceFilter : '',
     priority: priorityFilter !== ALL_PRIORITY ? priorityFilter : '',
     tag: tagFilter,
+    assignedTo: assignedToFilter,
     minScore: minScoreFilter,
-  }), [search, statusFilter, sourceFilter, priorityFilter, tagFilter, minScoreFilter]);
+  }), [search, statusFilter, sourceFilter, priorityFilter, tagFilter, assignedToFilter, minScoreFilter]);
 
-  const hasActiveFilters = !!(search || statusFilter !== ALL_STATUS || sourceFilter !== ALL_SOURCE || priorityFilter !== ALL_PRIORITY || tagFilter || minScoreFilter);
+  const hasActiveFilters = !!(search || statusFilter !== ALL_STATUS || sourceFilter !== ALL_SOURCE || priorityFilter !== ALL_PRIORITY || tagFilter || assignedToFilter || minScoreFilter);
 
   const handleEdit = useCallback(
     (id: string) => {
@@ -236,8 +243,19 @@ function LeadsPageContent() {
   const handleBulkUpdate = useCallback(async (ids: string[], data: Record<string, unknown>) => {
     // Optimistic updates happen inside each updateLead call
     try {
+      // Narrow the untyped bulk payload to the fields leads accept.
+      const updates: Partial<LeadFormData> = {};
+      if (typeof data.status === 'string' && (LEAD_STATUSES as string[]).includes(data.status)) {
+        updates.status = data.status as LeadStatus;
+      }
+      if (typeof data.priority === 'string' && (LEAD_PRIORITIES as string[]).includes(data.priority)) {
+        updates.priority = data.priority as LeadPriority;
+      }
+      if (typeof data.assignedTo === 'string') {
+        updates.assignedTo = data.assignedTo || undefined;
+      }
       const results = await Promise.all(
-        ids.map(id => updateLead(id, data as Partial<LeadFormData>))
+        ids.map(id => updateLead(id, updates))
       );
       const failures = results.filter(r => !r);
       if (failures.length > 0) {
@@ -303,7 +321,7 @@ function LeadsPageContent() {
       toast.error('No leads to export');
       return;
     }
-    const csv = convertToCSV(selected as unknown as Record<string, unknown>[], LEAD_EXPORT_COLUMNS);
+    const csv = convertToCSV(selected.map((l) => ({ ...l })), LEAD_EXPORT_COLUMNS);
     const filename = `leads-export-${new Date().toISOString().slice(0, 10)}.csv`;
     downloadCSV(csv, filename);
     toast.success(`Exported ${selected.length} lead${selected.length !== 1 ? 's' : ''}`);
@@ -397,6 +415,20 @@ function LeadsPageContent() {
             {LEAD_PRIORITIES.map((priority) => (
               <SelectItem key={priority} value={priority}>
                 {priority.charAt(0).toUpperCase() + priority.slice(1)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={assignedToFilter} onValueChange={(v: string | null) => { if (v !== null) setAssignedToFilter(v); }}>
+          <SelectTrigger className="sm:w-44" aria-label="Filter by assigned to">
+            <SelectValue placeholder="All assignees" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_ASSIGNED}>All assignees</SelectItem>
+            <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+            {USERS.map((user) => (
+              <SelectItem key={user.id} value={user.id}>
+                {user.name}
               </SelectItem>
             ))}
           </SelectContent>

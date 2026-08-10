@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useWorkflows } from '@/hooks/useWorkflows';
 import type {
   WorkflowEntityType,
@@ -136,11 +136,15 @@ export function useWorkflowEditor(entityType: WorkflowEntityType) {
     [workflows.transitions],
   );
 
-  const statesWithTransitionCounts = workflows.states.map((s) => ({
-    ...s,
-    outgoingCount: getOutgoingTransitions(s.id).length,
-    incomingCount: getIncomingTransitions(s.id).length,
-  }));
+  const statesWithTransitionCounts = useMemo(
+    () =>
+      workflows.states.map((s) => ({
+        ...s,
+        outgoingCount: getOutgoingTransitions(s.id).length,
+        incomingCount: getIncomingTransitions(s.id).length,
+      })),
+    [workflows.states, workflows.transitions, getOutgoingTransitions, getIncomingTransitions],
+  );
 
   return {
     /* Re-export all from useWorkflows */

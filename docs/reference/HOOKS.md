@@ -1,6 +1,6 @@
 # Custom Hooks Reference
 
-## NexusCRM — All 37 Custom React Hooks
+## NexusCRM — All 39 Custom React Hooks
 
 ---
 
@@ -691,6 +691,115 @@ Triggers a CSV download in the browser using column definitions from `lib/csv-ex
   toggleUser: (id: string, active: boolean) => Promise<void>;
   createShare: (data: PortalShareFormData) => Promise<void>;
   deleteShare: (id: string) => Promise<void>;
+}
+```
+
+---
+
+### `useBranding()`
+
+**File:** `hooks/useBranding.ts`
+
+**Services Called:** Branding API routes
+
+```typescript
+{
+  branding: BrandingSettings | null;
+  loading: boolean;
+  error: string | null;
+  updateBranding: (data: Partial<BrandingSettings>) => Promise<void>;
+  uploadLogo: (file: File) => Promise<void>;
+}
+```
+
+---
+
+### `usePresence()`
+
+**File:** `hooks/usePresence.ts`
+
+**Services Called:** `realtimeService`
+
+```typescript
+{
+  onlineUsers: string[];
+  isOnline: boolean;
+  loading: boolean;
+}
+```
+
+---
+
+### `useRealtimeNotifications()`
+
+**File:** `hooks/useRealtimeNotifications.ts`
+
+**Services Called:** `realtimeService`
+
+```typescript
+{
+  liveNotifications: AppNotification[];
+  isConnected: boolean;
+  subscribe: () => void;
+  unsubscribe: () => void;
+}
+```
+
+---
+
+### `useWorkflowEditor()`
+
+**File:** `hooks/useWorkflowEditor.ts`
+
+**Services Called:** `workflowService`
+
+```typescript
+{
+  states: WorkflowState[];
+  transitions: WorkflowTransition[];
+  loading: boolean;
+  error: string | null;
+  addState: (data: WorkflowStateFormData) => Promise<void>;
+  removeState: (id: string) => Promise<void>;
+  addTransition: (data: WorkflowTransitionFormData) => Promise<void>;
+  removeTransition: (id: string) => Promise<void>;
+}
+```
+
+---
+
+### `useCampaignScheduler()`
+
+**File:** `hooks/useCampaignScheduler.ts`
+
+**Services Called:** `campaignSchedulerService`
+
+```typescript
+{
+  scheduledEmails: ScheduledEmail[];
+  loading: boolean;
+  error: string | null;
+  scheduleEmail: (sequenceId: string) => Promise<void>;
+  cancelSchedule: (sequenceId: string) => Promise<void>;
+}
+```
+
+---
+
+### `useSavedViews()`
+
+**File:** `hooks/useSavedViews.ts`
+
+**Services Called:** `savedViewService`
+
+```typescript
+{
+  views: SavedView[];
+  loading: boolean;
+  error: string | null;
+  createView: (data: SavedViewFormData) => Promise<void>;
+  updateView: (id: string, data: Partial<SavedViewFormData>) => Promise<void>;
+  deleteView: (id: string) => Promise<void>;
 }
 ```
 

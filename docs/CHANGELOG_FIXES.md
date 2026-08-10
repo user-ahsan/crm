@@ -14,8 +14,9 @@
 **Fix:** Replaced `'Access-Control-Allow-Origin': '*'` with `process.env.CORS_ORIGIN || 'http://localhost:3000'`
 
 ### S2 — Browser Supabase Client → Server Client (19 API route files)
-**Files:** All `app/api/**/route.ts` (19 files)
+**Files:** `app/api/**/route.ts` (19 of 33 files converted in this batch)
 **Fix:** Changed `import from '@/lib/supabase/client'` → `@/lib/supabase/server` and initialization from `getSupabaseClient()` → `createServerSupabaseClient()`
+**Note:** 5 route files (branding, sms, service-config) and `webhook-config.service.ts` still use the browser client — remaining cleanup deferred.
 
 ### S3 — IDOR Protection (3 route groups)
 **Files:** `app/api/campaigns/[id]/route.ts`, `campaigns/[id]/stats/route.ts`, `webhooks/config/[id]/route.ts`
@@ -39,7 +40,8 @@
 
 ### S9 — Portal Auth Rate Limiting + Password Strength
 **File:** `services/portal.service.ts`
-**Fix:** Added 10-attempt/minute rate limiting, minimum 8-char password with mixed case/digit
+**Fix:** Added minimum 8-char password with mixed case/digit requirement
+**Note:** Per-route rate limiting on portal register endpoint not yet implemented — flagged for follow-up.
 
 ### S10 — Email Settings API Key Removal
 **File:** `app/api/settings/email/route.ts`
@@ -77,8 +79,8 @@
 **File:** `components/common/AppShell.tsx`
 **Fix:** Changed `CommandPalette` import to `next/dynamic` with `ssr: false`
 
-### P4 — Route-Specific Loading Skeletons (20 files)
-**Files:** 20 new `loading.tsx` files + updated `LoadingSkeleton.tsx` with `form`, `chart`, `kanban` variants
+### P4 — Route-Specific Loading Skeletons (24 files)
+**Files:** 24 `loading.tsx` files across route segments + updated `LoadingSkeleton.tsx` with `form`, `chart`, `kanban` variants
 
 ### P5 — Sequential Bulk Ops → Parallel Promise.all
 **Files:** `app/leads/page-content.tsx`, `app/contacts/page-content.tsx`

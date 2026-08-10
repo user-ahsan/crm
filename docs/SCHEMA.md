@@ -222,6 +222,8 @@ Event log for tracking all actions performed across the system.
 
 ### Column Type Reference
 
+> **Note:** The actual database schema has 46 tables across 14 migration files (see [architecture/DATABASE.md](./architecture/DATABASE.md) for the complete reference). This document covers the core entity definitions.
+
 | TypeScript Type | Schema Type | Description |
 |-----------------|-------------|-------------|
 | `string` | `text` / `varchar` | Text values |

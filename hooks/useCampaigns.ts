@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import type { EmailSequence, CampaignEmail, EmailSequenceFormData, CampaignEmailFormData, CampaignStatus } from '@/types/campaign.types';
 import { generateId } from '@/lib/formatters';
 import { campaignService } from '@/services/campaign.service';
+import { campaignScheduler } from '@/services/campaign-scheduler.service';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export interface SequenceStats {
@@ -115,55 +116,150 @@ export function useCampaigns() {
     }
   }, []);
 
+  /**
+   * Applies a lifecycle status transition with optimistic UI + rollback.
+   * 'active' is deliberately rejected here — activation only happens through
+   * campaignScheduler.activateSequence (queues recipients) or
+   * campaignScheduler.resumeSequence (F17 transition enforcement).
+   */
   const updateSequenceStatus = useCallback(async (id: string, status: CampaignStatus) => {
-    return updateSequence(id, { status });
-  }, [updateSequence]);
+    let previous: EmailSequence | undefined;
+    setSequences((prev) => {
+      previous = prev.find((s) => s.id === id);
+      return prev.map((s) => (s.id === id ? { ...s, status } : s));
+    });
+    try {
+      if (status === 'active') {
+        throw new Error('Sequences become active through activation, which queues recipients. Use activateSequence instead.');
+      }
+      const updated = await campaignService.updateSequenceStatus(id, status);
+      if (updated) {
+        setSequences((prev) => prev.map((s) => (s.id === id ? updated : s)));
+      }
+      return updated;
+    } catch (e) {
+      if (previous) {
+        setSequences((prev) => prev.map((s) => (s.id === id && previous ? { ...s, status: previous.status } : s)));
+      }
+      setError(e instanceof Error ? e.message : 'Failed to update sequence status');
+      return undefined;
+    }
+  }, []);
 
+  /**
+   * Activates a draft sequence through the REAL scheduler path — validates
+   * draft-only, inserts recipient rows (batched), and only then flips the
+   * sequence to active. `campaignService.updateSequenceStatus('active')`
+   * throws INVALID_TRANSITION by design (F17), so this is the only hook path
+   * to activation. Optimistic status change with rollback + error surfacing.
+   */
   const activateSequence = useCallback(async (
     sequenceId: string,
     leadIds?: string[],
     contactIds?: string[],
   ): Promise<{ total: number }> => {
-    const updated = await campaignService.updateSequenceStatus(sequenceId, 'active');
-    if (updated) {
-      setSequences((prev) =>
-        prev.map((s) => (s.id === sequenceId ? updated : s)),
-      );
+    let previous: EmailSequence | undefined;
+    setSequences((prev) => {
+      previous = prev.find((s) => s.id === sequenceId);
+      return prev.map((s) => (s.id === sequenceId ? { ...s, status: 'active' } : s));
+    });
+    try {
+      const result = await campaignScheduler.activateSequence(sequenceId, leadIds, contactIds);
+      // The scheduler returns only { total }; re-sync the sequence row from
+      // the service so local state carries the server-confirmed row.
+      const updated = await campaignService.getSequence(sequenceId);
+      if (updated) {
+        setSequences((prev) => prev.map((s) => (s.id === sequenceId ? updated : s)));
+      }
+      return result;
+    } catch (e) {
+      if (previous) {
+        setSequences((prev) => prev.map((s) => (s.id === sequenceId && previous ? { ...s, status: previous.status } : s)));
+      }
+      setError(e instanceof Error ? e.message : 'Failed to activate sequence');
+      return { total: 0 };
     }
-    return { total: (leadIds?.length ?? 0) + (contactIds?.length ?? 0) };
   }, []);
 
+  /**
+   * Pauses an active sequence through the scheduler's lifecycle path
+   * (active → paused). Optimistic status change with rollback; rethrows so
+   * callers can toast the failure (the hook also sets error state).
+   */
   const pauseSequence = useCallback(async (sequenceId: string): Promise<void> => {
-    const updated = await campaignService.updateSequenceStatus(sequenceId, 'paused');
-    if (updated) {
-      setSequences((prev) =>
-        prev.map((s) => (s.id === sequenceId ? updated : s)),
-      );
+    let previous: EmailSequence | undefined;
+    setSequences((prev) => {
+      previous = prev.find((s) => s.id === sequenceId);
+      return prev.map((s) => (s.id === sequenceId ? { ...s, status: 'paused' } : s));
+    });
+    try {
+      await campaignScheduler.pauseSequence(sequenceId);
+      const updated = await campaignService.getSequence(sequenceId);
+      if (updated) {
+        setSequences((prev) => prev.map((s) => (s.id === sequenceId ? updated : s)));
+      }
+    } catch (e) {
+      if (previous) {
+        setSequences((prev) => prev.map((s) => (s.id === sequenceId && previous ? { ...s, status: previous.status } : s)));
+      }
+      setError(e instanceof Error ? e.message : 'Failed to pause sequence');
+      throw e instanceof Error ? e : new Error('Failed to pause sequence');
     }
   }, []);
 
+  /**
+   * Delivery statistics read from the REAL campaign_recipients rows via the
+   * scheduler service (F17) — no fabricated numbers. Cached per sequence id.
+   * Throws on failure (honest: returning zeros would fabricate stats).
+   */
   const getSequenceStats = useCallback(async (sequenceId: string): Promise<SequenceStats> => {
-    if (statsMap[sequenceId]) return statsMap[sequenceId];
-    await campaignService.getSequence(sequenceId);
-    const emails = await campaignService.getCampaignEmails(sequenceId);
-    const stats: SequenceStats = {
-      total: emails.length,
-      sent: 0,
-      failed: 0,
-      pending: emails.length,
-    };
-    setStatsMap((prev) => ({ ...prev, [sequenceId]: stats }));
-    return stats;
+    const cached = statsMap[sequenceId];
+    if (cached) return cached;
+    try {
+      const stats = await campaignScheduler.getSequenceStats(sequenceId);
+      const projected: SequenceStats = {
+        total: stats.total,
+        sent: stats.sent,
+        failed: stats.failed,
+        pending: stats.pending,
+      };
+      setStatsMap((prev) => ({ ...prev, [sequenceId]: projected }));
+      return projected;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load sequence stats');
+      throw e instanceof Error ? e : new Error('Failed to load sequence stats');
+    }
   }, [statsMap]);
 
+  /**
+   * Adds leads/contacts as recipients via the real recipients API route
+   * (same POST the detail page uses) — recipient rows are persisted with
+   * dedupe on (sequence_id, recipient_type, recipient_id).
+   */
   const addRecipients = useCallback(async (
     sequenceId: string,
     leadIds?: string[],
     contactIds?: string[],
   ): Promise<{ added: number }> => {
-    // Recipient tracking goes through the update sequence flow
-    await campaignService.updateSequence(sequenceId, {});
-    return { added: (leadIds?.length ?? 0) + (contactIds?.length ?? 0) };
+    try {
+      const res = await fetch('/api/campaigns/recipients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sequenceId,
+          leadIds: leadIds && leadIds.length > 0 ? leadIds : undefined,
+          contactIds: contactIds && contactIds.length > 0 ? contactIds : undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({})) as { added?: number; error?: string };
+      if (!res.ok) {
+        throw new Error(data.error ?? 'Failed to add recipients');
+      }
+      return { added: typeof data.added === 'number' ? data.added : 0 };
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to add recipients');
+      throw e instanceof Error ? e : new Error('Failed to add recipients');
+    }
   }, []);
 
   return {
@@ -270,6 +366,35 @@ export function useCampaignEmails(sequenceId: string) {
     }
   }, []);
 
+  /**
+   * Rewrites sort_order for every email in the sequence to match the order of
+   * `orderedEmailIds`. Permutation of every existing id is required (service
+   * rejects partial/duplicate payloads). Optimistic reorder with rollback on
+   * failure; service returns the re-sorted list from the DB on success.
+   */
+  const reorderEmails = useCallback(async (orderedEmailIds: string[]) => {
+    let previous: CampaignEmail[] | undefined;
+    setEmails((prev) => {
+      previous = [...prev];
+      const byId = new Map(prev.map((e) => [e.id, e]));
+      return orderedEmailIds
+        .map((id, idx) => {
+          const email = byId.get(id);
+          return email ? { ...email, sortOrder: idx } : null;
+        })
+        .filter((e): e is CampaignEmail => e !== null);
+    });
+    try {
+      const reordered = await campaignService.reorderEmails(sequenceId, orderedEmailIds);
+      setEmails(reordered);
+      return reordered;
+    } catch (e) {
+      if (previous) setEmails(previous);
+      setError(e instanceof Error ? e.message : 'Failed to reorder emails');
+      return undefined;
+    }
+  }, [sequenceId]);
+
   return {
     emails,
     loading,
@@ -278,5 +403,6 @@ export function useCampaignEmails(sequenceId: string) {
     addEmail,
     updateEmail,
     deleteEmail,
+    reorderEmails,
   };
 }

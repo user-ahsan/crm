@@ -19,7 +19,7 @@ bun run dev       # Start dev server at http://localhost:3000
 | **Language** | TypeScript 5 (strict mode) |
 | **Styling** | Tailwind CSS 4 + shadcn/ui (@base-ui/react) |
 | **State** | Zustand 5 (persisted stores) |
-| **Database** | Optional Supabase (PostgreSQL) |
+| **Database** | Optional Supabase (PostgreSQL) — app works without it using in-memory mock data |
 | **Package Manager** | Bun |
 
 ## Documentation

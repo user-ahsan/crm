@@ -3,12 +3,16 @@
  * Provides configuration check, error formatting, and type-safe enum validation.
  */
 
+import { isSupabaseConfigured as isSupabaseConfiguredImpl } from '@/lib/supabase/client';
+
+/**
+ * Returns whether real Supabase credentials are configured.
+ * `false` means the app runs in mock mode — getSharedClient() returns the
+ * mock client backed by data/*.ts (see .tmp/audit/fixes/PATTERN-mock-mode.md).
+ * Single source of truth: lib/supabase/client.ts.
+ */
 export function isSupabaseConfigured(): boolean {
-  return !!(
-    typeof process !== 'undefined' &&
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
+  return isSupabaseConfiguredImpl();
 }
 
 /**

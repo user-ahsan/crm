@@ -4,6 +4,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
 import { corsHeaders } from '@/lib/cors';
 import { URL } from 'url';
+import { webhookConfigService } from '@/services/webhook-config.service';
 
 function isPrivateHost(urlStr: string): boolean {
   try {
@@ -82,31 +83,47 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ success: false, error: 'Too many requests' }, { status: 429, headers: corsHeaders() });
     }
 
-    let body: { url?: string; secret?: string };
+    let body: { url?: string; secret?: string; configId?: string };
     try {
       body = await request.json();
     } catch {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400, headers: corsHeaders() });
     }
 
+    // Resolve URL + secret: if configId is provided, look up the config server-side
+    // so the secret never needs to leave the server (the list endpoint strips it).
+    let targetUrl = body.url?.trim() ?? '';
+    let secret: string | null = typeof body.secret === 'string' && body.secret.trim()
+      ? body.secret.trim()
+      : null;
+
+    if (body.configId) {
+      const config = await webhookConfigService.getById(body.configId, supabase);
+      if (!config) {
+        return NextResponse.json({ error: 'Webhook config not found' }, { status: 404, headers: corsHeaders() });
+      }
+      // Ownership check
+      if (config.createdBy !== user.id) {
+        return NextResponse.json({ error: 'Webhook config not found' }, { status: 404, headers: corsHeaders() });
+      }
+      targetUrl = config.url;
+      secret = config.secret;
+    }
+
     // Validate URL
-    if (!body.url || typeof body.url !== 'string' || !body.url.trim()) {
+    if (!targetUrl) {
       return NextResponse.json({ error: 'URL is required and must be a non-empty string' }, { status: 400, headers: corsHeaders() });
     }
     try {
-      new URL(body.url);
+      new URL(targetUrl);
     } catch {
       return NextResponse.json({ error: 'Invalid URL format. Must be a valid absolute URL.' }, { status: 400, headers: corsHeaders() });
     }
 
     // SSRF protection: reject private/internal hosts
-    if (isPrivateHost(body.url)) {
+    if (isPrivateHost(targetUrl)) {
       return NextResponse.json({ success: false, error: 'URL must point to a public endpoint' }, { status: 400, headers: corsHeaders() });
     }
-
-    const secret = typeof body.secret === 'string' && body.secret.trim()
-      ? body.secret.trim()
-      : null;
 
     // Direct fetch to the test URL (same pattern as sendToUrl in webhook.service.ts)
     const startTime = performance.now();
@@ -119,7 +136,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         headers['Authorization'] = `Bearer ${secret}`;
       }
 
-      const response = await fetch(body.url, {
+      const response = await fetch(targetUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify({

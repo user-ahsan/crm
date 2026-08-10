@@ -15,9 +15,16 @@ import type { InvoiceStatus } from '@/types/invoice.types';
 import type { GoalType, GoalPeriod } from '@/types/goal.types';
 import type { WorkflowEntityType } from '@/types/workflow.types';
 import type { CampaignStatus } from '@/types/campaign.types';
+import type { SmsStatus } from '@/types/sms.types';
 
 // ──────────────────────────────────────────────
 // Database public schema definition
+//
+// Regenerated from supabase/migrations/* — the definitive table list.
+// 45 tables total: 40 created by existing migrations + 5 added by
+// 20260731_schema_alignment.sql (profiles, invoices, invoice_items,
+// invoice_templates, webhook_events). invoices/invoice_items are now
+// backed by real migrations (they were previously phantom entries).
 // ──────────────────────────────────────────────
 
 export interface Database {
@@ -133,6 +140,11 @@ export interface Database {
         Insert: InvoiceItemInsert;
         Update: InvoiceItemUpdate;
       };
+      invoice_templates: {
+        Row: InvoiceTemplateRow;
+        Insert: InvoiceTemplateInsert;
+        Update: InvoiceTemplateUpdate;
+      };
       forecasts: {
         Row: ForecastRow;
         Insert: ForecastInsert;
@@ -183,6 +195,16 @@ export interface Database {
         Insert: WebhookDeliveryInsert;
         Update: WebhookDeliveryUpdate;
       };
+      webhook_events: {
+        Row: WebhookEventRow;
+        Insert: WebhookEventInsert;
+        Update: WebhookEventUpdate;
+      };
+      notifications: {
+        Row: NotificationRow;
+        Insert: NotificationInsert;
+        Update: NotificationUpdate;
+      };
       notification_preferences: {
         Row: NotificationPreferenceRow;
         Insert: NotificationPreferenceInsert;
@@ -197,6 +219,46 @@ export interface Database {
         Row: WorkflowTransitionRow;
         Insert: WorkflowTransitionInsert;
         Update: WorkflowTransitionUpdate;
+      };
+      rate_limits: {
+        Row: RateLimitRow;
+        Insert: RateLimitInsert;
+        Update: RateLimitUpdate;
+      };
+      profiles: {
+        Row: ProfileRow;
+        Insert: ProfileInsert;
+        Update: ProfileUpdate;
+      };
+      calendar_integrations: {
+        Row: CalendarIntegrationRow;
+        Insert: CalendarIntegrationInsert;
+        Update: CalendarIntegrationUpdate;
+      };
+      sms_logs: {
+        Row: SmsLogRow;
+        Insert: SmsLogInsert;
+        Update: SmsLogUpdate;
+      };
+      portal_users: {
+        Row: PortalUserRow;
+        Insert: PortalUserInsert;
+        Update: PortalUserUpdate;
+      };
+      portal_shares: {
+        Row: PortalShareRow;
+        Insert: PortalShareInsert;
+        Update: PortalShareUpdate;
+      };
+      service_configs: {
+        Row: ServiceConfigRow;
+        Insert: ServiceConfigInsert;
+        Update: ServiceConfigUpdate;
+      };
+      branding_settings: {
+        Row: BrandingSettingRow;
+        Insert: BrandingSettingInsert;
+        Update: BrandingSettingUpdate;
       };
     };
     Views: Record<string, never>;
@@ -242,6 +304,7 @@ export interface LeadRow {
   estimated_value: number;
   tags: string[];
   notes: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -332,9 +395,11 @@ export interface LeadInsert {
   status?: LeadStatus;
   priority?: LeadPriority;
   assigned_to?: string | null;
+  owner_id?: string | null;
   estimated_value?: number;
   tags?: string[];
   notes?: string | null;
+  deleted_at?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -425,9 +490,11 @@ export interface LeadUpdate {
   status?: LeadStatus;
   priority?: LeadPriority;
   assigned_to?: string | null;
+  owner_id?: string | null;
   estimated_value?: number;
   tags?: string[];
   notes?: string | null;
+  deleted_at?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -513,7 +580,7 @@ export interface EmailHistoryRow {
   subject: string;
   body: string;
   direction: 'inbound' | 'outbound';
-  status: 'draft' | 'pending' | 'sent' | 'failed';
+  status: 'draft' | 'pending' | 'queued' | 'sent' | 'failed';
   related_to_type: string | null;
   related_to_id: string | null;
   sent_at: string | null;
@@ -529,7 +596,7 @@ export interface EmailHistoryInsert {
   subject: string;
   body: string;
   direction: 'inbound' | 'outbound';
-  status?: string;
+  status?: 'draft' | 'pending' | 'queued' | 'sent' | 'failed';
   related_to_type?: string | null;
   related_to_id?: string | null;
   sent_at?: string | null;
@@ -543,8 +610,8 @@ export interface EmailHistoryUpdate {
   to_address?: string;
   subject?: string;
   body?: string;
-  direction?: string;
-  status?: string;
+  direction?: 'inbound' | 'outbound';
+  status?: 'draft' | 'pending' | 'queued' | 'sent' | 'failed';
   related_to_type?: string | null;
   related_to_id?: string | null;
   sent_at?: string | null;
@@ -1054,6 +1121,13 @@ export type DbQuote = QuoteRow;
 export type DbQuoteItem = QuoteItemRow;
 
 // ── Invoice types ─────────────────────────────────────────────
+// Backed by migrations 20260731_schema_alignment.sql. The DB id
+// column is `text` (not uuid) to stay compatible with the string
+// ids used by the mock seed data (data/invoices.ts inv-001..inv-005)
+// and with the service create path, which never supplies an id.
+// due_date / payment_terms are nullable because invoiceService.create()
+// writes `null` for both when unset. created_by defaults to the auth
+// user in the DB because the service never passes it.
 
 export interface InvoiceRow {
   id: string;
@@ -1071,13 +1145,13 @@ export interface InvoiceRow {
   tax: number;
   total: number;
   notes: string;
-  due_date: string;
+  due_date: string | null;
   paid_at: string | null;
-  payment_terms: string;
-  company_name: string;
-  company_address: string;
-  company_email: string;
-  company_phone: string;
+  payment_terms: string | null;
+  company_name: string | null;
+  company_address: string | null;
+  company_email: string | null;
+  company_phone: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -1087,7 +1161,7 @@ export interface InvoiceInsert {
   id?: string;
   quote_id?: string | null;
   invoice_number: string;
-  title: string;
+  title?: string;
   deal_id?: string | null;
   lead_id?: string | null;
   contact_id?: string | null;
@@ -1101,11 +1175,11 @@ export interface InvoiceInsert {
   notes?: string;
   due_date?: string | null;
   paid_at?: string | null;
-  payment_terms?: string;
-  company_name?: string;
-  company_address?: string;
-  company_email?: string;
-  company_phone?: string;
+  payment_terms?: string | null;
+  company_name?: string | null;
+  company_address?: string | null;
+  company_email?: string | null;
+  company_phone?: string | null;
   created_by?: string;
   created_at?: string;
   updated_at?: string;
@@ -1129,11 +1203,11 @@ export interface InvoiceUpdate {
   notes?: string;
   due_date?: string | null;
   paid_at?: string | null;
-  payment_terms?: string;
-  company_name?: string;
-  company_address?: string;
-  company_email?: string;
-  company_phone?: string;
+  payment_terms?: string | null;
+  company_name?: string | null;
+  company_address?: string | null;
+  company_email?: string | null;
+  company_phone?: string | null;
   created_by?: string;
   created_at?: string;
   updated_at?: string;
@@ -1171,6 +1245,67 @@ export interface InvoiceItemUpdate {
 
 export type DbInvoice = InvoiceRow;
 export type DbInvoiceItem = InvoiceItemRow;
+
+// ── Invoice Template types ─────────────────────────────────────
+// snake_case columns for the invoice_templates table. The settings
+// page (app/settings/invoice-templates/page-content.tsx) must map
+// camelCase form fields to these keys (fix owned by the app agent).
+
+export interface InvoiceTemplateRow {
+  id: string;
+  name: string;
+  is_default: boolean;
+  logo_url: string | null;
+  primary_color: string;
+  accent_color: string;
+  company_name: string;
+  company_address: string;
+  company_email: string;
+  company_phone: string;
+  footer_text: string;
+  payment_terms: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvoiceTemplateInsert {
+  id?: string;
+  name: string;
+  is_default?: boolean;
+  logo_url?: string | null;
+  primary_color?: string;
+  accent_color?: string;
+  company_name?: string;
+  company_address?: string;
+  company_email?: string;
+  company_phone?: string;
+  footer_text?: string;
+  payment_terms?: string | null;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface InvoiceTemplateUpdate {
+  id?: string;
+  name?: string;
+  is_default?: boolean;
+  logo_url?: string | null;
+  primary_color?: string;
+  accent_color?: string;
+  company_name?: string;
+  company_address?: string;
+  company_email?: string;
+  company_phone?: string;
+  footer_text?: string;
+  payment_terms?: string | null;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type DbInvoiceTemplate = InvoiceTemplateRow;
 
 // ── Workflow types ────────────────────────────────────────────
 
@@ -1382,6 +1517,9 @@ export type DbEmailSequence = EmailSequenceRow;
 export type DbCampaignEmail = CampaignEmailRow;
 
 // ── Campaign Recipient types ─────────────────────────────────────
+// status CHECK widened to (pending, processing, sent, failed, opened)
+// by 20260731_schema_alignment.sql so the scheduler's 'processing'
+// claim transition is allowed.
 
 export interface CampaignRecipientRow {
   id: string;
@@ -1500,6 +1638,257 @@ export interface ApiKeyUpdate {
 
 export type DbApiKey = ApiKeyRow;
 
+// ── Webhook Config types ──────────────────────────────────────
+
+export interface WebhookConfigRow {
+  id: string;
+  name: string;
+  url: string;
+  secret: string | null;
+  events: string[] | null;
+  active: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WebhookConfigInsert {
+  id?: string;
+  name: string;
+  url: string;
+  secret?: string | null;
+  events?: string[] | null;
+  active?: boolean;
+  created_by: string;
+}
+
+export interface WebhookConfigUpdate {
+  id?: string;
+  name?: string;
+  url?: string;
+  secret?: string | null;
+  events?: string[] | null;
+  active?: boolean;
+}
+
+export type DbWebhookConfig = WebhookConfigRow;
+
+// ── Webhook Delivery types ───────────────────────────────────
+// Corrected to the real 20260726_complete_features.sql columns:
+// url, request_body, response_status, error_message (the previous
+// shape — payload/status_code/request_headers/retry_count/
+// next_retry_at — matched no migration).
+
+export interface WebhookDeliveryRow {
+  id: string;
+  webhook_config_id: string | null;
+  event: string;
+  url: string;
+  status: string;
+  request_body: Record<string, unknown>;
+  response_status: number | null;
+  response_body: string | null;
+  error_message: string | null;
+  duration_ms: number | null;
+  created_at: string;
+}
+
+export interface WebhookDeliveryInsert {
+  id?: string;
+  webhook_config_id?: string | null;
+  event: string;
+  url: string;
+  status?: string;
+  request_body?: Record<string, unknown>;
+  response_status?: number | null;
+  response_body?: string | null;
+  error_message?: string | null;
+  duration_ms?: number | null;
+}
+
+export interface WebhookDeliveryUpdate {
+  id?: string;
+  webhook_config_id?: string | null;
+  event?: string;
+  url?: string;
+  status?: string;
+  request_body?: Record<string, unknown>;
+  response_status?: number | null;
+  response_body?: string | null;
+  error_message?: string | null;
+  duration_ms?: number | null;
+}
+
+export type DbWebhookDelivery = WebhookDeliveryRow;
+
+// ── Webhook Event types ──────────────────────────────────────
+// n8n ingest table (20260731_schema_alignment.sql). The n8n route
+// inserts { source, event_type, payload, status, created_at }.
+
+export interface WebhookEventRow {
+  id: string;
+  source: string;
+  event_type: string;
+  payload: Record<string, unknown>;
+  status: string;
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface WebhookEventInsert {
+  id?: string;
+  source?: string;
+  event_type: string;
+  payload?: Record<string, unknown>;
+  status?: string;
+  error_message?: string | null;
+}
+
+export interface WebhookEventUpdate {
+  id?: string;
+  source?: string;
+  event_type?: string;
+  payload?: Record<string, unknown>;
+  status?: string;
+  error_message?: string | null;
+}
+
+export type DbWebhookEvent = WebhookEventRow;
+
+// ── Notification types ──────────────────────────────────────────
+// Persistent in-app notifications (20260731_notifications.sql).
+// `type` holds NotificationEvent union values written by
+// notification.service.ts create() (validated at the service layer).
+
+export interface NotificationRow {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  body: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface NotificationInsert {
+  id?: string;
+  user_id: string;
+  type: string;
+  title: string;
+  body: string;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  read_at?: string | null;
+  created_at?: string;
+}
+
+export interface NotificationUpdate {
+  id?: string;
+  user_id?: string;
+  type?: string;
+  title?: string;
+  body?: string;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  read_at?: string | null;
+}
+
+export type DbNotification = NotificationRow;
+
+// ── Notification Preference types ────────────────────────────
+// Corrected to the real 20260726_complete_features.sql columns:
+// email_notifications / push_notifications / realtime_enabled /
+// notify_on (the previous shape — in_app_notifications /
+// digest_frequency / quiet_hours_* — matched no migration).
+// notification.service.ts maps exactly these columns.
+
+export interface NotificationPreferenceRow {
+  id: string;
+  user_id: string;
+  email_notifications: boolean;
+  push_notifications: boolean;
+  realtime_enabled: boolean;
+  notify_on: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationPreferenceInsert {
+  id?: string;
+  user_id: string;
+  email_notifications?: boolean;
+  push_notifications?: boolean;
+  realtime_enabled?: boolean;
+  notify_on?: string[];
+}
+
+export interface NotificationPreferenceUpdate {
+  id?: string;
+  user_id?: string;
+  email_notifications?: boolean;
+  push_notifications?: boolean;
+  realtime_enabled?: boolean;
+  notify_on?: string[];
+}
+
+export type DbNotificationPreference = NotificationPreferenceRow;
+
+// ── Rate Limit types ─────────────────────────────────────────
+// serverless-persistent rate limiting (00001_initial_schema.sql);
+// used by lib/rate-limit.ts.
+
+export interface RateLimitRow {
+  key: string;
+  count: number;
+  reset_at: string;
+}
+
+export interface RateLimitInsert {
+  key: string;
+  count?: number;
+  reset_at: string;
+}
+
+export interface RateLimitUpdate {
+  key?: string;
+  count?: number;
+  reset_at?: string;
+}
+
+export type DbRateLimit = RateLimitRow;
+
+// ── Profile types ────────────────────────────────────────────
+// Added by 20260731_schema_alignment.sql; queried by
+// services/lead.service.ts (assignee validation).
+
+export interface ProfileRow {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProfileInsert {
+  id: string;
+  email?: string | null;
+  full_name?: string | null;
+  avatar_url?: string | null;
+}
+
+export interface ProfileUpdate {
+  id?: string;
+  email?: string | null;
+  full_name?: string | null;
+  avatar_url?: string | null;
+  updated_at?: string;
+}
+
+export type DbProfile = ProfileRow;
+
 // ── Calendar Integration types ─────────────────────────────────────────
 
 export interface CalendarIntegrationRow {
@@ -1603,6 +1992,9 @@ export interface PortalShareUpdate {
 export type DbPortalShare = PortalShareRow;
 
 // ── SMS Log types ─────────────────────────────────────────────
+// status CHECK widened to (sent, queued, delivered, failed) by
+// 20260731_schema_alignment.sql — sms.service.send() inserts
+// 'queued' when Twilio is not configured.
 
 export interface SmsLogRow {
   id: string;
@@ -1610,7 +2002,7 @@ export interface SmsLogRow {
   from_number: string;
   body: string;
   direction: string;
-  status: string;
+  status: SmsStatus;
   provider_message_id: string | null;
   error_message: string | null;
   related_to_type: string | null;
@@ -1625,7 +2017,7 @@ export interface SmsLogInsert {
   from_number: string;
   body: string;
   direction: string;
-  status?: string;
+  status?: SmsStatus;
   provider_message_id?: string | null;
   error_message?: string | null;
   related_to_type?: string | null;
@@ -1640,7 +2032,7 @@ export interface SmsLogUpdate {
   from_number?: string;
   body?: string;
   direction?: string;
-  status?: string;
+  status?: SmsStatus;
   provider_message_id?: string | null;
   error_message?: string | null;
   related_to_type?: string | null;
@@ -1651,126 +2043,64 @@ export interface SmsLogUpdate {
 
 export type DbSmsLog = SmsLogRow;
 
-// ── Webhook Config types ──────────────────────────────────────
+// ── Service Config types ─────────────────────────────────────────────
+// 00008_branding_and_service_configs.sql; used by lib/service-config.ts
+// (select('config').eq('service', ...) + upsert({service, config,
+// updated_at}, {onConflict: 'service'})). id is bigint identity.
 
-export interface WebhookConfigRow {
-  id: string;
-  name: string;
-  url: string;
-  secret: string | null;
-  events: string[] | null;
-  active: boolean;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
+export interface ServiceConfigRow {
+  id: number;
+  service: string;
+  config: Record<string, unknown>;
+  created_by: string | null;
+  updated_at: string | null;
 }
 
-export interface WebhookConfigInsert {
-  id?: string;
-  name: string;
-  url: string;
-  secret?: string | null;
-  events?: string[] | null;
-  active?: boolean;
-  created_by: string;
+export interface ServiceConfigInsert {
+  service: string;
+  config?: Record<string, unknown>;
+  created_by?: string | null;
+  updated_at?: string | null;
 }
 
-export interface WebhookConfigUpdate {
-  id?: string;
-  name?: string;
-  url?: string;
-  secret?: string | null;
-  events?: string[] | null;
-  active?: boolean;
+export interface ServiceConfigUpdate {
+  service?: string;
+  config?: Record<string, unknown>;
+  created_by?: string | null;
+  updated_at?: string | null;
 }
 
-export type DbWebhookConfig = WebhookConfigRow;
+export type DbServiceConfig = ServiceConfigRow;
 
-// ── Webhook Delivery types ───────────────────────────────────
+// ── Branding Setting types ───────────────────────────────────────────
+// 00008_branding_and_service_configs.sql; organization-scoped branding.
 
-export interface WebhookDeliveryRow {
-  id: string;
-  webhook_config_id: string;
-  event: string;
-  payload: Record<string, unknown>;
-  status: string;
-  status_code: number | null;
-  request_headers: Record<string, string> | null;
-  response_body: string | null;
-  duration_ms: number | null;
-  error_message: string | null;
-  retry_count: number;
-  next_retry_at: string | null;
-  created_at: string;
+export interface BrandingSettingRow {
+  id: number;
+  organization_id: string;
+  logo_url: string | null;
+  logo_path: string | null;
+  company_name: string | null;
+  updated_at: string | null;
+  updated_by: string | null;
 }
 
-export interface WebhookDeliveryInsert {
-  id?: string;
-  webhook_config_id: string;
-  event: string;
-  payload: Record<string, unknown>;
-  status?: string;
-  status_code?: number | null;
-  request_headers?: Record<string, string> | null;
-  response_body?: string | null;
-  duration_ms?: number | null;
-  error_message?: string | null;
-  retry_count?: number;
-  next_retry_at?: string | null;
+export interface BrandingSettingInsert {
+  organization_id?: string;
+  logo_url?: string | null;
+  logo_path?: string | null;
+  company_name?: string | null;
+  updated_at?: string | null;
+  updated_by?: string | null;
 }
 
-export interface WebhookDeliveryUpdate {
-  id?: string;
-  webhook_config_id?: string;
-  event?: string;
-  payload?: Record<string, unknown>;
-  status?: string;
-  status_code?: number | null;
-  request_headers?: Record<string, string> | null;
-  response_body?: string | null;
-  duration_ms?: number | null;
-  error_message?: string | null;
-  retry_count?: number;
-  next_retry_at?: string | null;
+export interface BrandingSettingUpdate {
+  organization_id?: string;
+  logo_url?: string | null;
+  logo_path?: string | null;
+  company_name?: string | null;
+  updated_at?: string | null;
+  updated_by?: string | null;
 }
 
-export type DbWebhookDelivery = WebhookDeliveryRow;
-
-// ── Notification Preference types ────────────────────────────
-
-export interface NotificationPreferenceRow {
-  id: string;
-  user_id: string;
-  email_notifications: boolean;
-  push_notifications: boolean;
-  in_app_notifications: boolean;
-  digest_frequency: string;
-  quiet_hours_start: string | null;
-  quiet_hours_end: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface NotificationPreferenceInsert {
-  id?: string;
-  user_id: string;
-  email_notifications?: boolean;
-  push_notifications?: boolean;
-  in_app_notifications?: boolean;
-  digest_frequency?: string;
-  quiet_hours_start?: string | null;
-  quiet_hours_end?: string | null;
-}
-
-export interface NotificationPreferenceUpdate {
-  id?: string;
-  user_id?: string;
-  email_notifications?: boolean;
-  push_notifications?: boolean;
-  in_app_notifications?: boolean;
-  digest_frequency?: string;
-  quiet_hours_start?: string | null;
-  quiet_hours_end?: string | null;
-}
-
-export type DbNotificationPreference = NotificationPreferenceRow;
+export type DbBrandingSetting = BrandingSettingRow;

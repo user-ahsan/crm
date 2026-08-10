@@ -3,25 +3,9 @@
 import { useState } from 'react';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import { InvoicePDF } from './InvoicePDF';
-import type { Invoice } from '@/types/invoice.types';
-import type { InvoiceTemplate } from '@/types/invoice.types';
+import type { Invoice, InvoiceTemplate } from '@/types/invoice.types';
+import { useInvoiceTemplates, FALLBACK_TEMPLATE } from '@/hooks/useInvoiceTemplates';
 import { Button } from '@/components/ui/button';
-
-const defaultTemplate: InvoiceTemplate = {
-  id: 'default',
-  name: 'Default',
-  primaryColor: '#1e293b',
-  accentColor: '#3b82f6',
-  companyName: '',
-  companyAddress: '',
-  companyEmail: '',
-  companyPhone: '',
-  footer: 'Thank you for your business!',
-  paymentTerms: 'net-30',
-  isDefault: true,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-};
 import { IconDownload, IconEye, IconLoader2 } from '@tabler/icons-react';
 
 interface InvoiceDownloadButtonProps {
@@ -30,6 +14,8 @@ interface InvoiceDownloadButtonProps {
   variant?: 'default' | 'outline' | 'ghost';
   size?: 'default' | 'sm' | 'lg';
   showPreview?: boolean;
+  /** Optional override — when omitted, the user's default template is loaded. */
+  template?: InvoiceTemplate;
 }
 
 export function InvoiceDownloadButton({
@@ -38,9 +24,13 @@ export function InvoiceDownloadButton({
   variant = 'outline',
   size = 'sm',
   showPreview = false,
+  template: templateProp,
 }: InvoiceDownloadButtonProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
-  const template = defaultTemplate;
+  const { getDefault } = useInvoiceTemplates();
+  // ponytail: if caller supplied a template, use it; else resolve the user's
+  // default (or the built-in fallback when nothing has been configured yet).
+  const template = templateProp ?? getDefault() ?? FALLBACK_TEMPLATE;
 
   return (
     <>

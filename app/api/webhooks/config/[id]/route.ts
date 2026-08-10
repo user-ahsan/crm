@@ -35,7 +35,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const config = await webhookConfigService.getById(id);
+    const config = await webhookConfigService.getById(id, supabase);
 
     if (!config) {
       return NextResponse.json({ error: 'Webhook config not found' }, { status: 404, headers: corsHeaders() });
@@ -46,7 +46,10 @@ export async function GET(
       return NextResponse.json({ error: 'Webhook config not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    return NextResponse.json({ data: config }, { headers: corsHeaders() });
+    // Strip secret from response — secrets must never leave the server (same as list endpoint)
+    const { secret: _secret, ...sanitized } = config;
+    void _secret;
+    return NextResponse.json({ data: sanitized }, { headers: corsHeaders() });
   } catch (e) {
     console.error(`[webhooks/config/:id] GET Error:`, e);
     return NextResponse.json({ error: 'An internal error occurred' }, { status: 500, headers: corsHeaders() });
@@ -101,7 +104,7 @@ export async function PUT(
     const { id } = await params;
 
     // Check existence first
-    const existing = await webhookConfigService.getById(id);
+    const existing = await webhookConfigService.getById(id, supabase);
     if (!existing) {
       return NextResponse.json({ error: 'Webhook config not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -150,7 +153,7 @@ export async function PUT(
       secret: body.secret !== undefined ? (body.secret as string | undefined) : undefined,
       events: body.events !== undefined ? (body.events as string[] | undefined) : undefined,
       active: body.active !== undefined ? (body.active as boolean) : undefined,
-    });
+    }, supabase);
 
     return NextResponse.json({ data: updated }, { headers: corsHeaders() });
   } catch (e) {
@@ -195,7 +198,7 @@ export async function DELETE(
     const { id } = await params;
 
     // Check existence first
-    const existing = await webhookConfigService.getById(id);
+    const existing = await webhookConfigService.getById(id, supabase);
     if (!existing) {
       return NextResponse.json({ error: 'Webhook config not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -205,7 +208,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Webhook config not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    await webhookConfigService.delete(id);
+    await webhookConfigService.delete(id, supabase);
     return NextResponse.json({ data: { id }, success: true }, { headers: corsHeaders() });
   } catch (e) {
     console.error(`[webhooks/config/:id] DELETE Error:`, e);

@@ -24,10 +24,10 @@ This document catalogs every feature in the NexusCRM system. Each feature covers
 
 **Components:**
 - `components/leads/LeadTable.tsx` — Sortable, filterable data table
-- `components/leads/LeadForm.tsx` — Create/edit form with validation
+- `components/leads/LeadCreateForm.tsx` — Create/edit form with validation
 - `components/leads/LeadDetail.tsx` — Detail view with 10 tabs
-- `components/leads/LeadFilterBar.tsx` — Multi-criteria filter bar
-- `components/leads/LeadBulkActions.tsx` — Bulk operations
+- `components/leads/LeadScoreBadge.tsx` — Lead score badge indicator
+- `components/leads/LeadScheduleDialog.tsx` — Schedule follow-up dialog
 
 **Detail Tabs:**
 1. **Activity** — Chronological activity timeline
@@ -477,12 +477,12 @@ This document catalogs every feature in the NexusCRM system. Each feature covers
 
 **Role-to-Permission Mapping:**
 
-| Role | Leads | Contacts | Companies | Tasks | Meetings | Team Mgmt | Analytics |
-|------|-------|----------|-----------|-------|----------|-----------|-----------|
-| **Admin** | CRUD all | CRUD all | CRUD all | CRUD all | CRUD all | Full | View |
-| **Manager** | CRUD team | CRUD team | CRUD team | CRUD team | CRUD team | Read members | View |
-| **Agent** | CRUD own | CRUD own | Read team | CRUD own | CRUD own | Read own | None |
-| **Viewer** | Read all | Read all | Read all | Read all | Read all | Read members | View |
+| Role | Leads | Contacts | Companies | Deals | Tasks | Meetings | Campaigns | Team Mgmt | Analytics |
+|------|-------|----------|-----------|-------|-------|----------|-----------|-----------|-----------|
+| **Admin** | CRUD all | CRUD all | CRUD all | CRUD all | CRUD all | CRUD all | CRUD all | Full | View |
+| **Manager** | CRUD team | CRUD team | CRUD team | CRUD team | CRUD team | CRUD team | CRUD team | Read members | View |
+| **Agent** | CRUD own | CRUD own | Read team | CRUD own | CRUD own | CRUD own | Read team | Read own | None |
+| **Viewer** | Read all | Read all | Read all | Read all | Read all | Read all | Read team | Read members | View |
 
 **Module:** `modules/teams/teamPermissions.ts`
 - `hasPermission(role, action, entity): boolean`
@@ -748,3 +748,182 @@ This document catalogs every feature in the NexusCRM system. Each feature covers
 **Types:** `webhook.types.ts` — `WebhookEvent` type union
 
 See [API.md](../reference/API.md) for full API reference.
+
+---
+
+## Additional Features (36-45)
+
+### 36. Invoices
+
+**Route:** `/invoices` (table), `/invoices/[id]` (detail), `/invoices/new` (create)
+
+**Data Types:** `Invoice`, `InvoiceItem`, `InvoiceFormData`, `InvoiceStatus` — see `types/invoice.types.ts`
+
+**Statuses:** `draft`, `sent`, `paid`, `overdue`, `cancelled`
+
+**Invoice Numbers:** Sequential `INV-YYYY-NNNN` format (e.g. INV-2026-0001)
+
+**Features:**
+- Full CRUD with line items (description, quantity, unit price)
+- Auto-calculated subtotal, tax, and total
+- Status workflow (draft → sent → paid / overdue / cancelled)
+- PDF download
+- Entity linking (quote, deal, contact, company)
+- Tax rate configuration
+
+**Service:** `invoiceService` (`services/invoice.service.ts`)
+
+**Hook:** `useInvoices()` (`hooks/useInvoices.ts`)
+
+---
+
+### 37. Branding
+
+**Route:** `/settings/branding` (via settings layout)
+
+**Features:**
+- Custom logo upload (stored via Supabase Storage)
+- Primary/accent color configuration
+- White-label settings persisted to `branding_settings` table
+- Applied across the application UI
+
+**API:** `app/api/branding/route.ts`, `app/api/branding/logo/route.ts`
+
+**Hook:** `useBranding()` (`hooks/useBranding.ts`)
+
+---
+
+### 38. Realtime & Presence
+
+**Data Types:** Supabase Realtime channels
+
+**Features:**
+- WebSocket-based live updates via Supabase Realtime
+- User presence tracking (who is online)
+- Polling fallback every 2 minutes when WebSocket unavailable
+- Feature-gated by `NEXT_PUBLIC_ENABLE_REALTIME`
+
+**Service:** `realtimeService` (`services/realtime.service.ts`)
+
+**Hooks:** `useRealtimeNotifications()`, `usePresence()`
+
+---
+
+### 39. Notifications (Persistence)
+
+**Data Types:** `AppNotification` — see `types/` (notification records in `notifications` table)
+
+**Features:**
+- Persistent notification records in database
+- Mark as read / mark all as read / dismiss
+- In-app notification panel with unread count badge
+- Type-specific icons and contextual messages
+
+**Service:** `notificationService` (`services/notification.service.ts`)
+
+**Hook:** `useNotifications()` (`hooks/useNotifications.ts`)
+
+---
+
+### 40. Service Config (Settings > Services)
+
+**Route:** `/settings/services` (Email, SMS, integrations config)
+
+**Features:**
+- Per-service configuration persisted to `service_configs` table
+- Resend API key, from email, from name
+- Twilio account SID, auth token, from number
+- Google OAuth client ID/secret/redirect
+- Secret masking in API responses (shown as `••••`)
+- Test send for each service
+
+**API:** `app/api/service-config/[service]/route.ts`, `app/api/service-config/[service]/test/route.ts`
+
+**Hook:** `useBranding()` (shared settings hooks)
+
+---
+
+### 41. Invoice Templates
+
+**Route:** `/settings/invoice-templates`
+
+**Features:**
+- Create/edit/delete invoice templates
+- Custom colors, logo, and field configuration
+- Templates applied when creating new invoices
+- Persisted to `invoice_templates` table
+
+**Hook:** `useInvoices()` (template management included)
+
+---
+
+### 42. Real Email (Resend)
+
+**Data Types:** `Email`, `EmailFormData` — see `types/communication.types.ts`
+
+**Features:**
+- Server-side email delivery via Resend API
+- Compose, send, draft, history
+- Webhook receiver for inbound email events (Svix)
+- Feature-gated by `NEXT_PUBLIC_ENABLE_EMAIL`
+- Settings page for API key configuration + test send
+
+**API Routes:** `app/api/email/send/route.ts`, `app/api/email/test/route.ts`, `app/api/email/batch/route.ts`, `app/api/email/webhook/resend/route.ts`
+
+**Hook:** `useEmail()` (`hooks/useEmail.ts`)
+
+---
+
+### 43. Real SMS (Twilio)
+
+**Data Types:** `SmsLog`, `SmsFormData` — see `types/sms.types.ts`
+
+**Features:**
+- Server-side SMS delivery via Twilio API
+- Compose, send, batch, history
+- E.164 phone number validation
+- Feature-gated by `NEXT_PUBLIC_ENABLE_SMS`
+- Settings page for Twilio config + test send
+
+**API Routes:** `app/api/sms/send/route.ts`, `app/api/sms/test/route.ts`, `app/api/sms/batch/route.ts`, `app/api/sms/status/route.ts`, `app/api/sms/config/route.ts`
+
+**Hook:** `useSms()` (`hooks/useSms.ts`)
+
+---
+
+### 44. Automation Engine
+
+**Route:** `/settings/automation`
+
+**Data Types:** `AutomationRule`, `AutomationTriggerEvent`, `AutomationCondition`, `AutomationAction` — see `types/automation.types.ts`
+
+**Trigger Events (14):** `lead.created`, `lead.updated`, `lead.status_changed`, `contact.created`, `contact.updated`, `company.created`, `company.updated`, `task.created`, `task.completed`, `task.overdue`, `meeting.created`, `meeting.completed`, `deal.created`, `deal.stage_changed`
+
+**Actions (6):** `assign_user`, `change_status`, `add_tag`, `send_email`, `send_notification`, `trigger_webhook`
+
+**Features:**
+- Rule CRUD with trigger/condition/action builder
+- Enable/disable toggle
+- Rule evaluation engine (`automationService.evaluate()`)
+- Called after every entity mutation
+
+**Service:** `automationService` (`services/automation.service.ts`)
+
+**Hook:** `useAutomation()` (`hooks/useAutomation.ts`)
+
+---
+
+### 45. Campaign Scheduler
+
+**Route:** `/campaigns`
+
+**Features:**
+- Multi-step email sequences with delay days
+- Campaign scheduler engine processes emails at scheduled intervals
+- Vercel Cron at `*/5 * * * *` triggers `/api/campaigns/cron/process`
+- Feature-gated by `NEXT_PUBLIC_ENABLE_EMAIL_SEQUENCES`
+- Campaign activation/deactivation
+
+**Service:** `campaignSchedulerService` (`services/campaign-scheduler.service.ts`)
+
+**Hook:** `useCampaignScheduler()` (`hooks/useCampaignScheduler.ts`), `useCampaigns()`

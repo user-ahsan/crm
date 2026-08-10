@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { STATUS_COLORS } from '@/lib/color-tokens';
@@ -9,7 +10,7 @@ interface StatusBadgeProps {
   className?: string;
 }
 
-export function StatusBadge({ status, className }: StatusBadgeProps) {
+export const StatusBadge = memo(function StatusBadge({ status, className }: StatusBadgeProps) {
   const colorClasses =
     STATUS_COLORS[status as keyof typeof STATUS_COLORS] ??
     'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
@@ -22,6 +23,6 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
       {status.replace(/_/g, ' ')}
     </Badge>
   );
-}
+});
 
 export default StatusBadge;

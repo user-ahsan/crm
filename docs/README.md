@@ -164,7 +164,7 @@ See [guides/PRD.md](./guides/PRD.md) for the complete product requirements docum
 | Document | Purpose |
 |----------|---------|
 | [architecture/ARCHITECTURE.md](./architecture/ARCHITECTURE.md) | System architecture, data flow, directory structure |
-| [architecture/DATABASE.md](./architecture/DATABASE.md) | Database schema, ERD, 33 tables, migrations |
+| [architecture/DATABASE.md](./architecture/DATABASE.md) | Database schema, ERD, 44 tables, migrations |
 
 ### 📋 Feature Documentation
 | Document | Purpose |
@@ -175,9 +175,9 @@ See [guides/PRD.md](./guides/PRD.md) for the complete product requirements docum
 ### 📚 Technical Reference
 | Document | Purpose |
 |----------|---------|
-| [reference/TYPES.md](./reference/TYPES.md) | Type system reference, all 28 type definition files |
-| [reference/HOOKS.md](./reference/HOOKS.md) | Custom hooks reference, all 37 hooks |
-| [reference/SERVICES.md](./reference/SERVICES.md) | Service layer reference, all 24 service modules |
+| [reference/TYPES.md](./reference/TYPES.md) | Type system reference, all 29 type definition files |
+| [reference/HOOKS.md](./reference/HOOKS.md) | Custom hooks reference, all 39 hooks |
+| [reference/SERVICES.md](./reference/SERVICES.md) | Service layer reference, all 29 service modules |
 | [reference/MODULES.md](./reference/MODULES.md) | Business logic module reference, all 12 modules |
 | [reference/API.md](./reference/API.md) | n8n webhook API reference, event catalog, payload schemas |
 | [reference/COMPONENTS.md](./reference/COMPONENTS.md) | UI component catalog, props interfaces |

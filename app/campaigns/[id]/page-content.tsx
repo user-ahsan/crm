@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { IconArrowLeft, IconPlus, IconTrash, IconGripVertical, IconSend, IconUsers, IconUserPlus, IconRefresh } from '@tabler/icons-react';
+import { IconArrowLeft, IconPlus, IconTrash, IconGripVertical, IconSend, IconUsers, IconUserPlus, IconRefresh, IconChevronUp, IconChevronDown } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import type { EmailSequence, CampaignStatus } from '@/types/campaign.types';
 import type { CampaignEmailFormData } from '@/types/campaign.types';
@@ -12,11 +12,10 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { PermissionGuard } from '@/components/teams/PermissionGuard';
-import { campaignService } from '@/services/campaign.service';
+import { useCampaigns, useCampaignEmails } from '@/hooks/useCampaigns';
+import { useCampaignStats } from '@/hooks/useCampaignScheduler';
 import { leadService } from '@/services/lead.service';
 import { contactService } from '@/services/contact.service';
-import { useCampaignEmails } from '@/hooks/useCampaigns';
-import { useCampaignStats } from '@/hooks/useCampaignScheduler';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,7 +59,7 @@ export default function CampaignDetailPage() {
   const [sequence, setSequence] = useState<EmailSequence | null>(null);
   const [seqLoading, setSeqLoading] = useState(true);
   const [seqError, setSeqError] = useState<string | null>(null);
-  const { emails, loading: emailsLoading, error: emailsError, addEmail, updateEmail, deleteEmail } = useCampaignEmails(id);
+  const { emails, loading: emailsLoading, error: emailsError, addEmail, updateEmail, deleteEmail, reorderEmails } = useCampaignEmails(id);
 
   // Sequence info
   const [editingName, setEditingName] = useState(false);
@@ -249,6 +248,27 @@ export default function CampaignDetailPage() {
     setDeleteEmailTarget(null);
     if (ok) toast.success('Email removed');
   }, [deleteEmailTarget, deleteEmail]);
+
+  /**
+   * Moves an email up or down in the sequence by swapping its sort_order with
+   * its neighbour, then persists the full ordering via reorderEmails (the
+   * service requires the complete permutation; a two-item swap would be a
+   * partial payload, so we rebuild the full ordered-id list each time).
+   */
+  const handleMoveEmail = useCallback(async (emailId: string, direction: 'up' | 'down') => {
+    const currentIdx = emails.findIndex((e) => e.id === emailId);
+    if (currentIdx < 0) return;
+    const targetIdx = direction === 'up' ? currentIdx - 1 : currentIdx + 1;
+    if (targetIdx < 0 || targetIdx >= emails.length) return;
+    const reorderedIds = emails.map((e) => e.id);
+    [reorderedIds[currentIdx], reorderedIds[targetIdx]] = [reorderedIds[targetIdx]!, reorderedIds[currentIdx]!];
+    const result = await reorderEmails(reorderedIds);
+    if (result) {
+      toast.success('Email order updated');
+    } else {
+      toast.error('Failed to reorder email');
+    }
+  }, [emails, reorderEmails]);
 
   const handleActivateFromDialog = useCallback(async (
     leadIds: string[],
@@ -473,7 +493,27 @@ export default function CampaignDetailPage() {
                       <span className="text-xs font-medium text-muted-foreground shrink-0">#{idx + 1}</span>
                       <span className="truncate font-medium">{email.subject}</span>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7"
+                        title="Move up"
+                        disabled={idx === 0}
+                        onClick={() => handleMoveEmail(email.id, 'up')}
+                      >
+                        <IconChevronUp className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7"
+                        title="Move down"
+                        disabled={idx === emails.length - 1}
+                        onClick={() => handleMoveEmail(email.id, 'down')}
+                      >
+                        <IconChevronDown className="size-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="size-7" onClick={() => handleStartEdit(email.id, email.subject, email.body, email.delayDays)}>
                         <span className="text-xs">Edit</span>
                       </Button>

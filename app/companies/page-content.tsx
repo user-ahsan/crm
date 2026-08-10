@@ -24,7 +24,6 @@ import { useCompanies } from '@/hooks/useCompanies';
 import { useTags } from '@/hooks/useTags';
 import { useCsvExport } from '@/hooks/useCsvExport';
 import { useDebounce } from '@/hooks/useDebounce';
-import { companyService } from '@/services/company.service';
 
 import { convertToCSV, downloadCSV } from '@/lib/csv-export';
 import { COMPANY_EXPORT_COLUMNS } from '@/lib/csv-export-definitions';
@@ -32,7 +31,7 @@ import type { SavedView } from '@/types/saved-view.types';
 
 /* ── Inner component with useSearchParams (requires Suspense wrapper) ── */
 function CompaniesPageContent() {
-  const { companies, loading, error, refresh, deleteCompany } = useCompanies();
+  const { companies, loading, error, refresh, deleteCompany, updateCompany } = useCompanies();
   const { tags } = useTags();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -151,22 +150,39 @@ function CompaniesPageContent() {
   // ── Bulk action handlers ──────────────────────────────────────────
 
   const handleBulkDelete = useCallback(async (ids: string[]) => {
-    for (const id of ids) {
-      await companyService.delete(id);
+    // Each deleteCompany is optimistic and returns false on failure, so no
+    // rejection escapes; refresh() always runs to re-sync the server state.
+    let failed = 0;
+    try {
+      const results = await Promise.all(ids.map((id) => deleteCompany(id)));
+      failed = results.filter((r) => !r).length;
+    } finally {
+      refresh();
     }
-    refresh();
-  }, [refresh]);
+    if (failed > 0) {
+      toast.error(`${failed} of ${ids.length} compan${ids.length !== 1 ? 'ies' : 'y'} could not be deleted`);
+    }
+  }, [deleteCompany, refresh]);
 
   const handleBulkTag = useCallback(async (ids: string[], tagNames: string[]) => {
-    for (const id of ids) {
-      const existing = companies.find((c) => c.id === id);
-      if (existing) {
-        const merged = [...new Set([...existing.tags, ...tagNames])];
-        await companyService.update(id, { tags: merged });
-      }
+    let failed = 0;
+    try {
+      const results = await Promise.all(
+        ids.map(async (id) => {
+          const existing = companies.find((c) => c.id === id);
+          if (!existing) return true;
+          const merged = [...new Set([...existing.tags, ...tagNames])];
+          return !!(await updateCompany(id, { tags: merged }));
+        }),
+      );
+      failed = results.filter((r) => !r).length;
+    } finally {
+      refresh();
     }
-    refresh();
-  }, [refresh, companies]);
+    if (failed > 0) {
+      toast.error(`${failed} of ${ids.length} compan${ids.length !== 1 ? 'ies' : 'y'} could not be updated`);
+    }
+  }, [companies, updateCompany, refresh]);
 
   const handleBulkExport = useCallback((ids: string[]) => {
     const selected = filteredCompanies.filter((c) => ids.includes(c.id));
@@ -174,7 +190,18 @@ function CompaniesPageContent() {
       toast.error('No companies to export');
       return;
     }
-    const csv = convertToCSV(selected as unknown as Record<string, unknown>[], COMPANY_EXPORT_COLUMNS);
+    const rows: Record<string, unknown>[] = selected.map((c) => ({
+      id: c.id,
+      name: c.name,
+      industry: c.industry,
+      size: c.size,
+      revenue: c.revenue,
+      location: c.location,
+      website: c.website,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+    }));
+    const csv = convertToCSV(rows, COMPANY_EXPORT_COLUMNS);
     const filename = `companies-export-${new Date().toISOString().slice(0, 10)}.csv`;
     downloadCSV(csv, filename);
     toast.success(`Exported ${selected.length} compan${selected.length !== 1 ? 'ies' : 'y'}`);

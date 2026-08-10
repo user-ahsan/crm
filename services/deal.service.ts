@@ -1,8 +1,9 @@
-import { getSharedClient } from '@/lib/supabase/client';
+import { getSharedClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import type { Deal, DealFormData, DealStage, DealStageFormData } from '@/types/deal.types';
 import type { DbDeal, DbDealStage, DealInsert, DealStageInsert } from '@/types/supabase.types';
 import { toServiceError } from './supabase.service';
 import { activityService } from './activity.service';
+import { automationService } from './automation.service';
 import { triggerWebhook } from './webhook.service';
 
 function mapStageRow(row: DbDealStage): DealStage {
@@ -51,9 +52,49 @@ function mapDealToDb(data: Partial<DealFormData>): Partial<DealInsert> {
   if (data.assignedTo !== undefined) db.assigned_to = data.assignedTo || null;
   if (data.closeDate !== undefined) db.close_date = data.closeDate || null;
   if (data.tags !== undefined) db.tags = data.tags;
-  // Fix: use ?? instead of || for description to allow empty string
-  if (data.description !== undefined) db.description = data.description ?? '';
   return db;
+}
+
+/**
+ * Default deal pipeline stages. In mock mode the ids match the
+ * `stage-001..005` references in data/deals.ts so seeded mock deals resolve
+ * stage names; real mode omits ids and uses the uuid PK default.
+ */
+const DEFAULT_DEAL_STAGES: ReadonlyArray<DealStageInsert> = [
+  { id: 'stage-001', name: 'Needs Action', color: '#ef4444', probability: 10, sort_order: 0 },
+  { id: 'stage-002', name: 'Qualified', color: '#f59e0b', probability: 25, sort_order: 1 },
+  { id: 'stage-003', name: 'Proposal', color: '#3b82f6', probability: 50, sort_order: 2 },
+  { id: 'stage-004', name: 'Negotiation', color: '#8b5cf6', probability: 75, sort_order: 3 },
+  { id: 'stage-005', name: 'Closed Won', color: '#22c55e', probability: 100, sort_order: 4 },
+];
+
+/**
+ * Idempotently seeds the default deal stages when `deal_stages` is empty
+ * (PATTERN-mock-mode §4 — the mock seeds no stages; seed via insert, never a
+ * data file). A count guard makes this a no-op once stages exist, so reads
+ * never crash on an empty stage lookup and the mock `deal_stages(*)` embed
+ * resolves names for seeded mock deals.
+ */
+async function ensureDefaultStages(): Promise<void> {
+  const supabase = await getSharedClient();
+  const { count, error } = await supabase
+    .from('deal_stages')
+    .select('id', { count: 'exact', head: true });
+  if (error) throw toServiceError(error);
+  if ((count ?? 0) > 0) return;
+  const mock = !isSupabaseConfigured();
+  const rows: DealStageInsert[] = DEFAULT_DEAL_STAGES.map((s) => {
+    const row: DealStageInsert = {
+      name: s.name,
+      color: s.color,
+      probability: s.probability,
+      sort_order: s.sort_order,
+    };
+    if (mock) row.id = s.id;
+    return row;
+  });
+  const { error: insertErr } = await supabase.from('deal_stages').insert(rows);
+  if (insertErr) throw toServiceError(insertErr);
 }
 
 export const dealService = {
@@ -61,6 +102,7 @@ export const dealService = {
 
   async getStages(): Promise<DealStage[]> {
     try {
+      await ensureDefaultStages();
       const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('deal_stages')
@@ -135,6 +177,7 @@ export const dealService = {
 
   async getAll(page = 1, pageSize = 50): Promise<Deal[]> {
     try {
+      await ensureDefaultStages();
       const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('deals')
@@ -150,6 +193,7 @@ export const dealService = {
 
   async getById(id: string): Promise<Deal | undefined> {
     try {
+      await ensureDefaultStages();
       const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('deals')
@@ -188,6 +232,13 @@ export const dealService = {
         value: deal.value,
         stageId: deal.stageId,
       });
+      await automationService.evaluate('deal.created', {
+        entityType: 'deal',
+        entityId: deal.id,
+        title: deal.title,
+        value: deal.value,
+        stageId: deal.stageId,
+      });
       return deal;
     } catch (e) {
       throw toServiceError(e);
@@ -197,6 +248,19 @@ export const dealService = {
   async update(id: string, data: Partial<DealFormData>): Promise<Deal | undefined> {
     try {
       const supabase = await getSharedClient();
+      // Fetch the existing row BEFORE the write so stage transitions are
+      // detectable and `deal.stage_changed` can be dispatched (§3d).
+      const { data: existingRow } = await supabase
+        .from('deals')
+        .select('*, deal_stages(*)')
+        .eq('id', id)
+        .maybeSingle();
+      const existingDeal = existingRow
+        ? mapDealRow(existingRow, existingRow.deal_stages ? mapStageRow(existingRow.deal_stages) : undefined)
+        : undefined;
+      const stageChanged = !!existingDeal
+        && data.stageId !== undefined
+        && data.stageId !== existingDeal.stageId;
       const dbData = { ...mapDealToDb(data) };
       const { data: updated, error } = await supabase
         .from('deals')
@@ -211,6 +275,26 @@ export const dealService = {
       const deal = mapDealRow(updated, updated.deal_stages ? mapStageRow(updated.deal_stages) : undefined);
       activityService.log('deal', id, 'updated', `Deal updated: ${deal.title}`);
       triggerWebhook('deal.updated', { id, ...data });
+      await automationService.evaluate('deal.updated', { entityType: 'deal', entityId: id, ...data });
+      if (stageChanged) {
+        activityService.log('deal', id, 'status_changed', `Deal stage changed to ${deal.stageId ?? 'unassigned'}`, {
+          from: existingDeal?.stageId,
+          to: deal.stageId,
+        });
+        triggerWebhook('deal.stage_changed', {
+          id: deal.id,
+          title: deal.title,
+          previousStageId: existingDeal?.stageId,
+          stageId: deal.stageId,
+        });
+        await automationService.evaluate('deal.stage_changed', {
+          entityType: 'deal',
+          entityId: deal.id,
+          title: deal.title,
+          previousStageId: existingDeal?.stageId,
+          stageId: deal.stageId,
+        });
+      }
       return deal;
     } catch (e) {
       throw toServiceError(e);
@@ -220,16 +304,22 @@ export const dealService = {
   async delete(id: string): Promise<boolean> {
     try {
       const supabase = await getSharedClient();
+      // C16: cascade only this deal's related rows — quotes link by deal_id
+      // FK, activities are scoped by entity_type so a shared id space across
+      // entity types cannot delete another entity's records.
       const ops = [
         supabase.from('quotes').delete().eq('deal_id', id),
-        supabase.from('activities').delete().eq('entity_id', id),
+        supabase.from('activities').delete().eq('entity_type', 'deal').eq('entity_id', id),
       ];
       const results = await Promise.all(ops);
-      for (const r of results) if (r.error) console.error(`Cascade delete error: ${r.error.message}`);
+      for (const r of results) {
+        if (r.error) throw toServiceError(r.error);
+      }
       const { error } = await supabase.from('deals').delete().eq('id', id);
       if (error) throw toServiceError(error);
       activityService.log('deal', id, 'deleted', `Deal deleted`);
       triggerWebhook('deal.deleted', { id });
+      await automationService.evaluate('deal.deleted', { entityType: 'deal', entityId: id });
       return true;
     } catch (e) {
       throw toServiceError(e);
@@ -238,6 +328,7 @@ export const dealService = {
 
   async getByStage(stageId: string, page = 1, pageSize = 50): Promise<Deal[]> {
     try {
+      await ensureDefaultStages();
       const supabase = await getSharedClient();
       const { data, error } = await supabase
         .from('deals')
@@ -254,6 +345,7 @@ export const dealService = {
 
   async getPipeline(page = 1, pageSize = 50): Promise<{ stage: DealStage; deals: Deal[] }[]> {
     try {
+      await ensureDefaultStages();
       const stages = await this.getStages();
       const supabase = await getSharedClient();
       const { data, error } = await supabase

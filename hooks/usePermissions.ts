@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback, useMemo } from 'react';
 import type { TeamRole, PermissionAction, PermissionEntity, PermissionScope } from '@/types/team.types';
 import {
   hasPermission as evaluatePermission,
@@ -20,46 +21,46 @@ import {
  *   if (perms.canAccessRecord('lead', 'own')) { ... }
  */
 export function usePermissions(role: TeamRole | null) {
-  const hasPermission = (action: PermissionAction, entity: PermissionEntity): boolean => {
+  const hasPermission = useCallback((action: PermissionAction, entity: PermissionEntity): boolean => {
     if (!role) return false;
     return evaluatePermission(role, action, entity);
-  };
+  }, [role]);
 
-  const canAccessRecord = (entity: PermissionEntity, scope: PermissionScope): boolean => {
+  const canAccessRecord = useCallback((entity: PermissionEntity, scope: PermissionScope): boolean => {
     if (!role) return false;
     return evaluateAccess(role, entity, scope);
-  };
+  }, [role]);
 
-  const canCreate = (entity: PermissionEntity): boolean => {
+  const canCreate = useCallback((entity: PermissionEntity): boolean => {
     if (!role) return false;
     return evaluateCreate(role, entity);
-  };
+  }, [role]);
 
-  const canRead = (entity: PermissionEntity): boolean => {
+  const canRead = useCallback((entity: PermissionEntity): boolean => {
     if (!role) return false;
     return evaluateRead(role, entity);
-  };
+  }, [role]);
 
-  const canUpdate = (entity: PermissionEntity): boolean => {
+  const canUpdate = useCallback((entity: PermissionEntity): boolean => {
     if (!role) return false;
     return evaluateUpdate(role, entity);
-  };
+  }, [role]);
 
-  const canDelete = (entity: PermissionEntity): boolean => {
+  const canDelete = useCallback((entity: PermissionEntity): boolean => {
     if (!role) return false;
     return evaluateDelete(role, entity);
-  };
+  }, [role]);
 
-  const canManageTeam = (): boolean => {
+  const canManageTeam = useCallback((): boolean => {
     if (!role) return false;
     return role === 'admin';
-  };
+  }, [role]);
 
   /**
    * Check if the role is at least a given level.
    * Hierarchy: viewer < agent < manager < admin
    */
-  const isAtLeast = (minimumRole: TeamRole): boolean => {
+  const isAtLeast = useCallback((minimumRole: TeamRole): boolean => {
     if (!role) return false;
     const hierarchy: Record<TeamRole, number> = {
       viewer: 0,
@@ -68,7 +69,11 @@ export function usePermissions(role: TeamRole | null) {
       admin: 3,
     };
     return hierarchy[role] >= hierarchy[minimumRole];
-  };
+  }, [role]);
 
-  return { hasPermission, canAccessRecord, canCreate, canRead, canUpdate, canDelete, canManageTeam, isAtLeast, role };
+  // Stable object identity per role so memoized consumers don't re-render.
+  return useMemo(
+    () => ({ hasPermission, canAccessRecord, canCreate, canRead, canUpdate, canDelete, canManageTeam, isAtLeast, role }),
+    [hasPermission, canAccessRecord, canCreate, canRead, canUpdate, canDelete, canManageTeam, isAtLeast, role],
+  );
 }

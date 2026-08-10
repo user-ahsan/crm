@@ -20,8 +20,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { InvoiceDownloadButton } from '@/components/invoices/InvoiceDownloadButton';
-import { invoiceService } from '@/services/invoice.service';
+import { useInvoices } from '@/hooks/useInvoices';
+import { useInvoiceTemplates } from '@/hooks/useInvoiceTemplates';
 import { formatCurrency, formatDate } from '@/lib/formatters';
+import { getAllowedInvoiceStatuses } from '@/lib/constants';
 import { toast } from 'sonner';
 import {
   IconArrowLeft,
@@ -143,9 +145,27 @@ function InvoiceContent({
   onUpdate: (updated: import('@/types/invoice.types').Invoice) => void;
 }) {
   const router = useRouter();
+  const { updateInvoice, updateInvoiceStatus } = useInvoices();
+  const { getDefault: getDefaultTemplate } = useInvoiceTemplates();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<EditableInvoiceData>(() => invoiceToEditable(invoice));
+
+  const allowedStatuses = getAllowedInvoiceStatuses(invoice.status);
+
+  // Auto-mark overdue: if invoice is 'sent' AND past due date, flip to
+  // 'overdue' on load so the badge reflects the billing state.
+  useEffect(() => {
+    if (invoice.status === 'sent' && invoice.dueDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (new Date(invoice.dueDate) < today) {
+        updateInvoiceStatus(invoice.id, 'overdue').then((updated) => {
+          if (updated) onUpdate(updated);
+        });
+      }
+    }
+  }, [invoice.id, invoice.status, invoice.dueDate, updateInvoiceStatus, onUpdate]);
 
   const handleEdit = useCallback(() => {
     setFormData(invoiceToEditable(invoice));
@@ -218,7 +238,7 @@ function InvoiceContent({
         return;
       }
 
-      const updated = await invoiceService.update(invoice.id, {
+      const updated = await updateInvoice(invoice.id, {
         invoiceNumber: formData.invoiceNumber || undefined,
         status: formData.status,
         dueDate: formData.dueDate || undefined,
@@ -248,7 +268,7 @@ function InvoiceContent({
     } finally {
       setIsSaving(false);
     }
-  }, [formData, invoice.id, onUpdate]);
+  }, [formData, invoice.id, onUpdate, updateInvoice]);
 
   const { subtotal, total } = computeInvoiceTotals(
     formData.items,
@@ -264,6 +284,27 @@ function InvoiceContent({
             <Button variant="outline" size="sm" onClick={() => router.push('/invoices')}>
               <IconArrowLeft className="mr-1.5 size-4" /> Back
             </Button>
+            {invoice.status === 'draft' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const updated = await updateInvoiceStatus(invoice.id, 'sent');
+                    if (updated) {
+                      onUpdate(updated);
+                      toast.success('Invoice marked as sent');
+                    } else {
+                      toast.error('Failed to mark as sent');
+                    }
+                  } catch {
+                    toast.error('Failed to mark as sent');
+                  }
+                }}
+              >
+                Mark as Sent
+              </Button>
+            )}
             <Button variant="default" size="sm" onClick={handleEdit}>
               <IconEdit className="mr-1.5 size-4" /> Edit
             </Button>
@@ -321,7 +362,7 @@ function InvoiceContent({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {STATUS_OPTIONS.map((opt) => (
+                  {STATUS_OPTIONS.filter((opt) => allowedStatuses.includes(opt.value)).map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
                     </SelectItem>
@@ -332,6 +373,9 @@ function InvoiceContent({
           ) : (
             <Badge className={STATUS_COLORS[invoice.status]}>
               {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+              {invoice.status === 'sent' && invoice.dueDate && new Date(invoice.dueDate) < new Date() && (
+                <span className="ml-1 text-red-600">(overdue)</span>
+              )}
             </Badge>
           )}
         </CardContent>
@@ -530,7 +574,7 @@ function InvoiceContent({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {STATUS_OPTIONS.map((opt) => (
+                      {STATUS_OPTIONS.filter((opt) => allowedStatuses.includes(opt.value)).map((opt) => (
                         <SelectItem key={opt.value} value={opt.value}>
                           {opt.label}
                         </SelectItem>
@@ -543,6 +587,9 @@ function InvoiceContent({
                   <span className="text-muted-foreground">Status</span>
                   <Badge className={STATUS_COLORS[invoice.status]}>
                     {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                    {invoice.status === 'sent' && invoice.dueDate && new Date(invoice.dueDate) < new Date() && (
+                      <span className="ml-1 text-red-600">(overdue)</span>
+                    )}
                   </Badge>
                 </div>
               )}
@@ -641,6 +688,7 @@ function InvoiceContent({
 export default function InvoiceDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { getById } = useInvoices();
   const [invoice, setInvoice] = useState<import('@/types/invoice.types').Invoice | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -652,7 +700,7 @@ export default function InvoiceDetailPage() {
       setError(null);
       try {
         const id = typeof params.id === 'string' ? params.id : '';
-        const data = await invoiceService.getById(id);
+        const data = await getById(id);
         if (!cancelled) setInvoice(data ?? null);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load invoice');
@@ -661,7 +709,7 @@ export default function InvoiceDetailPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [params.id]);
+  }, [params.id, getById]);
 
   const handleUpdate = useCallback((updated: import('@/types/invoice.types').Invoice) => {
     setInvoice(updated);

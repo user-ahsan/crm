@@ -108,12 +108,13 @@ export const tagService = {
         .from('taggings')
         .select('tag:tag_id(id, name, color, created_at)')
         .eq('taggable_type', entityType)
-        .eq('taggable_id', entityId);
+        .eq('taggable_id', entityId)
+        .returns<TaggingJoinRow[]>();
 
       if (error) throw toServiceError(error);
       if (!data || data.length === 0) return [];
 
-      const tags = (data as unknown as TaggingJoinRow[])
+      const tags = data
         .map((row) => row.tag)
         .filter((t): t is DbTag => t !== null)
         .map(mapTag);
@@ -201,11 +202,12 @@ export const tagService = {
       const { data, error } = await supabase
         .from('taggings')
         .select('tag_id, count:count(*)')
-        .order('tag_id');
+        .order('tag_id')
+        .returns<UsageCountRow[]>();
 
       if (error) throw toServiceError(error);
       const counts: Record<string, number> = {};
-      for (const row of (data as unknown as UsageCountRow[]) ?? []) {
+      for (const row of data ?? []) {
         counts[row.tag_id] = Number(row.count);
       }
       return counts;

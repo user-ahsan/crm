@@ -26,7 +26,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: corsHeaders() });
     }
 
-    const configs = await webhookConfigService.getAll();
+    const configs = await webhookConfigService.getAll(supabase);
     // SAFETY: Strip secret from API responses — secrets must never leave the server.
     const sanitized = configs.map(({ secret: _secret, ...rest }) => {
       void _secret; // secret is stripped from API responses
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       secret: typeof body.secret === 'string' ? body.secret : undefined,
       events: Array.isArray(body.events) ? body.events as string[] : undefined,
       active: typeof body.active === 'boolean' ? body.active : true,
-    });
+    }, supabase);
 
     // SAFETY: Strip secret from API responses — secrets must never leave the server.
     const { secret: _unused, ...sanitized } = config;

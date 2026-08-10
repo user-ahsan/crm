@@ -223,7 +223,7 @@ export function TeamMemberList({
                             <DropdownMenuItem
                               key={role}
                               disabled={role === member.role}
-                              onSelect={() => handleRoleChange(member.id, role)}
+                              onClick={() => handleRoleChange(member.id, role)}
                             >
                               <RoleBadge role={role} size="sm" />
                             </DropdownMenuItem>

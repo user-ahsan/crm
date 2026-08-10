@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { Meeting, MeetingFormData, MeetingType } from '@/types/meeting.types';
 import { useMeetings } from '@/hooks/useMeetings';
+import { useLeads } from '@/hooks/useLeads';
+import { useContacts } from '@/hooks/useContacts';
+import { useCompanies } from '@/hooks/useCompanies';
 import {
   Dialog,
   DialogContent,
@@ -57,11 +60,24 @@ const TYPE_LABELS: Record<MeetingType, string> = {
   other: 'Other',
 };
 
+/**
+ * Format a Date as a local wall-time string for datetime-local inputs.
+ * NEVER use toISOString() — it shifts by UTC offset.
+ */
+function formatLocalDateTime(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 function getDefaultDateTime(): string {
   const now = new Date();
   // Round to next hour
   now.setHours(now.getHours() + 1, 0, 0, 0);
-  return now.toISOString().slice(0, 16);
+  return formatLocalDateTime(now);
 }
 
 export function MeetingCreateForm({
@@ -72,6 +88,9 @@ export function MeetingCreateForm({
   defaultDate,
 }: MeetingCreateFormProps) {
   const { createMeeting, updateMeeting } = useMeetings();
+  const { leads } = useLeads();
+  const { contacts } = useContacts();
+  const { companies } = useCompanies();
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
 
@@ -79,9 +98,9 @@ export function MeetingCreateForm({
   const [title, setTitle] = useState(editMeeting?.title ?? '');
   const [dateTime, setDateTime] = useState(
     editMeeting?.dateTime
-      ? new Date(editMeeting.dateTime).toISOString().slice(0, 16)
+      ? formatLocalDateTime(new Date(editMeeting.dateTime))
       : defaultDate
-        ? new Date(defaultDate).toISOString().slice(0, 16)
+        ? formatLocalDateTime(new Date(defaultDate))
         : getDefaultDateTime()
   );
   const [duration, setDuration] = useState(editMeeting?.duration ?? 30);
@@ -107,9 +126,9 @@ export function MeetingCreateForm({
     setTitle(editMeeting?.title ?? '');
     setDateTime(
       editMeeting?.dateTime
-        ? new Date(editMeeting.dateTime).toISOString().slice(0, 16)
+        ? formatLocalDateTime(new Date(editMeeting.dateTime))
         : defaultDate
-          ? new Date(defaultDate).toISOString().slice(0, 16)
+          ? formatLocalDateTime(new Date(defaultDate))
           : getDefaultDateTime()
     );
     setDuration(editMeeting?.duration ?? 30);
@@ -123,6 +142,45 @@ export function MeetingCreateForm({
     setUseCustomDuration(false);
     setErrors({});
   }, [editMeeting, defaultDate]);
+
+  // Sync form state when editMeeting changes
+  useEffect(() => {
+    if (editMeeting) {
+      setTitle(editMeeting.title);
+      setDateTime(
+        editMeeting.dateTime
+          ? formatLocalDateTime(new Date(editMeeting.dateTime))
+          : getDefaultDateTime()
+      );
+      setDuration(editMeeting.duration);
+      setType(editMeeting.type);
+      setRelatedToType(editMeeting.relatedToType ?? '');
+      setRelatedToId(editMeeting.relatedToId ?? '');
+      setParticipants(editMeeting.participants ?? []);
+      setParticipantInput('');
+      setNotes(editMeeting.notes ?? '');
+      setCustomDuration(
+        ![15, 30, 45, 60, 90, 120].includes(editMeeting.duration) ? editMeeting.duration : 0
+      );
+      setUseCustomDuration(![15, 30, 45, 60, 90, 120].includes(editMeeting.duration));
+      setErrors({});
+    }
+  }, [editMeeting]);
+
+  // Clear relatedToId when type changes to prevent dangling references
+  const handleRelatedToTypeChange = useCallback((value: string | null) => {
+    setRelatedToType(value ?? '');
+    setRelatedToId('');
+  }, []);
+
+  // Entity picker options based on selected type
+  const entityOptions = (() => {
+    if (!relatedToType) return [];
+    if (relatedToType === 'lead') return leads.map((l) => ({ id: l.id, label: l.fullName }));
+    if (relatedToType === 'contact') return contacts.map((c) => ({ id: c.id, label: c.name }));
+    if (relatedToType === 'company') return companies.map((c) => ({ id: c.id, label: c.name }));
+    return [];
+  })();
 
   // Validation
   const validate = useCallback((): FormErrors => {
@@ -421,7 +479,7 @@ export function MeetingCreateForm({
               <Label htmlFor="meeting-related-type">Related to</Label>
               <Select
                 value={relatedToType}
-                onValueChange={(value: string | null) => { if (value !== null) setRelatedToType(value); }}
+                onValueChange={handleRelatedToTypeChange}
                 disabled={submitting}
               >
                 <SelectTrigger id="meeting-related-type" className="w-full">
@@ -444,18 +502,33 @@ export function MeetingCreateForm({
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="meeting-related-id">
                 {relatedToType === 'lead'
-                  ? 'Lead ID'
+                  ? 'Lead'
                   : relatedToType === 'contact'
-                    ? 'Contact ID'
-                    : 'Company ID'}
+                    ? 'Contact'
+                    : 'Company'}
               </Label>
-              <Input
-                id="meeting-related-id"
-                placeholder={`Enter ${relatedToType} ID`}
+              <Select
                 value={relatedToId}
-                onChange={(e) => setRelatedToId(e.target.value)}
+                onValueChange={(value: string | null) => setRelatedToId(value ?? '')}
                 disabled={submitting}
-              />
+              >
+                <SelectTrigger id="meeting-related-id" className="w-full">
+                  <SelectValue placeholder={`Select a ${relatedToType}`} />
+                </SelectTrigger>
+                <SelectContent>
+                  {entityOptions.length > 0 ? (
+                    entityOptions.map((opt) => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.label}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="__none__" disabled>
+                      No {relatedToType}s available
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
           )}
 

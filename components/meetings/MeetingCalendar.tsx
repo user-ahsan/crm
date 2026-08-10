@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useMeetings } from '@/hooks/useMeetings';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,6 +26,8 @@ import {
   IconVideo,
   IconBuilding,
   IconPhone,
+  IconEdit,
+  IconTrash,
 } from '@tabler/icons-react';
 import type { Meeting } from '@/types/meeting.types';
 
@@ -122,13 +124,23 @@ function getWeekRangeLabel(days: Date[]): string {
   return `${startStr} - ${endStr}`;
 }
 
-export function MeetingCalendar() {
+interface MeetingCalendarProps {
+  onEditMeeting?: (meeting: Meeting) => void;
+  onDeleteMeeting?: (meeting: Meeting) => void;
+}
+
+export function MeetingCalendar({ onEditMeeting, onDeleteMeeting }: MeetingCalendarProps = {}) {
   const { meetings, loading, error, refresh } = useMeetings();
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [today] = useState(() => new Date());
+  // Live today: recompute every 60s so the highlight stays correct past midnight.
+  const [today, setToday] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setToday(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
@@ -336,7 +348,12 @@ export function MeetingCalendar() {
           <div className="flex flex-col gap-3 px-6 pb-6">
             {selectedDayMeetings.length > 0 ? (
               selectedDayMeetings.map((meeting) => (
-                <DayMeetingItem key={meeting.id} meeting={meeting} />
+                <DayMeetingItem
+                  key={meeting.id}
+                  meeting={meeting}
+                  onEdit={onEditMeeting ? () => onEditMeeting(meeting) : undefined}
+                  onDelete={onDeleteMeeting ? () => onDeleteMeeting(meeting) : undefined}
+                />
               ))
             ) : (
               <div className="flex flex-col items-center justify-center gap-2 py-12">
@@ -564,7 +581,15 @@ function WeekView({
   );
 }
 
-function DayMeetingItem({ meeting }: { meeting: Meeting }) {
+function DayMeetingItem({
+  meeting,
+  onEdit,
+  onDelete,
+}: {
+  meeting: Meeting;
+  onEdit?: () => void;
+  onDelete?: () => void;
+}) {
   const typeIcon = TYPE_ICONS[meeting.type];
 
   return (
@@ -574,9 +599,32 @@ function DayMeetingItem({ meeting }: { meeting: Meeting }) {
           <span className="text-muted-foreground">{typeIcon}</span>
           <span className="text-sm font-medium">{meeting.title}</span>
         </div>
-        <Badge variant="outline" className="text-[10px] capitalize">
-          {meeting.type}
-        </Badge>
+        <div className="flex items-center gap-1">
+          <Badge variant="outline" className="text-[10px] capitalize">
+            {meeting.type}
+          </Badge>
+          {onEdit && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={onEdit}
+              aria-label={`Edit "${meeting.title}"`}
+            >
+              <IconEdit size={14} />
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={onDelete}
+              aria-label={`Delete "${meeting.title}"`}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <IconTrash size={14} />
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -602,6 +650,22 @@ function DayMeetingItem({ meeting }: { meeting: Meeting }) {
           Related: {meeting.relatedToType}
           {meeting.relatedToId && ` (${meeting.relatedToId})`}
         </span>
+      )}
+
+      {/* Notes display */}
+      {meeting.notes && (
+        <div className="mt-1 rounded-lg bg-muted/50 px-2.5 py-1.5">
+          <p className="text-[10px] font-medium text-muted-foreground">Notes</p>
+          <p className="text-xs text-foreground/80 whitespace-pre-wrap">{meeting.notes}</p>
+        </div>
+      )}
+
+      {/* Outcome display */}
+      {meeting.outcome && (
+        <div className="mt-1 rounded-lg bg-primary/5 px-2.5 py-1.5">
+          <p className="text-[10px] font-medium text-muted-foreground">Outcome</p>
+          <p className="text-xs text-foreground/80 whitespace-pre-wrap">{meeting.outcome}</p>
+        </div>
       )}
     </div>
   );

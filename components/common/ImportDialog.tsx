@@ -14,6 +14,12 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import type { LeadFormData, LeadStatus, LeadPriority, LeadSource } from '@/types/lead.types';
+import type { ContactFormData } from '@/types/contact.types';
+import type { CompanyFormData, CompanySize } from '@/types/company.types';
+import type { TaskFormData, TaskPriority } from '@/types/task.types';
+import type { MeetingFormData, MeetingType } from '@/types/meeting.types';
+import type { RelatedEntityType } from '@/types/attachment.types';
 
 // ─── Column Definitions for Format Guide ─────────────────────────────────
 
@@ -115,6 +121,12 @@ interface ImportDialogProps {
   entityLabel: string;
   /** Optional callback after import completes */
   onImportComplete?: () => void;
+  /**
+   * Optional per-row create handler. When provided, imports delegate to it
+   * instead of the built-in service mapping — pages route through their hooks
+   * (UI → Hook → Service) and pass a typed create handler here.
+   */
+  onImportRow?: (row: Record<string, string>) => Promise<void>;
 }
 
 // ─── Simple CSV Parser ──────────────────────────────────────────────────────
@@ -181,6 +193,135 @@ function parseCSV(content: string): ParsedCSV {
   return { headers, rows, totalRows: rows.length };
 }
 
+// ─── Typed CSV row → entity form mapping ────────────────────────────────────
+// CSV cells are always strings; these helpers coerce them into the entity
+// form-data types the services accept. Enum columns fall back to a safe
+// default when the cell is missing or contains an unsupported value so a bad
+// cell never fails the whole import (per-row errors still surface).
+
+function csvString(row: Record<string, string>, key: string): string | undefined {
+  const trimmed = row[key]?.trim() ?? '';
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function csvNumber(row: Record<string, string>, key: string): number {
+  const value = Number(csvString(row, key) ?? '');
+  return Number.isFinite(value) ? value : 0;
+}
+
+function csvList(row: Record<string, string>, key: string): string[] {
+  return (csvString(row, key) ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function csvEnum<T extends string>(
+  row: Record<string, string>,
+  key: string,
+  allowed: readonly T[],
+  fallback: T,
+): T {
+  const value = csvString(row, key);
+  return allowed.find((a) => a === value) ?? fallback;
+}
+
+function csvOptionalEnum<T extends string>(
+  row: Record<string, string>,
+  key: string,
+  allowed: readonly T[],
+): T | undefined {
+  const value = csvString(row, key);
+  return allowed.find((a) => a === value);
+}
+
+const LEAD_SOURCES: readonly LeadSource[] = ['manual', 'website', 'referral', 'ads', 'social'];
+const LEAD_STATUSES: readonly LeadStatus[] = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'];
+const LEAD_PRIORITIES: readonly LeadPriority[] = ['low', 'medium', 'high'];
+const COMPANY_SIZES: readonly CompanySize[] = ['1-10', '11-50', '51-200', '201-1000', '1000+'];
+const TASK_PRIORITIES: readonly TaskPriority[] = ['low', 'medium', 'high', 'critical'];
+const MEETING_TYPES: readonly MeetingType[] = ['online', 'offline', 'call', 'video', 'in_person', 'other'];
+const RELATED_ENTITY_TYPES: readonly RelatedEntityType[] = ['lead', 'contact', 'company', 'deal', 'task', 'meeting', 'quote'];
+
+function mapLeadRow(row: Record<string, string>): LeadFormData {
+  return {
+    fullName: csvString(row, 'fullName') ?? '',
+    email: csvString(row, 'email'),
+    phone: csvString(row, 'phone'),
+    companyName: csvString(row, 'companyName'),
+    industry: csvString(row, 'industry'),
+    country: csvString(row, 'country'),
+    source: csvEnum(row, 'source', LEAD_SOURCES, 'manual'),
+    status: csvEnum(row, 'status', LEAD_STATUSES, 'new'),
+    priority: csvEnum(row, 'priority', LEAD_PRIORITIES, 'medium'),
+    assignedTo: csvString(row, 'assignedTo'),
+    estimatedValue: csvNumber(row, 'estimatedValue'),
+    tags: csvList(row, 'tags'),
+    notes: csvString(row, 'notes'),
+  };
+}
+
+function mapContactRow(row: Record<string, string>): ContactFormData {
+  return {
+    name: csvString(row, 'name') ?? '',
+    email: csvString(row, 'email'),
+    phone: csvString(row, 'phone'),
+    jobTitle: csvString(row, 'jobTitle'),
+    companyId: csvString(row, 'companyId'),
+    location: csvString(row, 'location'),
+    socialLinks: [],
+    tags: csvList(row, 'tags'),
+    notes: csvString(row, 'notes'),
+  };
+}
+
+function mapCompanyRow(row: Record<string, string>): CompanyFormData {
+  return {
+    name: csvString(row, 'name') ?? '',
+    industry: csvString(row, 'industry'),
+    size: csvOptionalEnum(row, 'size', COMPANY_SIZES),
+    revenue: csvNumber(row, 'revenue'),
+    location: csvString(row, 'location'),
+    website: csvString(row, 'website'),
+    tags: csvList(row, 'tags'),
+  };
+}
+
+function mapTaskRow(row: Record<string, string>): TaskFormData {
+  return {
+    title: csvString(row, 'title') ?? '',
+    description: csvString(row, 'description'),
+    relatedToType: csvOptionalEnum(row, 'relatedToType', RELATED_ENTITY_TYPES),
+    relatedToId: csvString(row, 'relatedToId'),
+    assignedTo: csvString(row, 'assignedTo'),
+    dueDate: csvString(row, 'dueDate'),
+    priority: csvEnum(row, 'priority', TASK_PRIORITIES, 'medium'),
+  };
+}
+
+function mapMeetingRow(row: Record<string, string>): MeetingFormData {
+  return {
+    title: csvString(row, 'title') ?? '',
+    participants: csvList(row, 'participants'),
+    relatedToType: csvOptionalEnum(row, 'relatedToType', RELATED_ENTITY_TYPES),
+    relatedToId: csvString(row, 'relatedToId'),
+    dateTime: csvString(row, 'dateTime') ?? '',
+    duration: csvNumber(row, 'duration'),
+    type: csvEnum(row, 'type', MEETING_TYPES, 'online'),
+    notes: csvString(row, 'notes'),
+  };
+}
+
+type ImportRowHandler = (row: Record<string, string>) => Promise<unknown>;
+
+const serviceMap: Record<string, ImportRowHandler> = {
+  leads: async (row) => (await import('@/services/lead.service')).leadService.create(mapLeadRow(row)),
+  contacts: async (row) => (await import('@/services/contact.service')).contactService.create(mapContactRow(row)),
+  companies: async (row) => (await import('@/services/company.service')).companyService.create(mapCompanyRow(row)),
+  tasks: async (row) => (await import('@/services/task.service')).taskService.create(mapTaskRow(row)),
+  meetings: async (row) => (await import('@/services/meeting.service')).meetingService.create(mapMeetingRow(row)),
+};
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export function ImportDialog({
@@ -189,6 +330,7 @@ export function ImportDialog({
   entityType,
   entityLabel,
   onImportComplete,
+  onImportRow,
 }: ImportDialogProps) {
   const [file, setFile] = useState<File | null>(null);
   const [parsed, setParsed] = useState<ParsedCSV | null>(null);
@@ -343,18 +485,10 @@ export function ImportDialog({
         return;
       }
 
-      // All rows valid — call the appropriate service
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const serviceMap: Record<string, { create: (...args: any[]) => Promise<any> }> = {
-        leads: (await import('@/services/lead.service')).leadService,
-        contacts: (await import('@/services/contact.service')).contactService,
-        companies: (await import('@/services/company.service')).companyService,
-        tasks: (await import('@/services/task.service')).taskService,
-        meetings: (await import('@/services/meeting.service')).meetingService,
-      };
-
-      const service = serviceMap[entityType];
-      if (!service) {
+      // All rows valid — create each via the injected handler (hook layer) or
+      // the typed per-entity service mapping.
+      const handler = onImportRow ?? serviceMap[entityType];
+      if (!handler) {
         throw new Error(`Unknown entity type: ${entityType}`);
       }
 
@@ -367,7 +501,7 @@ export function ImportDialog({
           parsed.headers.forEach((header, idx) => {
             rowData[header] = parsed.rows[i][idx] || '';
           });
-          await service.create(rowData);
+          await handler(rowData);
           importedCount++;
         } catch (e) {
           importErrors.push({
@@ -397,7 +531,7 @@ export function ImportDialog({
     } finally {
       setImporting(false);
     }
-  }, [parsed, entityLabel, onImportComplete, columns, entityType]);
+  }, [parsed, entityLabel, onImportComplete, onImportRow, columns, entityType]);
 
   /** Preview rows (first 3) */
   const previewRows = useMemo(() => {

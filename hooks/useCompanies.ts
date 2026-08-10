@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Company, CompanyFormData } from '@/types/company.types';
+import type { Company, CompanyFormData, CompanyFilters } from '@/types/company.types';
 import { generateId } from '@/lib/formatters';
 import { companyService } from '@/services/company.service';
+import { searchCompanies } from '@/modules/companies/companyFilters';
 import { useEntityCache, isCacheStale } from '@/store/entity-cache';
 
 export function useCompanies() {
@@ -39,11 +40,21 @@ export function useCompanies() {
     refresh();
   }, [refresh]);
 
+  // Documented filter API (HOOKS.md:82) — mirrors useLeads.getFiltered:
+  // a synchronous filter over the loaded state with AND semantics.
+  const getFiltered = useCallback((filters: CompanyFilters) => {
+    let result = filters.search ? searchCompanies(companies, filters.search) : companies;
+    const industry = filters.industry?.trim();
+    if (industry) result = result.filter((c) => c.industry === industry);
+    if (filters.size && filters.size !== '') result = result.filter((c) => c.size === filters.size);
+    return result;
+  }, [companies]);
+
   const getById = useCallback(async (id: string) => {
     try {
       return await companyService.getById(id);
-    } catch {
-      // Error preserved in error state
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load company');
       return undefined;
     }
   }, []);
@@ -79,41 +90,57 @@ export function useCompanies() {
   }, []);
 
   const updateCompany = useCallback(async (id: string, data: Partial<CompanyFormData>) => {
-    let prevItem: Company | undefined;
-    setCompanies((prev) => {
-      prevItem = prev.find((c) => c.id === id);
-      return prev.map((c) => (c.id === id ? { ...c, ...data } : c));
-    });
+    // Capture the pre-mutation row OUTSIDE the state updater so rollback can
+    // restore the exact object at its original index (ARCHITECTURE §10).
+    const prevItem = companies.find((c) => c.id === id);
+    if (!prevItem) return undefined;
+    const prevIndex = companies.indexOf(prevItem);
+    setCompanies((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)));
     try {
       const updated = await companyService.update(id, data);
-      if (updated) {
-        setCompanies((prev) => prev.map((c) => (c.id === id ? updated : c)));
-        useEntityCache.getState().updateCompany(id, updated);
+      if (!updated) {
+        // PGRST116 not-found: revert the optimistic change and surface it.
+        setCompanies((prev) => {
+          const next = prev.filter((c) => c.id !== id);
+          next.splice(Math.min(prevIndex, next.length), 0, prevItem);
+          return next;
+        });
+        setError('Failed to update company: record not found');
+        return undefined;
       }
+      setCompanies((prev) => prev.map((c) => (c.id === id ? updated : c)));
+      useEntityCache.getState().updateCompany(id, updated);
       return updated;
     } catch (e) {
-      if (prevItem) setCompanies((prev) => prev.map((c) => (c.id === id ? prevItem! : c)));
+      setCompanies((prev) => {
+        const next = prev.filter((c) => c.id !== id);
+        next.splice(Math.min(prevIndex, next.length), 0, prevItem);
+        return next;
+      });
       setError(e instanceof Error ? e.message : 'Failed to update company');
       return undefined;
     }
-  }, []);
+  }, [companies]);
 
   const deleteCompany = useCallback(async (id: string) => {
-    let prevItem: Company | undefined;
-    setCompanies((prev) => {
-      prevItem = prev.find((c) => c.id === id);
-      return prev.filter((c) => c.id !== id);
-    });
+    const prevItem = companies.find((c) => c.id === id);
+    if (!prevItem) return false;
+    const prevIndex = companies.indexOf(prevItem);
+    setCompanies((prev) => prev.filter((c) => c.id !== id));
     try {
       await companyService.delete(id);
       useEntityCache.getState().removeCompany(id);
       return true;
     } catch (e) {
-      if (prevItem) setCompanies((prev) => [...prev, prevItem!]);
+      setCompanies((prev) => {
+        const next = prev.filter((c) => c.id !== id);
+        next.splice(Math.min(prevIndex, next.length), 0, prevItem);
+        return next;
+      });
       setError(e instanceof Error ? e.message : 'Failed to delete company');
       return false;
     }
-  }, []);
+  }, [companies]);
 
-  return { companies, loading, error, refresh, getById, createCompany, updateCompany, deleteCompany };
+  return { companies, loading, error, refresh, getFiltered, getById, createCompany, updateCompany, deleteCompany };
 }

@@ -4,6 +4,7 @@ import { useState, useCallback, type FormEvent, type ChangeEvent } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
+import { useAuthStore } from '@/store/auth';
 import { IconNetwork, IconEye, IconEyeOff } from '@tabler/icons-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -117,40 +118,32 @@ export default function SignupPage() {
         return;
       }
 
-      /* 2. Authenticate via Supabase */
+      /* 2. Authenticate via Supabase (through the auth store so the
+             session is persisted per ARCHITECTURE §6) */
       setIsSubmitting(true);
 
       try {
-        const supabase = await createClient();
+        await useAuthStore.getState().signup(
+          formData.fullName,
+          formData.email,
+          formData.password,
+        );
 
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            data: {
-              full_name: formData.fullName,
-            },
-          },
-        });
-
-        if (authError) {
-          setSubmitError(authError.message);
-          return;
-        }
-
-        if (!authData.user) {
+        const authUser = useAuthStore.getState().user;
+        if (!authUser) {
           setSubmitError('Failed to create account. Please try again.');
           return;
         }
 
         /* 3. Auto-create a team for the new user */
         try {
+          const supabase = await createClient();
           const { data: teamData, error: teamError } = await supabase
             .from('teams')
             .insert({
               name: `${formData.fullName.split(' ')[0]}'s Team`,
               description: '',
-              created_by: authData.user.id,
+              created_by: authUser.id,
             })
             .select()
             .single();
@@ -159,7 +152,7 @@ export default function SignupPage() {
             // Add user as admin member of the team
             await supabase.from('team_members').insert({
               team_id: teamData.id,
-              user_id: authData.user.id,
+              user_id: authUser.id,
               role: 'admin',
             });
 
@@ -173,11 +166,12 @@ export default function SignupPage() {
         }
 
         /* 4. Store minimal identifier for onboarding (PII-safe) */
-        sessionStorage.setItem('onboarding-user-id', authData.user.id);
+        sessionStorage.setItem('onboarding-user-id', authUser.id);
 
         /* 5. Check if session exists (auto-login) or email confirmation is needed */
-        if (authData.session) {
+        if (useAuthStore.getState().session) {
           // Force cookie flush so the middleware sees the session
+          const supabase = await createClient();
           await supabase.auth.getSession();
           toast.success('Account created successfully!');
           // Use full-page navigation so middleware can read fresh cookies

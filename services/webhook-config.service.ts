@@ -11,15 +11,30 @@
  *   const configs = await webhookConfigService.getActiveByEvent('lead.created');
  *   const record   = await webhookConfigService.create({ name: '...', url: '...' });
  *
- * All methods use getSupabaseClient() and respect RLS (created_by = auth.uid()).
+ * All methods accept an optional Supabase client. Server route handlers
+ * MUST pass their server client (`createServerSupabaseClient()`) so the
+ * session resolves from request cookies; callers that omit it (webhook
+ * dispatch in `webhook.service.ts`) fall back to the browser singleton.
+ * RLS scopes rows to the authenticated user (created_by = auth.uid()).
  * ─────────────────────────────────────────────────────────────────────
  */
 
 import { getSupabaseClient } from '@/lib/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase.types';
 import { ServiceError, toServiceError } from './supabase.service';
 import { isPrivateHost } from '@/lib/ssrf';
 
 // ── Types ─────────────────────────────────────────────────────────────
+
+/**
+ * Client used for DB access. Server route handlers MUST pass their
+ * server client (`createServerSupabaseClient()`) so the session resolves
+ * from request cookies; the browser fallback is retained only for
+ * client-side webhook dispatch (`webhook.service.ts`), where the browser
+ * singleton is the correct session source.
+ */
+type DbClient = SupabaseClient<Database>;
 
 export interface WebhookConfigFormData {
   name: string;
@@ -74,9 +89,9 @@ export const webhookConfigService = {
    * Returns all webhook configs visible to the current user (subject to RLS).
    * Ordered most-recent first.
    */
-  async getAll(): Promise<WebhookConfigRecord[]> {
+  async getAll(client?: DbClient): Promise<WebhookConfigRecord[]> {
     try {
-      const supabase = getSupabaseClient();
+      const supabase = client ?? getSupabaseClient();
       const { data, error } = await supabase
         .from('webhook_configs')
         .select('*')
@@ -92,9 +107,9 @@ export const webhookConfigService = {
   /**
    * Returns a single webhook config by ID, or undefined when not found.
    */
-  async getById(id: string): Promise<WebhookConfigRecord | undefined> {
+  async getById(id: string, client?: DbClient): Promise<WebhookConfigRecord | undefined> {
     try {
-      const supabase = getSupabaseClient();
+      const supabase = client ?? getSupabaseClient();
       const { data, error } = await supabase
         .from('webhook_configs')
         .select('*')
@@ -116,9 +131,9 @@ export const webhookConfigService = {
    * Creates a new webhook config. Automatically sets `created_by` to the
    * authenticated user. Defaults `active` to `true` when not provided.
    */
-  async create(data: WebhookConfigFormData): Promise<WebhookConfigRecord> {
+  async create(data: WebhookConfigFormData, client?: DbClient): Promise<WebhookConfigRecord> {
     try {
-      const supabase = getSupabaseClient();
+      const supabase = client ?? getSupabaseClient();
       const { data: userData } = await supabase.auth.getUser();
 
       try { new URL(data.url); } catch {
@@ -158,9 +173,10 @@ export const webhookConfigService = {
   async update(
     id: string,
     data: Partial<WebhookConfigFormData>,
+    client?: DbClient,
   ): Promise<WebhookConfigRecord | undefined> {
     try {
-      const supabase = getSupabaseClient();
+      const supabase = client ?? getSupabaseClient();
       const dbRow: import('@/types/supabase.types').WebhookConfigUpdate = {};
 
       if (data.name !== undefined) dbRow.name = data.name;
@@ -199,9 +215,9 @@ export const webhookConfigService = {
    * Deletes a webhook config by ID. Returns `true` when the row was deleted,
    * throws if the row does not exist or the user lacks permission.
    */
-  async delete(id: string): Promise<boolean> {
+  async delete(id: string, client?: DbClient): Promise<boolean> {
     try {
-      const supabase = getSupabaseClient();
+      const supabase = client ?? getSupabaseClient();
       const { error } = await supabase
         .from('webhook_configs')
         .delete()
@@ -221,9 +237,9 @@ export const webhookConfigService = {
    *
    * @param event - Event name such as 'lead.created' or 'task.overdue'
    */
-  async getActiveByEvent(event: string): Promise<WebhookConfigRecord[]> {
+  async getActiveByEvent(event: string, client?: DbClient): Promise<WebhookConfigRecord[]> {
     try {
-      const supabase = getSupabaseClient();
+      const supabase = client ?? getSupabaseClient();
       // contains() uses the Postgres @> array-contains operator
       const { data, error } = await supabase
         .from('webhook_configs')

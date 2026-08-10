@@ -4,6 +4,7 @@ import { useState, useCallback, type FormEvent, type ChangeEvent } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
+import { useAuthStore } from '@/store/auth';
 import { IconNetwork, IconEye, IconEyeOff } from '@tabler/icons-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -90,26 +91,12 @@ export default function LoginPage() {
         return;
       }
 
-      /* 2. Authenticate via Supabase */
+      /* 2. Authenticate via Supabase (through the auth store so the
+             session is persisted per ARCHITECTURE §6) */
       setIsSubmitting(true);
 
       try {
-        const supabase = await createClient();
-
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
-
-        if (error) {
-          setSubmitError(error.message);
-          return;
-        }
-
-        if (!data.user) {
-          setSubmitError('Invalid credentials. Please try again.');
-          return;
-        }
+        await useAuthStore.getState().login(formData.email, formData.password);
 
         /* 3. Read redirect param from URL with open-redirect protection */
         const params = new URLSearchParams(window.location.search);
@@ -122,6 +109,7 @@ export default function LoginPage() {
         toast.success('Welcome back!');
 
         /* 5. Force cookie flush and full-page nav */
+        const supabase = await createClient();
         await supabase.auth.getSession();
         window.location.href = redirectTo;
       } catch (e) {

@@ -39,18 +39,34 @@ export function useMeetings() {
     refresh();
   }, [refresh]);
 
+  const getById = useCallback(async (id: string) => {
+    try {
+      return await meetingService.getById(id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load meeting');
+      return undefined;
+    }
+  }, []);
+
   const getByEntity = useCallback(async (entityType: string, entityId: string) => {
     try {
       return await meetingService.getByEntity(entityType, entityId);
-    } catch {
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load meetings');
       return [];
     }
   }, []);
 
+  // Documented alias (HOOKS.md:154) of getByEntity.
+  const getMeetingsForEntity = useCallback(async (entityType: string, entityId: string) => {
+    return getByEntity(entityType, entityId);
+  }, [getByEntity]);
+
   const getUpcoming = useCallback(async (limit = 5) => {
     try {
       return await meetingService.getUpcoming(limit);
-    } catch {
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load meetings');
       return [];
     }
   }, []);
@@ -85,41 +101,57 @@ export function useMeetings() {
   }, []);
 
   const updateMeeting = useCallback(async (id: string, data: Partial<MeetingFormData & { outcome: string }>) => {
-    let prevItem: Meeting | undefined;
-    setMeetings((prev) => {
-      prevItem = prev.find((m) => m.id === id);
-      return prev.map((m) => (m.id === id ? { ...m, ...data } : m));
-    });
+    // Capture the pre-mutation row OUTSIDE the state updater so rollback can
+    // restore the exact object at its original index (ARCHITECTURE §10).
+    const prevItem = meetings.find((m) => m.id === id);
+    if (!prevItem) return undefined;
+    const prevIndex = meetings.indexOf(prevItem);
+    setMeetings((prev) => prev.map((m) => (m.id === id ? { ...m, ...data } : m)));
     try {
       const updated = await meetingService.update(id, data);
-      if (updated) {
-        setMeetings((prev) => prev.map((m) => (m.id === id ? updated : m)));
-        useEntityCache.getState().updateMeeting(id, updated);
+      if (!updated) {
+        // PGRST116 not-found: revert the optimistic change and surface it.
+        setMeetings((prev) => {
+          const next = prev.filter((m) => m.id !== id);
+          next.splice(Math.min(prevIndex, next.length), 0, prevItem);
+          return next;
+        });
+        setError('Failed to update meeting: record not found');
+        return undefined;
       }
+      setMeetings((prev) => prev.map((m) => (m.id === id ? updated : m)));
+      useEntityCache.getState().updateMeeting(id, updated);
       return updated;
     } catch (e) {
-      if (prevItem) setMeetings((prev) => prev.map((m) => (m.id === id ? prevItem! : m)));
+      setMeetings((prev) => {
+        const next = prev.filter((m) => m.id !== id);
+        next.splice(Math.min(prevIndex, next.length), 0, prevItem);
+        return next;
+      });
       setError(e instanceof Error ? e.message : 'Failed to update meeting');
       return undefined;
     }
-  }, []);
+  }, [meetings]);
 
   const deleteMeeting = useCallback(async (id: string) => {
-    let prevItem: Meeting | undefined;
-    setMeetings((prev) => {
-      prevItem = prev.find((m) => m.id === id);
-      return prev.filter((m) => m.id !== id);
-    });
+    const prevItem = meetings.find((m) => m.id === id);
+    if (!prevItem) return false;
+    const prevIndex = meetings.indexOf(prevItem);
+    setMeetings((prev) => prev.filter((m) => m.id !== id));
     try {
       await meetingService.delete(id);
       useEntityCache.getState().removeMeeting(id);
       return true;
     } catch (e) {
-      if (prevItem) setMeetings((prev) => [...prev, prevItem!]);
+      setMeetings((prev) => {
+        const next = prev.filter((m) => m.id !== id);
+        next.splice(Math.min(prevIndex, next.length), 0, prevItem);
+        return next;
+      });
       setError(e instanceof Error ? e.message : 'Failed to delete meeting');
       return false;
     }
-  }, []);
+  }, [meetings]);
 
-  return { meetings, loading, error, refresh, getByEntity, getUpcoming, createMeeting, updateMeeting, deleteMeeting };
+  return { meetings, loading, error, refresh, getById, getByEntity, getMeetingsForEntity, getUpcoming, createMeeting, updateMeeting, deleteMeeting };
 }

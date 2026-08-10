@@ -21,10 +21,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useContacts } from '@/hooks/useContacts';
 import { useCompanies } from '@/hooks/useCompanies';
+import { useLeads } from '@/hooks/useLeads';
 import { validateContactForm } from '@/lib/validators';
-import { IconX, IconPlus, IconLoader2 } from '@tabler/icons-react';
+import { IconX, IconPlus, IconLoader2, IconUsers, IconSearch } from '@tabler/icons-react';
 import { toast } from 'sonner';
 
 interface ContactCreateFormProps {
@@ -46,6 +49,7 @@ const defaultFormData: ContactFormData = {
   phone: '',
   jobTitle: '',
   companyId: '',
+  leadIds: [],
   location: '',
   socialLinks: [],
   tags: [],
@@ -55,10 +59,13 @@ const defaultFormData: ContactFormData = {
 export function ContactCreateForm({ open, onOpenChange, onSuccess, editContact }: ContactCreateFormProps) {
   const { createContact, updateContact } = useContacts();
   const { companies: companiesData } = useCompanies();
+  const { leads: leadsData } = useLeads();
   const [formData, setFormData] = useState<ContactFormData>(defaultFormData);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [tagInput, setTagInput] = useState('');
+  const [leadSearch, setLeadSearch] = useState('');
+  const [leadPopoverOpen, setLeadPopoverOpen] = useState(false);
   const tagInputRef = useRef<HTMLInputElement>(null);
 
   const isEditMode = !!editContact;
@@ -73,6 +80,7 @@ export function ContactCreateForm({ open, onOpenChange, onSuccess, editContact }
           phone: editContact.phone ?? '',
           jobTitle: editContact.jobTitle ?? '',
           companyId: editContact.companyId ?? '',
+          leadIds: [...editContact.leadIds],
           location: editContact.location ?? '',
           socialLinks: [...editContact.socialLinks],
           tags: [...editContact.tags],
@@ -83,10 +91,24 @@ export function ContactCreateForm({ open, onOpenChange, onSuccess, editContact }
       }
       setErrors({});
       setTagInput('');
+      setLeadSearch('');
+      setLeadPopoverOpen(false);
       setSubmitting(false);
     }
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [open, editContact]);
+
+  const filteredLeads = leadsData.filter(
+    (lead) =>
+      !leadSearch.trim() ||
+      lead.fullName.toLowerCase().includes(leadSearch.toLowerCase()) ||
+      lead.email?.toLowerCase().includes(leadSearch.toLowerCase()) ||
+      lead.companyName?.toLowerCase().includes(leadSearch.toLowerCase()),
+  );
+
+  const selectedLeadIds = formData.leadIds ?? [];
+
+  const selectedLeads = leadsData.filter((lead) => selectedLeadIds.includes(lead.id));
 
   const updateField = useCallback(
     <K extends keyof ContactFormData>(field: K, value: ContactFormData[K]) => {
@@ -253,13 +275,14 @@ export function ContactCreateForm({ open, onOpenChange, onSuccess, editContact }
               <Label htmlFor="companyId">Company</Label>
               <Select
                 value={formData.companyId}
-                onValueChange={(value: string | null) => { if (value) updateField('companyId', value); }}
+                onValueChange={(value: string | null) => { updateField('companyId', value ?? ''); }}
                 disabled={submitting}
               >
                 <SelectTrigger id="companyId">
                   <SelectValue placeholder="Select a company" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">No company</SelectItem>
                   {companiesData.map((company) => (
                     <SelectItem key={company.id} value={company.id}>
                       {company.name}
@@ -268,6 +291,85 @@ export function ContactCreateForm({ open, onOpenChange, onSuccess, editContact }
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Linked Leads */}
+          <div className="grid gap-2">
+            <Label>Linked Leads</Label>
+            <Popover open={leadPopoverOpen} onOpenChange={setLeadPopoverOpen}>
+              <PopoverTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    type="button"
+                    disabled={submitting}
+                    className="justify-start font-normal"
+                  />
+                }
+              >
+                <IconUsers className="mr-2 size-4 shrink-0 text-muted-foreground" />
+                <span className="truncate">
+                  {selectedLeads.length > 0
+                    ? selectedLeads.map((lead) => lead.fullName).join(', ')
+                    : 'Select leads to link'}
+                </span>
+                {selectedLeads.length > 0 && (
+                  <span className="ml-auto shrink-0 rounded-full bg-muted-foreground/20 px-2 py-0.5 text-xs tabular-nums">
+                    {selectedLeads.length}
+                  </span>
+                )}
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-3" align="start">
+                <div className="space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Link contacts to leads
+                  </p>
+                  <div className="relative">
+                    <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search leads..."
+                      value={leadSearch}
+                      onChange={(e) => setLeadSearch(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+                  <div className="max-h-52 space-y-0.5 overflow-y-auto">
+                    {filteredLeads.length === 0 ? (
+                      <p className="px-1 py-3 text-center text-xs text-muted-foreground">
+                        No leads match your search.
+                      </p>
+                    ) : (
+                      filteredLeads.map((lead) => {
+                        const checked = selectedLeadIds.includes(lead.id);
+                        return (
+                          <label
+                            key={lead.id}
+                            className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-muted/50"
+                          >
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={() => {
+                                if (checked) {
+                                  updateField('leadIds', selectedLeadIds.filter((id) => id !== lead.id));
+                                } else {
+                                  updateField('leadIds', [...selectedLeadIds, lead.id]);
+                                }
+                              }}
+                            />
+                            <span className="flex-1 truncate">{lead.fullName}</span>
+                            {lead.companyName && (
+                              <span className="truncate text-xs text-muted-foreground">
+                                {lead.companyName}
+                              </span>
+                            )}
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Location */}

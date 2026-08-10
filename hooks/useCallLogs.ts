@@ -64,8 +64,11 @@ export function useCallLogs(entityType?: string, entityId?: string) {
       return created;
     } catch (e) {
       setCallLogs((prev) => prev.filter((c) => c.id !== tempId));
-      setError(e instanceof Error ? e.message : 'Failed to log call');
-      return undefined;
+      const msg = e instanceof Error ? e.message : 'Failed to log call';
+      setError(msg);
+      // Rethrow so CallLogDialog.handleSubmit's catch keeps the dialog open
+      // with an inline error instead of closing as if the save succeeded.
+      throw e instanceof Error ? e : new Error(msg);
     }
   }, [user?.id]);
 

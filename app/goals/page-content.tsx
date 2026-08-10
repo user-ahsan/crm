@@ -51,6 +51,7 @@ import {
   IconTrash,
   IconLoader2,
   IconTarget,
+  IconRefresh,
 } from '@tabler/icons-react';
 
 const typeIconMap: Record<string, React.ComponentType<{ size?: number; stroke?: number; className?: string }>> = {
@@ -76,7 +77,8 @@ const periodColorMap: Record<GoalPeriod, string> = {
 };
 
 export default function GoalsPage() {
-  const { goals, loading, error, refresh, create, update, remove, getProgress } = useGoals();
+  const { goals, loading, error, refresh, create, update, remove, getProgress, recalculateProgress } = useGoals();
+  const [recalcId, setRecalcId] = useState<string | null>(null);
   const [filterPeriod, setFilterPeriod] = useState<GoalPeriod | ''>('');
   const [filterType, setFilterType] = useState<GoalType | ''>('');
   const [createOpen, setCreateOpen] = useState(false);
@@ -196,15 +198,39 @@ export default function GoalsPage() {
 
   const confirmDelete = useCallback(async () => {
     if (!deleteGoal) return;
-    await remove(deleteGoal.id);
+    const success = await remove(deleteGoal.id);
     setDeleteGoal(null);
-    toast.success('Goal deleted');
+    if (success) {
+      toast.success('Goal deleted');
+    } else {
+      toast.error('Failed to delete goal');
+    }
   }, [deleteGoal, remove]);
 
   const openEdit = useCallback((goal: Goal) => {
     populateEditForm(goal);
     setEditGoal(goal);
   }, [populateEditForm]);
+
+  const handleRecalculate = useCallback(async (goal: Goal) => {
+    if (goal.type === 'custom') {
+      toast.info('Custom goals are manually entered');
+      return;
+    }
+    setRecalcId(goal.id);
+    try {
+      const current = await recalculateProgress(goal.id);
+      if (current !== undefined) {
+        toast.success(`Progress recalculated: ${current.toLocaleString()}`);
+      } else {
+        toast.error('Failed to recalculate progress');
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to recalculate progress');
+    } finally {
+      setRecalcId(null);
+    }
+  }, [recalculateProgress]);
 
   const handleCreateOpenChange = useCallback((open: boolean) => {
     if (!open) resetForm();
@@ -329,6 +355,22 @@ export default function GoalsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-0.5 shrink-0">
+                    {goal.type !== 'custom' && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7"
+                        title="Recalculate from CRM data"
+                        disabled={recalcId === goal.id}
+                        onClick={() => handleRecalculate(goal)}
+                      >
+                        {recalcId === goal.id ? (
+                          <IconLoader2 size={14} className="animate-spin" />
+                        ) : (
+                          <IconRefresh size={14} />
+                        )}
+                      </Button>
+                    )}
                     <Button variant="ghost" size="icon" className="size-7" onClick={() => openEdit(goal)}>
                       <IconEdit size={14} />
                     </Button>

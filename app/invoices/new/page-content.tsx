@@ -19,8 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { quoteService } from '@/services/quote.service';
-import { invoiceService } from '@/services/invoice.service';
+import { useQuotes } from '@/hooks/useQuotes';
+import { useInvoices } from '@/hooks/useInvoices';
 import type { Quote } from '@/types/quote.types';
 import type { PaymentTerms } from '@/types/invoice.types';
 import { formatCurrency } from '@/lib/formatters';
@@ -43,6 +43,10 @@ function NewInvoiceContent() {
   const searchParams = useSearchParams();
   const quoteId = searchParams.get('quoteId');
   const standalone = searchParams.get('standalone') === 'true';
+
+  // Routed through hooks per ARCHITECTURE §3 layer rules.
+  const { getById: getQuoteById } = useQuotes();
+  const { createInvoice } = useInvoices();
 
   // Shared form state
   const [taxRate, setTaxRate] = useState(0);
@@ -87,17 +91,24 @@ function NewInvoiceContent() {
       setLoading(true);
       setError(null);
       try {
-        const data = await quoteService.getById(quoteId);
+        const data = await getQuoteById(quoteId);
         if (!cancelled) {
-          if (data) {
+          if (!data) {
+            setError('Quote not found');
+          } else if (data.status !== 'accepted') {
+            // Only accepted quotes can be converted to invoices (FEATURES §14
+            // quote workflow). Draft/sent/rejected quotes cannot be invoiced —
+            // surface the gate rather than silently creating a corrupt record.
+            setError(
+              `Quote is not accepted (current status: ${data.status}). Only accepted quotes can be converted to invoices.`,
+            );
+          } else {
             setQuote(data);
             setNotes(data.notes || '');
             setDiscount(data.discount || 0);
             const d = new Date();
             d.setDate(d.getDate() + 30);
             setDueDate(d.toISOString().split('T')[0]);
-          } else {
-            setError('Quote not found');
           }
         }
       } catch (e) {
@@ -109,7 +120,7 @@ function NewInvoiceContent() {
     return () => {
       cancelled = true;
     };
-  }, [quoteId, standalone]);
+  }, [quoteId, standalone, getQuoteById]);
 
   // Standalone: add a new line item row
   const addLineItem = useCallback(() => {
@@ -189,7 +200,7 @@ function NewInvoiceContent() {
       if (!validateStandalone()) return;
       setSubmitting(true);
       try {
-        const invoice = await invoiceService.create({
+        const invoice = await createInvoice({
           invoiceNumber: invoiceNumber.trim(),
           items: lineItems.map((i) => ({
             description: i.description.trim(),
@@ -203,8 +214,12 @@ function NewInvoiceContent() {
           paymentTerms,
           status: 'draft',
         });
-        toast.success(`Invoice ${invoice.invoiceNumber} created`);
-        router.push(`/invoices/${invoice.id}`);
+        if (invoice) {
+          toast.success(`Invoice ${invoice.invoiceNumber} created`);
+          router.push(`/invoices/${invoice.id}`);
+        } else {
+          toast.error('Failed to create invoice');
+        }
       } catch (e) {
         toast.error(e instanceof Error ? e.message : 'Failed to create invoice');
       } finally {
@@ -217,7 +232,7 @@ function NewInvoiceContent() {
     if (!quote) return;
     setSubmitting(true);
     try {
-      const invoice = await invoiceService.create({
+      const invoice = await createInvoice({
         quoteId: quote.id,
         items: quote.items.map((i) => ({
           description: i.description,
@@ -230,14 +245,18 @@ function NewInvoiceContent() {
         dueDate: dueDate || undefined,
         paymentTerms,
       });
-      toast.success(`Invoice ${invoice.invoiceNumber} created from "${quote.title}"`);
-      router.push(`/invoices/${invoice.id}`);
+      if (invoice) {
+        toast.success(`Invoice ${invoice.invoiceNumber} created from "${quote.title}"`);
+        router.push(`/invoices/${invoice.id}`);
+      } else {
+        toast.error('Failed to create invoice');
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to create invoice');
     } finally {
       setSubmitting(false);
     }
-  }, [standalone, quote, invoiceNumber, lineItems, discount, taxRate, notes, dueDate, paymentTerms, router, validateStandalone]);
+  }, [standalone, quote, invoiceNumber, lineItems, discount, taxRate, notes, dueDate, paymentTerms, router, validateStandalone, createInvoice]);
 
   // Derived totals (computed, not stored)
   const subtotal = useMemo(() => {

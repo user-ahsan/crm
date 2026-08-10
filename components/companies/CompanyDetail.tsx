@@ -5,8 +5,15 @@ import { useRouter } from 'next/navigation';
 import type { Company } from '@/types/company.types';
 import type { Contact } from '@/types/contact.types';
 import type { Lead } from '@/types/lead.types';
+import type { Activity } from '@/types/activity.types';
+import type { Tag } from '@/types/tag.types';
 import { useEmail } from '@/hooks/useEmail';
 import { EmailHistory } from '@/components/communication/EmailHistory';
+import { useContacts } from '@/hooks/useContacts';
+import { useLeads } from '@/hooks/useLeads';
+import { useTags } from '@/hooks/useTags';
+import { useActivities } from '@/hooks/useActivities';
+import { ActivityTimeline } from '@/components/common/ActivityTimeline';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,19 +23,14 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { TagBadge } from '@/components/common/TagBadge';
 import { TagInput } from '@/components/common/TagInput';
-import { tagService } from '@/services/tag.service';
-import type { Tag } from '@/types/tag.types';
-import { companyService } from '@/services/company.service';
-import { contactService } from '@/services/contact.service';
-import { leadService } from '@/services/lead.service';
 import { formatDate, formatCurrency, getInitials } from '@/lib/formatters';
 import { useCallLogs } from '@/hooks/useCallLogs';
 import { CallLogList } from '@/components/communication/CallLogList';
 import { NotesList } from '@/components/communication/NotesList';
 import { FileAttachmentList } from '@/components/common/FileAttachmentList';
+import { toast } from 'sonner';
 import {
   IconArrowLeft,
-  IconBuilding,
   IconNote,
   IconUsers,
   IconTrendingUp,
@@ -40,20 +42,23 @@ import {
   IconLoader2,
   IconMail,
   IconPaperclip,
+  IconActivity,
 } from '@tabler/icons-react';
 
 interface CompanyDetailProps {
   companyId: string;
+  /** Company entity fetched by the page — single source of truth. */
+  company: Company;
   onBack?: () => void;
 }
 
-type ActiveTab = 'overview' | 'contacts' | 'leads' | 'calls' | 'notes' | 'emails';
+type ActiveTab = 'overview' | 'activity' | 'contacts' | 'leads' | 'calls' | 'notes' | 'emails';
 
-export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
+export function CompanyDetail({ companyId, company, onBack }: CompanyDetailProps) {
   const router = useRouter();
-  const [company, setCompany] = useState<Company | null>(null);
   const [linkedContacts, setLinkedContacts] = useState<Contact[]>([]);
   const [linkedLeads, setLinkedLeads] = useState<Lead[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
@@ -61,6 +66,11 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
 
   // ─── Data & State ─────────────────────────────────
+  const { getById: getContactById } = useContacts();
+  const { getById: getLeadById } = useLeads();
+  const { getEntityTags, createTag, addEntityTag, removeEntityTag } = useTags();
+  const { getByEntity: getActivitiesByEntity } = useActivities();
+
   const { callLogs, loading: callLogsLoading, logCall } = useCallLogs('company', companyId);
   const {
     emails,
@@ -69,74 +79,87 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
     refresh: refreshEmails,
   } = useEmail('company', companyId);
 
+  // Single load path: linked contacts/leads + tags + activities. The company
+  // entity itself is owned by the page (passed as a prop) so edits never leave
+  // stale data on screen.
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const found = await companyService.getById(companyId);
-      if (!found) {
-        setError('Company not found');
-        setLoading(false);
-        return;
-      }
-      setCompany(found);
-
-      const [contactResults, leadResults] = await Promise.all([
-        Promise.all(found.contactIds.map((contactId) => contactService.getById(contactId))),
-        Promise.all(found.leadIds.map((leadId) => leadService.getById(leadId))),
+      const [contactResults, leadResults, tags, activityResults] = await Promise.all([
+        Promise.all(company.contactIds.map((contactId) => getContactById(contactId))),
+        Promise.all(company.leadIds.map((leadId) => getLeadById(leadId))),
+        getEntityTags('company', companyId),
+        getActivitiesByEntity('company', companyId),
       ]);
       setLinkedContacts(contactResults.filter((c): c is Contact => c !== undefined));
       setLinkedLeads(leadResults.filter((l): l is Lead => l !== undefined));
-
-      tagService.getTagsForEntity('company', companyId).then((tags) => setEntityTags(tags)).catch(() => {});
+      setEntityTags(tags);
+      setActivities(activityResults);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load company details');
     } finally {
       setLoading(false);
     }
-  }, [companyId]);
+  }, [
+    companyId,
+    company.contactIds,
+    company.leadIds,
+    getContactById,
+    getLeadById,
+    getEntityTags,
+    getActivitiesByEntity,
+  ]);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const found = await companyService.getById(companyId);
-        if (cancelled) return;
-        if (!found) {
-          setError('Company not found');
-          setLoading(false);
-          return;
-        }
-        setCompany(found);
-        const [contactResults, leadResults] = await Promise.all([
-          Promise.all(found.contactIds.map((id) => contactService.getById(id))),
-          Promise.all(found.leadIds.map((id) => leadService.getById(id))),
-        ]);
-        if (cancelled) return;
-        setLinkedContacts(contactResults.filter((c): c is Contact => c !== undefined));
-        setLinkedLeads(leadResults.filter((l): l is Lead => l !== undefined));
-        tagService.getTagsForEntity('company', companyId).then((tags) => {
-          if (!cancelled) setEntityTags(tags);
-        }).catch(() => {});
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load company details');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [companyId]);
+    loadData();
+  }, [loadData]);
 
   // ─── Event Handlers ───────────────────────────────
-  const handleTagChange = useCallback(async (tags: Tag[]) => {
-    setEntityTags(tags);
-    const tagIds = tags.map((t) => t.id).filter((id) => !id.startsWith('new-'));
-    for (const tag of tags.filter((t) => t.id.startsWith('new-'))) {
-      const created = await tagService.create(tag.name, tag.color);
-      if (created) tagIds.push(created.id);
-    }
-    tagService.setTagsForEntity('company', companyId, tagIds).catch(() => {});
-  }, [companyId]);
+  const handleTagChange = useCallback(
+    async (tags: Tag[]) => {
+      const prevTags = entityTags;
+      setEntityTags(tags);
+
+      const previousIds = new Set(prevTags.map((t) => t.id));
+      const nextIds = new Set(tags.map((t) => t.id));
+      const toAdd = tags.filter((t) => !previousIds.has(t.id));
+      const toRemove = prevTags.filter((t) => !nextIds.has(t.id));
+
+      try {
+        // Create on-the-fly tags first so they get real ids.
+        const createdIdByTempId = new Map<string, string>();
+        for (const tag of toAdd) {
+          if (!tag.id.startsWith('new-')) continue;
+          const created = await createTag(tag.name, tag.color);
+          if (!created) throw new Error(`Failed to create tag "${tag.name}"`);
+          createdIdByTempId.set(tag.id, created.id);
+        }
+
+        for (const tag of toAdd) {
+          const tagId = createdIdByTempId.get(tag.id) ?? tag.id;
+          const ok = await addEntityTag('company', companyId, tagId);
+          if (!ok) throw new Error('Failed to save tag changes');
+        }
+        for (const tag of toRemove) {
+          const ok = await removeEntityTag('company', companyId, tag.id);
+          if (!ok) throw new Error('Failed to save tag changes');
+        }
+
+        // Replace temp ids with the real ones so re-opening the picker is consistent.
+        if (createdIdByTempId.size > 0) {
+          setEntityTags((current) =>
+            current.map((t) => createdIdByTempId.get(t.id) ?? t),
+          );
+        }
+      } catch (e) {
+        // Revert optimistic tag state and surface the failure.
+        setEntityTags(prevTags);
+        toast.error(e instanceof Error ? e.message : 'Failed to save tags');
+      }
+    },
+    [entityTags, companyId, createTag, addEntityTag, removeEntityTag],
+  );
 
   const handleBack = useCallback(() => {
     if (onBack) {
@@ -166,23 +189,6 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
         <p className="mb-6 max-w-sm text-sm text-muted-foreground">{error}</p>
         <Button variant="outline" onClick={loadData}>
           Try Again
-        </Button>
-      </div>
-    );
-  }
-
-  if (!company) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="mb-4 text-muted-foreground">
-          <IconBuilding size={48} stroke={1.5} />
-        </div>
-        <h3 className="mb-1 text-lg font-semibold">Company not found</h3>
-        <p className="mb-6 max-w-sm text-sm text-muted-foreground">
-          The company you are looking for does not exist or has been deleted.
-        </p>
-        <Button variant="outline" onClick={handleBack}>
-          Back to Companies
         </Button>
       </div>
     );
@@ -298,6 +304,10 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
       >
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="activity">
+            <IconActivity className="size-4" />
+            Activity
+          </TabsTrigger>
           <TabsTrigger value="contacts">
             Contacts
             {linkedContacts.length > 0 && (
@@ -416,6 +426,21 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Activity Tab */}
+        <TabsContent value="activity" className="pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="inline-flex items-center gap-2 text-base">
+                <IconActivity className="size-4" />
+                Activity History
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ActivityTimeline activities={activities} maxHeight="480px" />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Contacts Tab */}

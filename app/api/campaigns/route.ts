@@ -4,10 +4,7 @@ import { campaignService } from '@/services/campaign.service';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
 import { corsHeaders } from '@/lib/cors';
-import type {
-  EmailSequence,
-  CampaignStatus,
-} from '@/types/campaign.types';
+import type { EmailSequence } from '@/types/campaign.types';
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -35,16 +32,15 @@ type CreateResponse = CreateSuccess | ErrorResponse;
 
 // ── Validation ────────────────────────────────────────────────
 
-const VALID_STATUSES: CampaignStatus[] = [
-  'draft',
-  'active',
-  'paused',
-  'completed',
-];
-
+/**
+ * Create-payload validation. Sequences are always created as drafts —
+ * an 'active'/'paused'/'completed' status on create would bypass the
+ * scheduler's recipient queueing entirely. Activation goes through
+ * POST /api/campaigns/activate.
+ */
 function validateSequenceBody(
   body: Record<string, unknown>,
-): { name: string; description: string; status: CampaignStatus } | string {
+): { name: string; description: string; status: 'draft' } | string {
   const name = body.name;
   if (!name || typeof name !== 'string' || !name.trim()) {
     return 'Name is required';
@@ -53,15 +49,11 @@ function validateSequenceBody(
   const description =
     typeof body.description === 'string' ? body.description.trim() : '';
 
-  let status: CampaignStatus = 'draft';
-  if (body.status !== undefined) {
-    if (!VALID_STATUSES.includes(body.status as CampaignStatus)) {
-      return `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}`;
-    }
-    status = body.status as CampaignStatus;
+  if (body.status !== undefined && body.status !== 'draft') {
+    return 'New sequences must be created in draft status. Activate a campaign through POST /api/campaigns/activate once it has recipients queued.';
   }
 
-  return { name: name.trim(), description, status };
+  return { name: name.trim(), description, status: 'draft' };
 }
 
 // ── Route Handlers ────────────────────────────────────────────

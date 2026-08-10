@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { IconArrowLeft, IconEdit } from '@tabler/icons-react';
 import type { Contact } from '@/types/contact.types';
-import { contactService } from '@/services/contact.service';
+import { useContacts } from '@/hooks/useContacts';
 import { ContactDetail } from '@/components/contacts/ContactDetail';
 import { ContactCreateForm } from '@/components/contacts/ContactCreateForm';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
@@ -18,16 +18,18 @@ export default function ContactDetailPage() {
   const contactId = typeof rawId === 'string' ? rawId : '';
   if (!contactId) throw new Error('Invalid contact ID');
 
+  const { getById: getContactById } = useContacts();
   const [contact, setContact] = useState<Contact | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  // Single loader — shared by mount effect, retry, and post-edit refresh.
   const loadContact = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const found = await contactService.getById(contactId);
+      const found = await getContactById(contactId);
       if (found) {
         setContact(found);
       } else {
@@ -38,27 +40,11 @@ export default function ContactDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [contactId]);
+  }, [contactId, getContactById]);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await contactService.getById(contactId);
-        if (cancelled) return;
-        if (data) {
-          setContact(data);
-        } else {
-          setError('Contact not found');
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load contact');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [contactId]);
+    loadContact();
+  }, [loadContact]);
 
   const handleBack = useCallback(() => {
     router.push('/contacts');
@@ -140,8 +126,9 @@ export default function ContactDetailPage() {
         </Button>
       </div>
 
-      {/* Contact Detail Component */}
-      <ContactDetail contactId={contactId} onBack={handleBack} />
+      {/* Contact Detail Component — contact entity lifted to the page so edits
+          re-render the detail without a stale fetch. */}
+      <ContactDetail contactId={contactId} contact={contact} onBack={handleBack} />
 
       {/* Edit Dialog */}
       <ContactCreateForm

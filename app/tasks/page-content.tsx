@@ -14,17 +14,25 @@ import { ExportDropdown } from '@/components/common/ExportDropdown';
 import { ImportDialog } from '@/components/common/ImportDialog';
 import { PermissionGuard } from '@/components/teams/PermissionGuard';
 import { useCsvExport } from '@/hooks/useCsvExport';
+import type { Task } from '@/types/task.types';
 
 export default function TasksPage() {
   const { tasks, loading, error, refresh } = useTasks();
   const [createOpen, setCreateOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | undefined>(undefined);
   const { exportEntity, isExporting } = useCsvExport();
 
   const handleCreateSuccess = useCallback(() => {
     refresh();
     setCreateOpen(false);
+    setEditingTask(undefined);
   }, [refresh]);
+
+  const handleEditTask = useCallback((task: Task) => {
+    setEditingTask(task);
+    setCreateOpen(true);
+  }, []);
 
   // Loading state — initial data fetch
   if (loading && tasks.length === 0) {
@@ -91,8 +99,12 @@ export default function TasksPage() {
         />
         <TaskCreateForm
           open={createOpen}
-          onOpenChange={setCreateOpen}
+          onOpenChange={(open) => {
+            setCreateOpen(open);
+            if (!open) setEditingTask(undefined);
+          }}
           onSuccess={handleCreateSuccess}
+          editTask={editingTask}
         />
       </div>
     );
@@ -129,13 +141,17 @@ export default function TasksPage() {
       </PageHeader>
 
       {/* Task list with filter tabs */}
-      <TaskList />
+      <TaskList onEditTask={handleEditTask} />
 
-      {/* Create task dialog */}
+      {/* Create/edit task dialog */}
       <TaskCreateForm
         open={createOpen}
-        onOpenChange={setCreateOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) setEditingTask(undefined);
+        }}
         onSuccess={handleCreateSuccess}
+        editTask={editingTask}
       />
       <ImportDialog
         open={importDialogOpen}

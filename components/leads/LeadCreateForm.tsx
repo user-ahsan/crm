@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { Lead, LeadFormData, LeadStatus, LeadPriority, LeadSource } from '@/types/lead.types';
 import {
   Dialog,
@@ -71,6 +71,17 @@ export function LeadCreateForm({ open, onOpenChange, onSuccess, editLead }: Lead
   const tagInputRef = useRef<HTMLInputElement>(null);
 
   const isEditMode = !!editLead;
+
+  // Disable submit until required fields are filled and there are no field errors.
+  const isFormValid = useMemo(() => {
+    if (submitting) return false;
+    return (
+      validateLeadForm(formData).isValid &&
+      !!formData.source &&
+      !!formData.status &&
+      !!formData.priority
+    );
+  }, [formData, submitting]);
 
   // Reset form when dialog opens/closes or editLead changes
   useEffect(() => {
@@ -514,7 +525,15 @@ export function LeadCreateForm({ open, onOpenChange, onSuccess, editLead }: Lead
           >
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={submitting}>
+          <Button
+            onClick={handleSubmit}
+            disabled={submitting || !isFormValid}
+            title={
+              !submitting && !isFormValid
+                ? 'Fill in all required fields to save this lead'
+                : undefined
+            }
+          >
             {submitting && <IconLoader2 className="mr-2 size-4 animate-spin" />}
             {submitting ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Lead'}
           </Button>

@@ -15,7 +15,8 @@ import { USERS } from '@/data/mock-users';
 import { PIPELINE_STAGES, LEAD_PRIORITIES } from '@/lib/constants';
 import { STATUS_COLORS } from '@/lib/color-tokens';
 import { buildPipeline } from '@/modules/pipeline/pipelineUtils';
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrency, formatMultiCurrencyTotals } from '@/lib/formatters';
+import { getUserName } from '@/lib/user-utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -148,7 +149,7 @@ export function SwimlaneBoard({
             <span className="text-xs text-muted-foreground ml-auto">
               {type === 'leads'
                 ? formatCurrency((lane.leads ?? []).reduce((s, l) => s + l.estimatedValue, 0))
-                : formatCurrency((lane.deals ?? []).reduce((s, d) => s + d.value, 0))}
+                : formatMultiCurrencyTotals((lane.deals ?? []).map((d) => ({ value: d.value, currency: d.currency })))}
             </span>
           </div>
 
@@ -319,8 +320,7 @@ function buildLeadLanes(leads: Lead[], groupBy: SwimlaneGroup): Lane[] {
     }
     const lanes: Lane[] = [];
     for (const [id, groupLeads] of assigneeMap) {
-      const user = USERS.find((u) => u.id === id);
-      lanes.push({ id, label: user?.name ?? id, leads: groupLeads });
+      lanes.push({ id, label: getUserName(id, 'Unassigned'), leads: groupLeads });
     }
     if (unassigned.length > 0) {
       lanes.push({ id: 'unassigned', label: 'Unassigned', leads: unassigned });
@@ -376,8 +376,7 @@ function buildDealLanes(deals: Deal[], groupBy: SwimlaneGroup): Lane[] {
     }
     const lanes: Lane[] = [];
     for (const [id, groupDeals] of assigneeMap) {
-      const user = USERS.find((u) => u.id === id);
-      lanes.push({ id, label: user?.name ?? id, deals: groupDeals });
+      lanes.push({ id, label: getUserName(id, 'Unassigned'), deals: groupDeals });
     }
     if (unassigned.length > 0) {
       lanes.push({ id: 'unassigned', label: 'Unassigned', deals: unassigned });

@@ -1,6 +1,6 @@
 # NexusCRM — What Actually Exists
 
-Next.js 16 + Supabase + shadcn/ui. Real auth, real database, zero mock data in production code.
+Next.js 16 + Supabase + shadcn/ui. Real auth, real database, mock fallback mode available.
 
 ---
 
@@ -73,12 +73,12 @@ Next.js 16 + Supabase + shadcn/ui. Real auth, real database, zero mock data in p
 
 | Feature | What works | What's missing |
 |---------|-----------|----------------|
-| **Email Sequences** | Create sequences with multiple campaign emails and delay days. Full CRUD. Process endpoint at `/api/campaigns/cron/process`. | No deployed cron trigger. Must connect endpoint to a cron job service. |
+| **Email Sequences** | Create sequences with multiple campaign emails and delay days. Full CRUD. Process endpoint at `/api/campaigns/cron/process`. | Vercel Cron at `*/5 * * * *` triggers processing. |
 | **Workflow Builder** | Visual drag-and-drop editor (WorkflowEditor). Form-based CRUD with optimistic updates. Custom states and transitions. | Custom states don't change the kanban renderer (states are stored but kanban uses hardcoded stages). |
 | **Calendar Sync** | Connect/disconnect/toggle sync works. Full OAuth flow code exists (auth URL, token exchange, token encryption, event CRUD, sync to DB). | google-auth-library has type version conflicts (file uses @ts-nocheck). No background job for auto-sync. |
 | **Portal Auth** | Portal user CRUD. Auth API routes (login, register, reset-password) with bcrypt. Migration script to Supabase Auth exists. | Custom bcrypt auth is deprecated. Needs migration to Supabase Auth for production. |
 | **Invoices** | Full CRUD, PDF download, status management, detail view with edit capability. | No standalone creation (must come from quote). Some edit actions on detail view. |
-| **Campaign Scheduler** | Full campaign scheduler engine (`campaign-scheduler.service.ts`). Cron process endpoint ready. | No deployed cron trigger. Must connect to cron job service. |
+| **Campaign Scheduler** | Full campaign scheduler engine (`campaign-scheduler.service.ts`). Cron process endpoint ready. | Vercel Cron at `*/5 * * * *` triggers `/api/campaigns/cron/process`. |
 | **Real-time Notifications** | Supabase Realtime channel setup for live updates. useRealtimeNotifications hook. Presence tracking. Polling fallback (2min). | Realtime subscriptions need Supabase Realtime enabled. No WebSocket push fallback if channel fails. |
 
 ---
@@ -94,4 +94,4 @@ Next.js 16 + Supabase + shadcn/ui. Real auth, real database, zero mock data in p
 
 ---
 
-**31 routes · 7 migrations · 32 tables · ~420 source files · 97 components · 35 hooks · 29 services · Build: ✅ · TypeScript: ✅ · Lint: ✅**
+**33 API routes · 14 migrations · 46 tables · ~420 source files · 97 components · 39 hooks · 29 services · Build: ✅ · TypeScript: ✅ · Lint: ✅**

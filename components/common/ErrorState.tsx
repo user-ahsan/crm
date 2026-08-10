@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ interface ErrorStateProps {
   className?: string;
 }
 
-export function ErrorState({
+export const ErrorState = memo(function ErrorState({
   title = 'Something went wrong',
   message = 'An unexpected error occurred. Please try again later.',
   onRetry,
@@ -36,6 +37,6 @@ export function ErrorState({
       )}
     </div>
   );
-}
+});
 
 export default ErrorState;

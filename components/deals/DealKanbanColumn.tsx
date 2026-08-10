@@ -40,7 +40,9 @@ export function DealKanbanColumn({ stage, deals, totalValue, count, onDrop, onDe
       e.preventDefault();
       setIsDragOver(false);
       const dealId = e.dataTransfer.getData('text/plain');
-      if (dealId && stage.id !== 'unassigned') {
+      if (dealId) {
+        // Pass the stage id through — 'unassigned' signals a stage clear,
+        // which the parent handler translates to ''.
         onDrop(dealId, stage.id);
       }
     },
@@ -76,7 +78,9 @@ export function DealKanbanColumn({ stage, deals, totalValue, count, onDrop, onDe
             </Badge>
           </div>
           <span className="text-xs font-medium text-muted-foreground flex-shrink-0">
-            {formatCurrency(totalValue)}
+            {deals.length > 0
+              ? formatCurrency(totalValue, deals[0].currency)
+              : formatCurrency(totalValue)}
           </span>
         </div>
       </CardHeader>

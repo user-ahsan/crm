@@ -40,10 +40,13 @@ export async function getCachedUser(): Promise<User | null> {
       _cachedUser = data?.user ?? null;
       _cachedUserLoaded = true;
       return _cachedUser;
-    } catch {
-      _cachedUser = null;
-      _cachedUserLoaded = true;
-      return null;
+    } catch (e) {
+      // Transient failure — do NOT cache it as "signed out". Leave
+      // `_cachedUserLoaded` false so the next caller retries, and rethrow
+      // so callers can surface the error instead of treating the failure
+      // as a genuine signed-out state (a network blip must not log the
+      // user out or permanently null the cache).
+      throw e;
     } finally {
       _fetchPromise = null;
     }
